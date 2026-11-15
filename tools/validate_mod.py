@@ -300,6 +300,16 @@ def check_scripts():
             ok("importScript" in open(loader, encoding="utf-8").read(),
                "%s song script does not import the shared behaviour" % song["id"])
 
+    # Cheap syntax safety net for every HScript file (no engine needed).
+    for path in walk(".hx"):
+        src = open(path, encoding="utf-8").read()
+        stripped = re.sub(r"//[^\n]*", "", src)
+        stripped = re.sub(r"/\*.*?\*/", "", stripped, flags=re.S)
+        stripped = re.sub(r'"(?:\\.|[^"\\])*"', '""', stripped)
+        for open_ch, close_ch in (("{", "}"), ("(", ")"), ("[", "]")):
+            ok(stripped.count(open_ch) == stripped.count(close_ch),
+               "%s: unbalanced %r / %r" % (rel(path), open_ch, close_ch))
+
     # Character XML extensions must point at a real script.
     for char in ("trollge", "trollge_scary"):
         path = os.path.join(MOD, "data", "characters", char + ".xml")
