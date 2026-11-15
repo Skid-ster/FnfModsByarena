@@ -60,6 +60,18 @@ feat(song3): denser final section
 
 ## Changing the music
 
+* **The melody lives in `tools/phrases.py`, not in the renderer.** Each phrase is a block of text where one line is a
+  bar of sixteen 16th steps: a number is a semitone above the song's tonic (`12` is the octave, `15` the minor third
+  above it), `.` is a rest and `-` ties the previous note. `song_layout.py` parses it (rejecting a phrase that is not a
+  whole number of bars), maps each note onto an arrow lane and lays the phrases out over `song["form"]`. Write the
+  music there; never hand-edit a chart or an `Inst.ogg`.
+* **`form` decides the arrangement.** One entry per chart block names the phrase it sings (and optionally a starting
+  bar inside it, e.g. `("verse_b", 2)`). The opponent sings the antecedents (`verse_a`, `chorus_a`), the player the
+  consequents (`verse_b`, `chorus_b`), and every fourth exchange inverts the player's phrase. A block that names a
+  phrase longer than itself plays a window of it; a block that names a shorter one repeats it.
+* **Lanes vs pitches.** A phrase note carries both: `lane` is the arrow the player hits (the note's degree class --
+  tonic, flat third, fifth, flat seventh) and `semi` is the pitch the singer sings. That is why the chart can stay
+  playable while the tune steps and leaps: `note_pitch()` sings `semi`, and the chart only needs the lane.
 * **Arrangement** is by section role, not by hand: `section_roles()` in `tools/song_layout.py` labels every phrase
   block (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and rhythm cell, and `ROLE_GAIN`
   sets how hard each role pushes. The chart writer reads the same list, so a `break` block drops its drums *and*
@@ -81,7 +93,18 @@ feat(song3): denser final section
   `render_song()`. Add a style, not a special case.
 * **Mix balance** lives in the pan table near the end of `render_song()` (stem -> left/right gains), the master EQ
   breakpoints and the loudness target `TARGET_RMS`. Change them and `tools/audit_songs.py` tells you what it did to
-  the spectrum, width and dynamics — it is the same script CI runs with `--strict`.
+  the spectrum, width and dynamics — it is the same script CI runs with `--strict`. The master EQ thins 1–4 kHz on
+  purpose: that is the vocal formant band, and the instrumental leaves it to `Voices.ogg`.
+* **Voices are formant voices, not buzzers.** `voice_note()` in `tools/make_audio.py` builds a glottal source with a
+  spectral tilt, a pitch scoop, vibrato that grows through the note, and a parallel bank of resonances from `VOWELS`
+  (`ah`/`oh`/`ee`/`oo`, first two formants decide the vowel). Boyfriend shifts the formants up and sings bright vowels;
+  the Trollge shifts them down, adds sub-harmonic weight and a controlled saturation. If you change a formant, measure
+  the vowel again: filter white noise through `lib_dsp.formant_bank()` and check the energy sits in the right band
+  (e.g. `ee` should peak at 2.2–3 kHz, `oo` below 1 kHz).
+* **Drums are tuned and warm.** Kicks are a 90 → 55 Hz pitch envelope with a smooth amplitude attack (no click, no
+  drive by default); snares carry a tuned 180–220 Hz body under band-limited noise and get their tail from the plate in
+  the mix; hats are soft-filtered noise with a shelf instead of a hard 6.5 kHz highpass. Harsh 3–8 kHz content is what
+  makes a synth mix tiring — check `bandpass()` energy there before shipping a new voice.
 * **Scare tier = production tier.** `tier_for()` maps the 0-10 scare rating onto a 1-5 production tier, and the tier
   decides how many horror layers sit under the mix (dread drone → tape hiss → whisper swells → breathing tritone →
   heartbeat + whispers + choir) and how hard the camera works.

@@ -21,12 +21,20 @@ Strum ids: 0 = LEFT, 1 = DOWN, 2 = UP, 3 = RIGHT.
 """
 
 import math
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from phrases import PHRASES, SCALES  # noqa: E402  (the music, not the code)
 
 LEFT, DOWN, UP, RIGHT = 0, 1, 2, 3
 
-SCALE = [0, 2, 3, 5, 7, 8, 11]      # natural minor
-HARMONIC = [0, 2, 3, 5, 7, 8, 11]   # same degrees, the leading tone lives in the chords
-ID_TO_DEGREE = {LEFT: 0, DOWN: 2, UP: 4, RIGHT: 6}
+#: Degrees (in the song's scale) each arrow lane is allowed to sound: tonic,
+#: flat third, fifth, flat seventh. The lane is the degree *class*, so a phrase
+#: may sing any octave of those four degrees while the four arrows keep one
+#: identity for the whole song. `note_pitch()` turns lane + octave into MIDI.
+LANE_CLASS = (0, 2, 4, 6)
 
 
 # --------------------------------------------------------------------------- #
@@ -85,10 +93,12 @@ SONGS = [
         "scroll": 1.60,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [HALF, HALF, QUARTERS, HALF],
-        # the hook: the four-lane figure this song is built on. The audio
-        # renders these lanes as pitches, so the chart follows the melody.
-        "hooks": [[0, 2, 1, 3], [3, 1, 2, 0]],
-        # In-song captions: the story keeps happening while you play.
+        # Form: one phrase per chart block, laid out by `sections()`. The
+        # opponent sings the antecedent of each pair, the player the consequent;
+        # the chorus is the 8-bar hook you should be able to hum.
+        "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
+                 "verse_c", "verse_d", "chorus_a", "chorus_b", "verse_a",
+                 "build", "chorus_a", "break", "verse_d", "finale", "finale"],
         "captions": [
             (14.0, "he isn't even trying"),
             (46.0, "that is the scary part"),
@@ -144,9 +154,10 @@ SONGS = [
         "scroll": 1.85,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 2, 2, 4, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [CLAP, HALF, QUARTERS, HALF],
-        # the hook: the four-lane figure this song is built on. The audio
-        # renders these lanes as pitches, so the chart follows the melody.
-        "hooks": [[0, 1, 0, 2], [3, 2, 1, 2]],
+        "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
+                 "verse_a", "verse_b", "verse_c", "verse_d", "break",
+                 "break", "chorus_a", "chorus_b", "verse_c", "build",
+                 "verse_d", "break", "chorus_a", "finale", "finale"],
         "captions": [
             (18.0, "the lights are going out"),
             (52.0, "eyes on the arrows"),
@@ -205,9 +216,10 @@ SONGS = [
         "scroll": 2.05,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [QUARTERS, QUARTERS, QUARTERS_SYNC, TRAP],
-        # the hook: the four-lane figure this song is built on. The audio
-        # renders these lanes as pitches, so the chart follows the melody.
-        "hooks": [[0, 3, 1, 3], [2, 3, 0, 2]],
+        "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
+                 "verse_a", ("verse_c", 2), "verse_d", "chorus_a", "break",
+                 "break", "verse_b", "chorus_b", "verse_c", "build",
+                 "verse_d", "break", "chorus_a", "finale", "finale"],
         "captions": [
             (16.0, "don't look back"),
             (48.0, "you looked"),
@@ -271,9 +283,10 @@ SONGS = [
         "scroll": 2.25,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [QUARTERS, TRAP, DRIVE, QUARTERS],
-        # the hook: the four-lane figure this song is built on. The audio
-        # renders these lanes as pitches, so the chart follows the melody.
-        "hooks": [[0, 2, 3, 1], [3, 1, 0, 2]],
+        "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
+                 "verse_a", "verse_c", "verse_b", "chorus_a", "break",
+                 "break", "verse_b", "chorus_b", "verse_c", "build",
+                 "verse_d", "break", "chorus_a", "finale", "finale"],
         "captions": [
             (20.0, "this is what he really looks like"),
             (56.0, "it stopped being a mask"),
@@ -339,9 +352,12 @@ SONGS = [
         "scroll": 2.45,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 4, 2, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [TRAP, DRIVE, SKITTER, QUARTERS],
-        # the hook: the four-lane figure this song is built on. The audio
-        # renders these lanes as pitches, so the chart follows the melody.
-        "hooks": [[0, 1, 3, 2], [2, 0, 1, 3]],
+        "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
+                 "verse_a", "verse_b", "verse_c", "verse_d", "chorus_a",
+                 "chorus_b", "verse_c", "verse_d", "break", "break",
+                 "chorus_a", "chorus_b", "verse_d", "chorus_a", "chorus_b",
+                 "verse_b", "break", "break", "chorus_a", ("chorus_b", 2),
+                 "finale", "finale", "verse_d"],
         "captions": [
             (12.0, "this is where it started"),
             (40.0, "nobody came"),
@@ -486,24 +502,6 @@ def _prepare(song):
     return song
 
 
-#: Arrow shapes per phrase block -- keeps the riff moving instead of looping one
-#: 16-note cell for two minutes.
-SHAPES = [
-    "0123321001233210",
-    "0123012332103210",
-    "3210321012301230",
-    "0120212021021201",
-    "0123012301230123",
-    "3021302130213021",
-    "1203120312031203",
-    "2103210321032103",
-    "0321032103210321",
-    "0123012332103210",
-    "1230123012301230",
-    "3012301230123012",
-]
-
-
 #: How hard each part of the arrangement pushes, by section role.
 ROLE_GAIN = {
     "intro": 0.10,
@@ -551,51 +549,202 @@ def side_for_block(index):
     return "opponent" if index % 2 == 0 else "player"
 
 
+# ---- melody --------------------------------------------------------------- #
+
+#: Semitone offsets of each song's scale, wrapping upwards for two octaves.
+def scale_steps(song):
+    return [SCALES[song["id"]][i % len(SCALES[song["id"]])]
+            + 12 * (i // len(SCALES[song["id"]]))
+            for i in range(len(SCALES[song["id"]]) * 3)]
+
+
+def degree_to_semitones(song, degree):
+    """Scale position (may be negative or above the octave) -> semitones."""
+    scale = SCALES[song["id"]]
+    octave, index = divmod(degree, len(scale))
+    return scale[index] + 12 * octave
+
+
+def semitones_to_degree(song, semitones):
+    """Nearest scale position for a semitone offset (octave-preserving)."""
+    scale = SCALES[song["id"]]
+    size = len(scale)
+    octave, rest = divmod(semitones, 12)
+    index = min(range(size), key=lambda i: abs(scale[i] - rest))
+    if abs(scale[index] - rest) > 2:
+        raise ValueError("%d semitones is not in %s" % (semitones, song["id"]))
+    return octave * size + index
+
+
+def _parse_phrase(song, text, name, bars):
+    """Parse one phrase written in the notation documented in `tools/phrases.py`.
+
+    Phrases are written in semitones above the tonic (12 = the octave, 15 = the
+    minor third above it); they are converted to scale positions here so the
+    lane rules below can talk about degrees."""
+    tokens = []
+    for line in text.strip().splitlines():
+        tokens.extend(line.replace("|", " ").split())
+    if len(tokens) != bars * 16:
+        raise ValueError("%s: %d bars need %d steps, the text has %d"
+                         % (name, bars, bars * 16, len(tokens)))
+    events, last = [], None
+    for index, token in enumerate(tokens):
+        if token == ".":
+            last = None
+            continue
+        if token == "-":
+            if last is None:
+                raise ValueError("%s: hold at step %d has no note before it" % (name, index))
+            step, semis, degree, hold = events[last]
+            events[last] = (step, semis, degree, hold + 1)
+            continue
+        semis = int(token)
+        events.append((index, semis, semitones_to_degree(song, semis), 1))
+        last = len(events) - 1
+    return events
+
+
+#: How many 16th steps two notes of one phrase must sit apart to be playable
+#: (four lanes, two hands: anything closer than an 8th is a jack in disguise).
+MIN_GAP_STEPS = 2
+
+
+def _lanes_for_phrase(song, events):
+    """A phrase's scale degrees -> arrow lanes plus the octave each note sings.
+
+    The lane is the note's degree *class* modulo the scale size, so a phrase that
+    walks up keeps its four lanes and a phrase that leaps an octave lands on the
+    same lane again. Two rules keep the result chartable:
+
+      * a note may not reuse the previous lane inside `MIN_GAP_STEPS` steps (an
+        octave leap over one arrow is the one thing a chart cannot express), so
+        it takes the nearest free lane and keeps its register,
+      * notes that are not lane degrees (the second, the sixth) take the nearest
+        lane, which is what a singer does on the way past them.
+    """
+    size = len(SCALES[song["id"]])
+    lane_size = len(LANE_CLASS)
+    out = []
+    last_lane, last_step = None, -99
+    for step, semis, degree, hold in events:
+        target = degree % size
+        distances = []
+        for lane, klass in enumerate(LANE_CLASS):
+            gap = min(abs(target - klass), size - abs(target - klass))
+            distances.append((gap, lane))
+        distances.sort()
+        lane = distances[0][1]
+        if lane == last_lane and step - last_step < MIN_GAP_STEPS:
+            lane = distances[1][1]
+        # The lane is what the player hits; the semitone is what the singer
+        # sings. Keeping both means a phrase can walk by step (two lanes apart
+        # is still a second in the audio) while the chart stays playable.
+        out.append({"step": step, "lane": lane, "semi": semis,
+                    "sustain_steps": hold - 1})
+        last_lane, last_step = lane, step
+    return out
+
+
+def phrases(song):
+    """Parsed phrase library for one song: {name: {bars, notes}}."""
+    if "_phrases" in song:
+        return song["_phrases"]
+    library = {}
+    for name, text in PHRASES[song["id"]].items():
+        bars = len([line for line in text.strip().splitlines() if line.strip()])
+        library[name] = {"bars": bars,
+                         "notes": _lanes_for_phrase(song, _parse_phrase(
+                             song, text, "%s/%s" % (song["id"], name), bars))}
+    song["_phrases"] = library
+    return library
+
+
+def _block_phrase(song, block_index, bars):
+    """Which phrase (and which window of it) one phrase block sings.
+
+    `song["form"]` names the phrase per block; `offset` picks the starting bar
+    inside it. A 4-bar block that names a 2-bar phrase plays it twice, which is
+    how the call in a call-and-response gets its repeat without a second
+    transcription.
+    """
+    form = song["form"][block_index] if block_index < len(song["form"]) else "verse_a"
+    if isinstance(form, tuple):
+        name, offset = form
+    else:
+        name, offset = form, 0
+    library = phrases(song)
+    entry = library[name]
+    return name, entry, offset % entry["bars"]
+
+
 def sections(song):
+    """Lay the song's phrases out over its phrase blocks.
+
+    Every block belongs to one side (the opponent opens, then they trade) and
+    sings a whole phrase; where the phrase is shorter than the block it repeats,
+    and every fourth exchange the player's phrase comes back inverted -- the
+    call-and-response rule this chart has always followed, now applied to real
+    8- and 16-bar material instead of a four-note cell.
+    """
     _prepare(song)
     out = []
-    cells = song["cells"]
     roles = section_roles(song)
-    call, answer = song["hooks"][0], song["hooks"][1]
     for i, (bars, start) in enumerate(zip(song["section_measures"], song["_block_starts"])):
-        # A breakdown is sparse in the chart exactly where the drums drop out.
-        cell = CELLS[HALF if roles[i] == "break" else cells[i % len(cells)]]
+        name, entry, window = _block_phrase(song, i, bars)
         side = side_for_block(i)
-        hook = call if side == "opponent" else answer
-        # Every fourth exchange the answer comes back inverted: call/response,
-        # not a loop. The chords move underneath, so the melody never repeats
-        # at the same pitch twice.
-        if side == "player" and (i // 2) % 4 == 3:
-            hook = [3 - note for note in hook]
-        count = bars * len(cell)
+        invert = side == "player" and (i // 2) % 4 == 3
+        source = entry["notes"]
+        length = entry["bars"] * 16
+
         notes = []
         for bar in range(bars):
-            for k, offset in enumerate(cell):
-                index = bar * len(cell) + k
-                nid = hook[index % len(hook)]
-                if index == count - 1:
-                    nid = 0              # every phrase lands on the root
-                notes.append(
-                    {
-                        "id": nid,
-                        "side": side,
-                        "time": measure_time(song, start + bar) + offset * step(song) * 1000.0,
-                        "measure": start + bar,
-                        "offset": offset,
-                    }
-                )
-        out.append(
-            {
-                "index": i,
-                "name": song["section_names"][i % len(song["section_names"])],
-                "time": measure_time(song, start),
-                "measures": bars,
-                "role": roles[i],
-                "side": side,
-                "mustHitSection": side == "player",
-                "notes": notes,
-            }
-        )
+            phrase_bar = (window + bar) % entry["bars"]
+            for note in source:
+                phrase_step = note["step"]
+                if not (phrase_bar * 16 <= phrase_step < (phrase_bar + 1) * 16):
+                    continue
+                lane = note["lane"]
+                if invert:
+                    lane = 3 - lane
+                semi = note["semi"]
+                # The build and the last act sit an octave up: same lanes, new
+                # register, so the tune goes somewhere instead of looping.
+                if roles[i] in ("build", "finale") and bar >= bars - 1:
+                    semi += 12
+                notes.append({
+                    "id": lane,
+                    "semi": semi,
+                    "side": side,
+                    "time": measure_time(song, start + bar) + (phrase_step % 16) * step(song) * 1000.0,
+                    "measure": start + bar,
+                    "offset": phrase_step % 16,
+                    "sLen": note["sustain_steps"] * step(song) * 1000.0,
+                    "phrase": name,
+                })
+        notes.sort(key=lambda n: (n["time"], n["id"]))
+        # De-duplicate: a repeated lane that survived the phrase rules (easy
+        # filters, inversion) is dropped rather than stacked.
+        cleaned, last_time = [], {}
+        for note in notes:
+            key = round(note["time"], 3)
+            if key in last_time:
+                continue
+            last_time[key] = note
+            cleaned.append(note)
+        notes = cleaned
+
+        out.append({
+            "index": i,
+            "name": song["section_names"][i % len(song["section_names"])],
+            "time": measure_time(song, start),
+            "measures": bars,
+            "role": roles[i],
+            "side": side,
+            "mustHitSection": side == "player",
+            "phrase": name,
+            "notes": notes,
+        })
     return out
 
 
@@ -603,13 +752,24 @@ def sections(song):
 DIFFICULTIES = ("easy", "normal", "hard")
 
 #: How many notes of a phrase block each difficulty keeps (0 = everything).
-#: Base-game charts sit at roughly 1 : 2 : 3 notes for easy : normal : hard.
-DIFFICULTY_STRIDE = {"easy": 2, "normal": 3, "hard": 1}
+#: Base-game charts sit at roughly 1 : 2 : 3 notes for easy : normal : hard,
+#: so a difficulty is a *stride* through the melody, never a different tune.
+#: Hard is the melody; normal keeps three of every four notes (a phrase thinned,
+#: never one missing a bar); easy keeps every second note.
+DIFFICULTY_STRIDE = {"easy": 2, "normal": 4, "hard": 1}
+
+#: The arrangement thins the early songs out and lets the later ones fill in:
+#: song 1 keeps one note in every `spacing` 16ths of a phrase, song 5 keeps them
+#: all. This is the "density climbs" axis of the ladder, expressed as musical
+#: space rather than as a different chart.
+TIER_SPACING = {2: 3, 4: 3, 6: 2, 8: 2, 10: 2}
 
 #: Scroll speed per difficulty, inside the base game's 1.2-2.6 range.
 DIFFICULTY_SCROLL = {"easy": -0.35, "normal": -0.15, "hard": 0.0}
 
-#: Sections that end on a held note (sustains make the chart breathe).
+#: A phrase block whose index is a multiple of this ends on a held note: the
+#: chart breathes where the music breathes, and the sustain is the phrase's own
+#: last note rather than an invented one.
 SUSTAIN_EVERY = 3
 SUSTAIN_MS_FACTOR = 2.0
 
@@ -620,28 +780,54 @@ def _keep(index, stride):
         return True
     if stride == 2:
         return index % 2 == 0
-    return index % 3 != 2
+    return index % stride != stride - 1       # drop one note in `stride`
+
+
+#: Two notes of one side may never be closer than this many 16th steps: an 8th
+#: note is the shortest interval a four-lane chart reads as a melody rather than
+#: a burst. The phrases are written to respect it, so this only trims what a
+#: sustained note or an inversion collides.
+MIN_SPACING_STEPS = 2
+
+
+def _thin(notes, spacing=MIN_SPACING_STEPS):
+    """Drop notes that would stack closer than `spacing` 16th steps apart."""
+    kept = []
+    for note in notes:
+        if kept:
+            prev = kept[-1]
+            gap = (note["measure"] - prev["measure"]) * 16 + note["offset"] - prev["offset"]
+            if 0 <= gap < spacing:
+                continue
+        kept.append(note)
+    return kept or list(notes[:1])
 
 
 def notes(song, difficulty="hard"):
     """Every note of `difficulty`, in time order.
 
-    The audio renderer asks for "hard": the instrumental and the vocal track are
-    the full melody, and the easier charts are a subset of the same notes.
+    The audio renderer asks for "hard": the instrumental and both vocal tracks
+    are the full melody, and the easier charts are a strided subset of the same
+    notes, so the three difficulties can never disagree about timing.
     """
     if difficulty not in DIFFICULTY_STRIDE:
         raise ValueError("unknown difficulty %r" % (difficulty,))
     stride = DIFFICULTY_STRIDE[difficulty]
 
     secs = sections(song)
+    spacing = TIER_SPACING.get(song["scare"], 1)
     all_notes = []
-    for section in secs:
-        kept = [n for i, n in enumerate(section["notes"]) if _keep(i, stride)]
-        if not kept:
-            kept = [section["notes"][0]]
-        # A phrase always lands its last note: that is where the sustain lives.
-        if kept[-1] is not section["notes"][-1]:
-            kept.append(section["notes"][-1])
+    for i, section in enumerate(secs):
+        notes_here = section["notes"]
+        if spacing > 1:
+            notes_here = _thin(notes_here, spacing)
+        kept = _thin(notes_here) if spacing <= MIN_SPACING_STEPS else list(notes_here)
+        if stride > 1:
+            kept = [n for j, n in enumerate(kept) if _keep(j, stride)]
+            kept = _thin(kept) or kept[:1]
+        # A phrase always lands its last note: that is where the cadence is.
+        if notes_here and kept[-1] is not notes_here[-1]:
+            kept.append(notes_here[-1])
         section["kept"] = kept
         all_notes.extend(kept)
 
@@ -652,7 +838,14 @@ def notes(song, difficulty="hard"):
             if i % SUSTAIN_EVERY != SUSTAIN_EVERY - 1:
                 continue
             last = section["kept"][-1]
-            last["sLen"] = beat(song) * 1000.0 * SUSTAIN_MS_FACTOR
+            last["sLen"] = max(last.get("sLen", 0.0), beat(song) * 1000.0 * SUSTAIN_MS_FACTOR)
+
+    # Easy charts carry no sustains at all: a hold is a reading test on top of an
+    # already-thinned chart, and the base game's easy difficulty does not use them.
+    # The phrase's own ties still shorten the last note, so nothing overlaps.
+    if difficulty == "easy":
+        for n in all_notes:
+            n["sLen"] = 0.0
 
     # Finale hands: from `hands_from` onward the player also hits the opposite
     # lane on every beat, which is what pushes the last act to 10/10. Hard only:
@@ -670,6 +863,7 @@ def notes(song, difficulty="hard"):
                 if abs((n["time"] - measure_time(song, n["measure"])) % beats) > 1.0:
                     continue
                 extra.append({"id": (n["id"] + 2) % 4, "side": "player",
+                              "semi": n.get("semi"),
                               "time": n["time"], "measure": n["measure"], "sLen": 0.0})
         all_notes.extend(extra)
         all_notes.sort(key=lambda n: (n["time"], n["side"], n["id"]))
@@ -723,10 +917,35 @@ def chord_for_measure(song, index):
     return prog[index % len(prog)]
 
 
-def note_pitch(song, measure_index, strum_id, octave_shift=0):
-    root, _tones = chord_for_measure(song, measure_index)
-    degree = SCALE[ID_TO_DEGREE[strum_id] % len(SCALE)]
-    return song["tonic"] + root + degree + 12 * (1 + octave_shift)
+def note_pitch(song, measure_index, strum_id, octave_shift=0, octave=0, semi=None):
+    """MIDI pitch of one chart note.
+
+    The melody decides the octave (`note["octave"]`), so the same arrow can sing
+    in two registers and a phrase can leap an octave without changing lane. The
+    bar's chord decides the *harmony*: the note is moved onto the nearest chord
+    tone when the phrase's own degree is a clash, which is how the parts stay in
+    key while the progression moves underneath the tune.
+    """
+    root, tones = chord_for_measure(song, measure_index)
+    size = len(SCALES[song["id"]])
+    if semi is not None:
+        # The phrase said exactly which note it wants: sing that, one octave up
+        # from the tonic register the phrases are written in.
+        pitch = song["tonic"] + 12 + semi + 12 * octave_shift
+    else:
+        klass = LANE_CLASS[strum_id]
+        pitch = song["tonic"] + degree_to_semitones(
+            song, klass + size * (1 + octave + octave_shift))
+    # Land on the chord: keep the melody's register, move by at most a tone.
+    chord_pitches = [song["tonic"] + root + t for t in tones]
+    while max(chord_pitches) < pitch - 6:
+        chord_pitches = [p + 12 for p in chord_pitches]
+    while min(chord_pitches) > pitch + 6:
+        chord_pitches = [p - 12 for p in chord_pitches]
+    nearest = min(chord_pitches, key=lambda p: abs(p - pitch))
+    if abs(nearest - pitch) <= 1:
+        pitch = nearest
+    return int(round(pitch))
 
 
 # --------------------------------------------------------------------------- #

@@ -39,6 +39,7 @@ import random
 import sys
 import xml.etree.ElementTree as ET
 
+import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -56,12 +57,27 @@ FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 BG_W, BG_H = 1286, 730
 IDLE_H = 122
 SELECTED_H = 172
+#: The engine's own geometry: four slots, 160 px apart, first at y=60, in a
+#: 1280x720 frame. The button art keeps that geometry so `MainMenuState` can go
+#: on placing items where it always has.
+SLOT_TOP = 60
+SLOT_PITCH = 160
+PREVIEW_H = 720
 
-BONE = (238, 232, 236)
+#: Bone white for the selected item, ash for the idle ones. The contrast ratio
+#: between these two is what makes the cursor findable in a dark room.
+BONE = (242, 238, 240)
 BLOOD = (196, 16, 30)
-CONGEALED = (96, 8, 18)
+CONGEALED = (108, 10, 20)
 ASH = (150, 144, 154)
-INK = (10, 8, 12)
+DIM = (96, 92, 100)
+INK = (8, 6, 10)
+
+#: The four buttons step a little further right as they go down, and the
+#: selected one steps further still: a ragged stack reads as a composition,
+#: a centred list reads as a form.
+INDENT = [0, 18, 36, 54]
+SELECTED_BUMP = 22
 
 #: option -> label. The engine reads these from `config/menuItems.txt`; the mod
 #: keeps the base order so nothing about navigation changes.
@@ -91,6 +107,9 @@ def draw_tracked(draw, x, y, text, font, fill, tracking):
         x += font.getlength(ch) + tracking
 
 
+CONDENSE = 0.84      # horizontal squeeze: DejaVu is wide; a poster face is not
+
+
 def text_layer(label, font, tracking):
     """The label on its own transparent canvas, plus its ink box."""
     ascent, descent = font.getmetrics()
@@ -98,7 +117,22 @@ def text_layer(label, font, tracking):
     h = ascent + descent + 8
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw_tracked(ImageDraw.Draw(img), 4, 4, label, font, (255, 255, 255, 255), tracking)
-    return img
+    narrow = max(1, int(round(w * CONDENSE)))
+    return img.resize((narrow, h), Image.LANCZOS)
+
+
+def graded_fill(layer, top, bottom):
+    """Paint a vertical gradient through a glyph mask (bone fading to ash)."""
+    w, h = layer.size
+    column = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None]
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px = np.zeros((h, w, 4), dtype=np.uint8)
+    for i, (a, b) in enumerate(zip(top, bottom)):
+        px[:, :, i] = np.clip(a + (b - a) * column, 0, 255).astype(np.uint8)
+    px[:, :, 3] = 255
+    out = Image.fromarray(px, "RGBA")
+    out.putalpha(layer.getchannel("A"))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -166,11 +200,12 @@ def render_label(label, font, tracking, fill, seed, edge=None, drips_on=False, f
     ink = text_layer(label, font, tracking)
     w, h = ink.size
 
-    body = Image.new("RGBA", (w, h), fill + (0,))
-    body.putalpha(ink.getchannel("A"))
-    body.putalpha(chewed_alpha(ink, seed))
+    mask = chewed_alpha(ink, seed)
+    body = graded_fill(ink, fill, tuple(int(c * 0.62) for c in fill))
+    body.putalpha(mask)
 
     out = chroma(body, red=fringe, cyan=-fringe)
+    out.putalpha(out.getchannel("A").point(lambda v: int(v * 0.55)))
     out.alpha_composite(body)
 
     if edge:
@@ -218,18 +253,18 @@ def button_frames(option, label):
     """Idle + selected frames for one menu item, as (name, image) pairs."""
     frames = []
 
-    idle_font = ImageFont.truetype(FONT_BOLD, IDLE_H - 18)
-    sel_font = ImageFont.truetype(FONT_BOLD, SELECTED_H - 26)
+    idle_font = ImageFont.truetype(FONT_BOLD, IDLE_H - 40)
+    sel_font = ImageFont.truetype(FONT_BOLD, SELECTED_H - 48)
 
     for i in range(2):
         # Idle: ash-grey, chewed edges, faint fringing. Two near-identical frames
         # so the engine's 24 fps loop does not look frozen.
         flick = 0 if i == 0 else 7
-        w = int(math.ceil(tracked(label, idle_font, 3))) + 28
+        w = int(math.ceil(tracked(label, idle_font, 3) * CONDENSE)) + 28
         h = IDLE_H
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         base = tuple(min(255, c + flick) for c in ASH)
-        ink = render_label(label, idle_font, 3, base, seed=17 + i, edge=(8, 6, 10), fringe=1)
+        ink = render_label(label, idle_font, 3, base, seed=17 + i, edge=(6, 5, 8), fringe=1)
         # Drop shadow first, then the ink, so idle items sit *in* the backdrop.
         shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         shadow.alpha_composite(ink, (17, (h - ink.height) // 2 + 4))
@@ -243,11 +278,20 @@ def button_frames(option, label):
     for i in range(2):
         # Selected: bone, heavier fringe, blood off the descenders and a jagged
         # crimson slash underneath. Twice as loud as idle.
-        w = int(math.ceil(tracked(label, sel_font, 4))) + 52
+        w = int(math.ceil(tracked(label, sel_font, 4) * CONDENSE)) + 60
         h = SELECTED_H
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
 
-        ink = render_label(label, sel_font, 4, BONE, seed=41 + i, drips_on=True, fringe=3)
+        ink = render_label(label, sel_font, 4, BONE, seed=41 + i, drips_on=True, fringe=1)
+        # A one-pixel dark keyline: the difference between "bone type on a dark
+        # hallway" and "bone type that vanishes whenever the backdrop brightens".
+        key = ink.getchannel("A").filter(ImageFilter.MaxFilter(3))
+        dark = Image.new("RGBA", ink.size, (10, 6, 9, 255))
+        dark.putalpha(key.point(lambda v: int(v * 0.85)))
+        keyed = Image.new("RGBA", ink.size, (0, 0, 0, 0))
+        keyed.alpha_composite(dark)
+        keyed.alpha_composite(ink)
+        ink = keyed
         # Blood bloom behind the glyphs: the same ink, blurred, colourised.
         soft = ink.getchannel("A").filter(ImageFilter.GaussianBlur(7))
         tint = ImageOps.colorize(soft, black=(0, 0, 0), white=BLOOD).convert("RGBA")
@@ -307,90 +351,180 @@ def atlas_frame(path, prefix):
     raise SystemExit("no %r frame in %s.xml" % (prefix, path))
 
 
-def lurker(target_h):
-    """The Trollge, standing in the dark: silhouette plus the only lit pixels.
+def _ink(alpha, grey):
+    """The drawn *line*, as a mask.
 
-    The dark parts are flattened to almost nothing; whatever the sprite still
-    emits (eyes, mouth, the shine of the mask) survives as a dim red glow, so
-    the figure reads as *watching* rather than as a character standing around.
+    The Trollge atlases are black ink on a white card with an opaque alpha, so
+    the alpha channel is just a rectangle -- the drawing lives in the luminance.
+    Ink is therefore "dark pixels", which is the opposite of what the generic
+    sprite pipeline assumes.
+    """
+    ink = grey.point(lambda v: 255 if v < 140 else 0)
+    ink = ImageChops.multiply(ink, alpha.point(lambda v: 255 if v > 32 else 0))
+    # The atlases carry a thin black border around the card: left in, it grows
+    # into a rectangle that frames the figure like a portrait, which is exactly
+    # the artefact the first solid-mask attempt produced.
+    w, h = ink.size
+    inset = Image.new("L", ink.size, 0)
+    ImageDraw.Draw(inset).rectangle([4, 4, w - 5, h - 5], fill=255)
+    return ImageChops.multiply(ink, inset)
+
+
+def _fill_silhouette(alpha):
+    """Turn an outline sprite into a solid silhouette.
+
+    The Trollge art is drawn as strokes with a hollow interior, so using its
+    alpha directly as a silhouette gives a stick figure. This closes the stroke
+    gaps and then floods the enclosed areas: what comes back is the *body*.
+    """
+    binary = alpha.point(lambda v: 255 if v > 40 else 0)
+    binary = binary.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MinFilter(7))
+    # Flood the outside; whatever is still unreached and was not ink is interior.
+    outside = binary.copy()
+    ImageDraw.floodfill(outside, (0, 0), 128)
+    interior = outside.point(lambda v: 255 if v == 0 else 0)
+    return ImageChops.lighter(binary, interior)
+
+
+def lurker(target_h):
+    """The Trollge, standing in the dark.
+
+    Built from three passes so it reads as a *figure* and not a smudge:
+      1. a solid silhouette (`_fill_silhouette`), tinted nearly black -- the mass,
+      2. a rim light on the stroke edges, so the shape catches a cold light from
+         the doorway on the left,
+      3. the eyes and grin as the only emissive parts, bloomed.
     """
     frame = atlas_frame(os.path.join(CHARS, "Trollge_final"), "TrollgeF idle0000")
     w = int(frame.width * (target_h / frame.height))
     frame = frame.resize((w, target_h), Image.LANCZOS)
     alpha = frame.getchannel("A")
-
-    # Silhouette: keep the shape, throw away the light.
-    silhouette = Image.new("RGBA", frame.size, (3, 2, 5, 0))
-    silhouette.putalpha(alpha.point(lambda v: int(v * 0.97)))
-
-    # Emissive: brightest pixels only, tinted blood and bloomed.
     grey = frame.convert("L")
-    hot = grey.point(lambda v: 0 if v < 122 else min(255, (v - 122) * 3))
-    hot = ImageChops.multiply(hot, alpha)
-    eyes = Image.new("RGBA", frame.size, (0, 0, 0, 0))
-    eyes.putalpha(hot.point(lambda v: int(v * 0.82)))
-    tinted = Image.new("RGBA", frame.size, (206, 48, 42, 255))
-    tinted.putalpha(eyes.getchannel("A"))
-    bloom = Image.new("RGBA", frame.size, (150, 16, 24, 0))
-    bloom.putalpha(hot.filter(ImageFilter.GaussianBlur(11)).point(lambda v: int(v * 0.62)))
+    ink = _ink(alpha, grey)
+    body_mask = _fill_silhouette(ink)
 
     out = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    # 1. Mass: near-black with a hint of cold violet so it is not a hole.
+    mass = Image.new("RGBA", frame.size, (11, 9, 13, 255))
+    mass.putalpha(body_mask)
+    out.alpha_composite(mass)
+
+    # 2. Rim light: the ink strokes themselves, lifted to a cold grey-violet so
+    #    the drawing's own linework defines the shape.
+    rim = Image.new("RGBA", frame.size, (150, 104, 126, 255))
+    rim.putalpha(ink.filter(ImageFilter.GaussianBlur(0.7)).point(lambda v: int(v * 0.16)))
+    out.alpha_composite(rim)
+
+    # 3. Emissive: the brightest ink (eyes, teeth) only, bloomed red.
+    #    The face is the only bright area of the drawing, so "bright" is the
+    #    eyes and the grin inside the ink.
+    #    Only the face glows: the brightest ink, restricted to the top third of
+    #    the figure so a highlight on a hand cannot light up like an eye.
+    head = Image.new("L", frame.size, 0)
+    ImageDraw.Draw(head).rectangle([0, 0, frame.size[0], int(frame.size[1] * 0.38)], fill=255)
+    face = ImageChops.multiply(ink.point(lambda v: 255 if v else 0), head)
+    hot = ImageChops.multiply(grey.point(lambda v: 0 if v < 150 else min(255, (v - 150) * 3)),
+                              face)
+    bloom = Image.new("RGBA", frame.size, (176, 24, 30, 0))
+    bloom.putalpha(hot.filter(ImageFilter.GaussianBlur(12)).point(lambda v: int(v * 0.75)))
+    glow = Image.new("RGBA", frame.size, (236, 76, 52, 255))
+    glow.putalpha(hot.point(lambda v: min(255, int(v * 1.25))))
     out.alpha_composite(bloom)
-    out.alpha_composite(silhouette)
-    out.alpha_composite(tinted)
+    out.alpha_composite(glow)
+    # Knock the whole figure back: it is scenery, not the subject.
+    shade = Image.new("RGBA", frame.size, (0, 0, 0, 40))
+    out = Image.alpha_composite(out, shade)
+    out.putalpha(body_mask)
     return out
 
 
+def _horizontal_fade(size, stops):
+    """A per-column alpha ramp from (position, alpha) stops -- 0..1 in, 0..255 out."""
+    w, h = size
+    xs = np.arange(w, dtype=np.float32) / max(1.0, w - 1.0)
+    positions = [p for p, _a in stops]
+    alphas = [a for _p, a in stops]
+    ramp = np.interp(xs, positions, alphas).astype(np.uint8)
+    return Image.fromarray(np.tile(ramp, (h, 1)), "L")
+
+
 def make_backdrop():
-    """menus/menuBG: the scary stage, defocused, gritted up, with something in it."""
+    """menus/menuBG: the scary stage, defocused, with something standing in it.
+
+    Composition rules this follows, because the previous version broke all three:
+      * the left 45% is quiet and dark, because that is where the type sits,
+      * the figure is small and far down the frame, so it reads as depth rather
+        than as a character waiting to sing,
+      * light comes from one direction (the doorway on the left), and everything
+        else is graded down, so the eye has somewhere to go.
+    """
     src = Image.open(os.path.join(STAGES, "bg_scary.png")).convert("RGB")
-    bg = src.resize((BG_W, BG_H), Image.LANCZOS).filter(ImageFilter.GaussianBlur(3.2))
+    bg = src.resize((BG_W, BG_H), Image.LANCZOS)
 
-    # A figure standing in the dark of the hallway, bottom-right, out of focus so
-    # it reads as depth rather than as a menu sprite.
-    figure = lurker(int(BG_H * 0.82))
-    figure = figure.filter(ImageFilter.GaussianBlur(1.3))
-    figure.putalpha(figure.getchannel("A").point(lambda v: int(v * 0.9)))
-    bg = bg.convert("RGBA")
-    bg.alpha_composite(figure, (BG_W - figure.width - 36, BG_H - figure.height + 26))
+    # Deeper defocus than before, and desaturated: a menu backdrop should not
+    # compete with the type. Keep a little of the red hallway glow.
+    bg = bg.filter(ImageFilter.GaussianBlur(5.0))
+    bg = ImageOps.autocontrast(bg, cutoff=1)
+    bg = Image.blend(bg, ImageOps.grayscale(bg).convert("RGB"), 0.45)
+    bg = Image.new("RGB", bg.size, (10, 4, 8)).convert("RGB") if False else bg
 
-    # Horizontal shade: heavy on the left where the type sits, lighter right.
-    grad = Image.new("RGBA", (BG_W, BG_H), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(grad)
-    for x in range(BG_W):
-        t = x / float(BG_W)
-        gd.line((x, 0, x, BG_H), fill=(4, 3, 6, int(150 - 70 * t)))
-    bg = Image.alpha_composite(bg, grad)
+    # Grade: cold shadows, warm/red highlights.
+    r, g, b = bg.split()
+    r = r.point(lambda v: int(min(255, v * 0.92 + 8)))
+    g = g.point(lambda v: int(v * 0.52))
+    b = b.point(lambda v: int(v * 0.62 + 6))
+    bg = Image.merge("RGB", (r, g, b)).convert("RGBA")
 
-    # Deeper vignette than before: the corners are where the dread lives.
+    # The figure: small, in the far room, low in the frame, barely lit.
+    figure = lurker(int(BG_H * 0.52))
+    figure = figure.filter(ImageFilter.GaussianBlur(0.9))
+    fx = int(BG_W * 0.735)
+    fy = int(BG_H * 0.50)
+    shadow = Image.new("RGBA", figure.size, (0, 0, 0, 0))
+    shadow.putalpha(figure.getchannel("A").point(lambda v: int(v * 0.55)))
+    bg.alpha_composite(shadow, (fx + 10, fy + 14))
+    bg.alpha_composite(figure, (fx, fy))
+
+    # Left-to-right shade: the type column goes almost black, the figure stays
+    # legible. This is a straight alpha ramp rather than a blurred ellipse so the
+    # falloff is predictable at every resolution.
+    shade = Image.new("RGBA", (BG_W, BG_H), (4, 3, 6, 255))
+    shade.putalpha(_horizontal_fade((BG_W, BG_H),
+                                    [(0.00, 236), (0.34, 210), (0.55, 150),
+                                     (0.78, 96), (1.00, 82)]))
+    bg = Image.alpha_composite(bg, shade)
+
+    # Vignette, elliptical, soft.
     vign = Image.new("L", (BG_W, BG_H), 0)
     vd = ImageDraw.Draw(vign)
-    vd.ellipse((-BG_W * 0.18, -BG_H * 0.22, BG_W * 1.18, BG_H * 1.22), fill=255)
-    vign = vign.filter(ImageFilter.GaussianBlur(110))
-    dark = Image.new("RGBA", (BG_W, BG_H), (2, 1, 3, 235))
-    bg = Image.composite(bg, dark, vign)
+    vd.ellipse((-BG_W * 0.24, -BG_H * 0.30, BG_W * 1.24, BG_H * 1.30), fill=255)
+    vign = vign.filter(ImageFilter.GaussianBlur(120))
+    bg = Image.composite(bg, Image.new("RGBA", (BG_W, BG_H), (2, 1, 3, 255)), vign)
 
-    # CRT scanlines, every other row, plus a slow rolling band.
+    # A cold doorway glow behind the type side, so the left is not just a void.
+    glow = Image.new("RGBA", (BG_W, BG_H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse([-BG_W * 0.10, BG_H * 0.10, BG_W * 0.30, BG_H * 0.92],
+               fill=(120, 30, 40, 46))
+    glow = glow.filter(ImageFilter.GaussianBlur(70))
+    bg = Image.alpha_composite(bg, glow)
+
+    # CRT scanlines, subtle; the shader does the rest at runtime.
     lines = Image.new("RGBA", (BG_W, BG_H), (0, 0, 0, 0))
     ld = ImageDraw.Draw(lines)
     for y in range(0, BG_H, 3):
-        ld.line((0, y, BG_W, y), fill=(0, 0, 0, 34))
-    ld.rectangle([0, int(BG_H * 0.42), BG_W, int(BG_H * 0.42) + 54], fill=(255, 255, 255, 5))
+        ld.line((0, y, BG_W, y), fill=(0, 0, 0, 26))
     bg = Image.alpha_composite(bg, lines)
 
-    # Analog grain: fine noise, then a second, coarser pass so it survives JPEG.
-    grain = Image.effect_noise((BG_W, BG_H), 26).convert("L")
-    grain = grain.filter(ImageFilter.GaussianBlur(0.35))
+    # Grain: fine, low amplitude. This is incompressible, so keep it honest
+    # rather than heavy -- the shader adds the live grain.
+    grain = Image.effect_noise((BG_W, BG_H), 18).convert("L")
+    grain = grain.filter(ImageFilter.GaussianBlur(0.4))
     grain_layer = Image.new("RGBA", (BG_W, BG_H), (255, 255, 255, 255))
-    grain_layer.putalpha(grain.point(lambda v: int(abs(v - 128) * 0.55)))
+    grain_layer.putalpha(grain.point(lambda v: int(abs(v - 128) * 0.40)))
     bg = Image.alpha_composite(bg, grain_layer)
 
-    # A last dark pass over the grain: keeps the noise from lifting the blacks.
-    bg = Image.alpha_composite(bg, Image.new("RGBA", (BG_W, BG_H), (0, 0, 0, 26)))
-
     out = os.path.join(MENUS, "menuBG.png")
-    # Grain is incompressible, so spend the cycles: level 9 keeps the file around
-    # a third of the default size without touching the look.
     bg.convert("RGB").save(out, optimize=True, compress_level=9)
     return out
 
@@ -407,9 +541,12 @@ def make_preview(frames_by_option):
 
     for i, (option, label) in enumerate(OPTIONS):
         frames = frames_by_option[option]
-        # Mirror MainMenuState: 60 + i * 160, horizontally centred, first selected.
+        # Mirror MainMenuState's slots (60 + i * 160) plus the ragged indent the
+        # button art itself carries, so the preview matches what the engine draws.
         img = frames[2][1] if i == 0 else frames[0][1]
-        canvas.alpha_composite(img, ((1280 - img.width) // 2, 60 + i * 160))
+        bump = SELECTED_BUMP if i == 0 else 0
+        x = (1280 - img.width) // 2 + INDENT[i] + bump
+        canvas.alpha_composite(img, (x, 60 + i * 160))
 
     d = ImageDraw.Draw(canvas)
     foot = ImageFont.truetype(FONT_BOLD, 18)
