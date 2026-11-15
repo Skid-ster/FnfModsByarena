@@ -1,11 +1,11 @@
 {
 	"name": "Super Scary Trollge",
 	"id": "TrollgeMod",
-	"version": "2.1.0",
+	"version": "2.2.0",
 	"engine": "Codename Engine",
 	"apiVersion": "1.0.0",
 	"modpack": "data/config/modpack.ini",
-	"description": "Three songs of escalating Trollge horror (2/10, 4/10, 7/10) with a fully code-drawn opponent, hand-built story events and per-song Boyfriend skins.",
+	"description": "Three songs of escalating Trollge horror (2/10, 4/10, 7/10) with a fully code-drawn opponent, hand-built story events and a different Boyfriend skin for every song.",
 	"authors": [
 		"Skid-ster"
 	],
@@ -24,8 +24,8 @@
 		"super_scary": 7
 	},
 	"playerCharacters": {
-		"trolling": "bf",
-		"getting_dark": "bf",
+		"trolling": "bf_blue",
+		"getting_dark": "bf_smiler",
 		"super_scary": "bf_super_scary"
 	}
 }

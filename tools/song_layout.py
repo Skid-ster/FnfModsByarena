@@ -41,7 +41,7 @@ SONGS = [
         "id": "trolling",
         "display": "Trolling",
         # Character ids come from data/characters/<id>.xml.
-        "bf": "bf",
+        "bf": "bf_blue",         # art_src/bf/new_blue_boyfriend.* -> tools/make_bf.py
         "trollge": "trollge",
         "bpm": 140.0,
         "scare": 2,
@@ -75,7 +75,7 @@ SONGS = [
     {
         "id": "getting_dark",
         "display": "It's Getting Dark",
-        "bf": "bf",          # swap to "bf_getting_dark" once that skin is uploaded
+        "bf": "bf_smiler",       # art_src/bf/Smiler_Boyfriend_3.* -> tools/make_bf.py
         "trollge": "trollge",
         "bpm": 150.0,
         "scare": 4,

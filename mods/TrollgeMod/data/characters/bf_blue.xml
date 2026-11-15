@@ -1,0 +1,15 @@
+<!DOCTYPE codename-engine-character>
+<character sprite="Boyfriend_blue" flipX="true" isPlayer="true" icon="bf_blue" color="#31B0D1" gameOverChar="bf_blue_dead">
+    <anim name="idle" anim="BFblue idle" x="0" y="0" fps="24" loop="true"/>
+    <anim name="singUP" anim="BFblue sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWN" anim="BFblue sDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFT" anim="BFblue sLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHT" anim="BFblue sRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singUPmiss" anim="BFblue mUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWNmiss" anim="BFblue mDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFTmiss" anim="BFblue mLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHTmiss" anim="BFblue mRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="hey" anim="BFblue sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="scared" anim="BFblue mUP" x="0" y="0" fps="12" loop="true"/>
+    <anim name="hit" anim="BFblue sDOWN" x="0" y="0" fps="24" loop="false"/>
+</character>

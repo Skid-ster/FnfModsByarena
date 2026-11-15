@@ -74,10 +74,20 @@ REQUIRED_FILES = [
     "images/characters/TrollgeScary.xml",
     "images/icons/trollge/icon.png",
     "images/icons/trollge_scary/icon.png",
+    "data/characters/bf_blue.xml",
+    "data/characters/bf_blue_dead.xml",
+    "data/characters/bf_smiler.xml",
+    "data/characters/bf_smiler_dead.xml",
     "data/characters/bf_super_scary.xml",
     "data/characters/bf_super_scary_dead.xml",
+    "images/characters/Boyfriend_blue.png",
+    "images/characters/Boyfriend_blue.xml",
+    "images/characters/Boyfriend_smiler.png",
+    "images/characters/Boyfriend_smiler.xml",
     "images/characters/Boyfriend_super_scary.png",
     "images/characters/Boyfriend_super_scary.xml",
+    "images/icons/bf_blue/icon.png",
+    "images/icons/bf_smiler/icon.png",
     "images/icons/bf_super_scary/icon.png",
     "images/stages/trollge/bg.png",
     "images/stages/trollge/bg_scary.png",
@@ -339,7 +349,7 @@ def check_icons():
         from PIL import Image
     except ImportError:
         return
-    for icon in ("trollge", "trollge_scary", "bf_super_scary"):
+    for icon in ("trollge", "trollge_scary", "bf_blue", "bf_smiler", "bf_super_scary"):
         path = os.path.join(MOD, "images", "icons", icon, "icon.png")
         if not os.path.isfile(path):
             continue

@@ -12,8 +12,8 @@ script you can re-run. Nothing is a black box.
 
 | Song | Scare | BPM | Length | Notes (normal) | Boyfriend | What happens |
 | --- | --- | --- | --- | --- | --- | --- |
-| **1. Trolling** | 2/10 | 140 | 104.0 s | 256 | vanilla `bf` | Bouncy, almost friendly. Occasional static flicker. |
-| **2. It's Getting Dark** | 4/10 | 150 | 103.6 s | 320 | vanilla `bf` | Minor key, distorted drums, jumpscares, screen shake. |
+| **1. Trolling** | 2/10 | 140 | 104.0 s | 256 | **`bf_blue`** | Bouncy, almost friendly. Occasional static flicker. |
+| **2. It's Getting Dark** | 4/10 | 150 | 103.6 s | 320 | **`bf_smiler`** | Minor key, distorted drums, jumpscares, screen shake. |
 | **3. Super Scary Trollge** | 7/10 | 160 | 103.5 s | 640 | **`bf_super_scary`** | Tritone riffs, screaming, phase-2 trollge, colour inversion, reality breakdown. |
 
 Both **easy** and **normal** difficulties are charted for all three songs (easy = half density, no sustains).
@@ -25,7 +25,7 @@ Both **easy** and **normal** difficulties are charted for all three songs (easy 
 ## Install
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
-2. Grab `SuperScaryTrollge-v2.1.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
+2. Grab `SuperScaryTrollge-v2.2.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
 3. Drop the **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **Super Scary Trollge**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all three songs are in freeplay.
@@ -67,26 +67,34 @@ drawn with wobbly filled polylines, so every pose is a *different drawing* rathe
 
 ### Player skins
 
-Each song can use its own Boyfriend. Song 3 swaps in the hollow-eyed, red-swirl
-`bf_super_scary` (drawn by the project owner, imported by `tools/make_bf.py`):
+Every song has its own Boyfriend, and the three of them tell the story before a single note:
 
-![Song 3 Boyfriend](docs/bf_super_scary.png)
+| Song | Character | Art |
+| --- | --- | --- |
+| Trolling (2/10) | `bf_blue` | ![bf_blue](docs/bf_blue.png) |
+| It's Getting Dark (4/10) | `bf_smiler` | ![bf_smiler](docs/bf_smiler.png) |
+| Super Scary Trollge (7/10) | `bf_super_scary` | ![bf_super_scary](docs/bf_super_scary.png) |
 
-The importer re-anchors, re-centres and re-packs any Sparrow atlas you give it, so the skin
-stands on exactly the same ground line as the Trollge and needs no per-animation offsets:
+All three are imported from hand-drawn Sparrow atlases (`art_src/bf/`) by `tools/make_bf.py`, which:
+
+* **renames every frame to a collision-free code** (`BFsmiler sUP0000`, `mLEFT0000`, ...) so
+  `addByPrefix` can never fold a miss pose into a sing animation,
+* **re-anchors** each animation onto the Trollge's ground line (feet `y=539`, body centred on `x=229`
+  of a 460×560 canvas), so poses cannot slide or float,
+* **re-packs** so all frames share one frame size — no per-animation offsets, and one stage
+  position works for every skin,
+* **fills the gaps**: miss poses are graded from the sing poses (desaturated, blood-washed) when the
+  upload has none, a game-over frame is derived from idle, and `hey`/`scared`/`hit` are aliased to the
+  closest pose,
+* writes the character XMLs, the two-frame health icon (idle bust + hurt state) and `docs/<char>.png`.
 
 ```bash
 # drop <name>.png + <name>.xml into art_src/bf/, list it in SKINS inside tools/make_bf.py
-python3 tools/make_bf.py super_scary
+python3 tools/make_bf.py            # all skins
+python3 tools/make_bf.py trolling   # one skin, by song id
 ```
 
-    images/characters/Boyfriend_super_scary.png/.xml   normalised atlas (all frames 460x560)
-    data/characters/bf_super_scary.xml                 playable character (idle, 4 sings, 4 misses,
-                                                       hey, scared, hit) + gameOverChar
-    data/characters/bf_super_scary_dead.xml            game-over variant built from the "Gameover" frame
-    images/icons/bf_super_scary/icon.png               health icon (bust + red-swirl "hurt" frame)
-
-Which character each song uses is one line in `tools/song_layout.py` (`"bf": "bf_super_scary"`), and
+Which character a song uses is one line in `tools/song_layout.py` (`"bf": "bf_smiler"`), and
 `tools/make_chart.py` writes it into that song's `strumLines`.
 
 ### Story events
@@ -166,7 +174,7 @@ python3 tools/make_bf.py      # imported Boyfriend skins -> atlas, character XML
 python3 tools/make_audio.py   # 3 instrumentals + stingers + themes (~40 s)
 python3 tools/make_chart.py   # meta.json, events.json, charts for all difficulties
 python3 tools/validate_mod.py # 327 checks: schemas, atlas bounds, note times, audio length...
-python3 tools/package_mod.py  # dist/SuperScaryTrollge-v2.1.0.zip
+python3 tools/package_mod.py  # dist/SuperScaryTrollge-v2.2.0.zip
 ```
 
 Want a different song? Edit `tools/song_layout.py` (spacings, progression, scare tier, event times) and re-run
@@ -191,8 +199,9 @@ the three generators — the chart, the instrumental and the stingers all follow
 * **Boyfriend / stage audio-engine conventions:** Friday Night Funkin' by Funkin' Crew.
 * **Trollge character art, charts, music, code:** generated by the scripts in `tools/` for this repo (MIT,
   see `LICENSE`).
-* **Song 3 Boyfriend art (`art_src/bf/Boyfriend_crazy2.*`):** drawn by the project owner and imported
-  unchanged by `tools/make_bf.py` — credited to them, not covered by this repo's MIT licence.
+* **Boyfriend art (`art_src/bf/`):** `new_blue_boyfriend.*` (song 1), `Smiler_Boyfriend_3.*`
+  (song 2) and `Boyfriend_crazy2.*` (song 3) are drawn by the project owner and imported by
+  `tools/make_bf.py` — credited to them, not covered by this repo's MIT licence.
 * **Stage backdrops:** derived from a horror backdrop image in `art_src/scary_bg.png`, graded three ways.
 
 Trollge is an internet meme of unknown origin; this mod is a non-commercial fan project.

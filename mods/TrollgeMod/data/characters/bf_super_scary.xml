@@ -1,15 +1,15 @@
 <!DOCTYPE codename-engine-character>
-<character sprite="Boyfriend_super_scary" flipX="true" isPlayer="true" icon="bf_super_scary" color="#31B0D1" gameOverChar="bf_super_scary_dead">
-    <anim name="idle" anim="BF idle dance" x="0" y="0" fps="24" loop="true"/>
-    <anim name="singUP" anim="UP" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singDOWN" anim="DOWN" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singLEFT" anim="LEFT" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singRIGHT" anim="RIGHT" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singUPmiss" anim="BF NOTE UP MISS" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singDOWNmiss" anim="BF NOTE DOWN MISS" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singLEFTmiss" anim="BF NOTE LEFT MISS" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singRIGHTmiss" anim="BF NOTE RIGHT MISS" x="0" y="0" fps="24" loop="false"/>
-    <anim name="hey" anim="UP" x="0" y="0" fps="24" loop="false"/>
-    <anim name="scared" anim="BF NOTE UP MISS" x="0" y="0" fps="12" loop="true"/>
-    <anim name="hit" anim="DOWN" x="0" y="0" fps="24" loop="false"/>
+<character sprite="Boyfriend_super_scary" flipX="true" isPlayer="true" icon="bf_super_scary" color="#C4101E" gameOverChar="bf_super_scary_dead">
+    <anim name="idle" anim="BFscary idle" x="0" y="0" fps="24" loop="true"/>
+    <anim name="singUP" anim="BFscary sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWN" anim="BFscary sDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFT" anim="BFscary sLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHT" anim="BFscary sRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singUPmiss" anim="BFscary mUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWNmiss" anim="BFscary mDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFTmiss" anim="BFscary mLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHTmiss" anim="BFscary mRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="hey" anim="BFscary sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="scared" anim="BFscary mUP" x="0" y="0" fps="12" loop="true"/>
+    <anim name="hit" anim="BFscary sDOWN" x="0" y="0" fps="24" loop="false"/>
 </character>

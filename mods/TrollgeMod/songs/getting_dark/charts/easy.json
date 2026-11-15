@@ -985,7 +985,7 @@
 			"position": "boyfriend",
 			"type": 1,
 			"characters": [
-				"bf"
+				"bf_smiler"
 			],
 			"keyCount": 4,
 			"visible": true,
