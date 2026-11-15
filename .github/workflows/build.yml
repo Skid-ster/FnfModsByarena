@@ -83,5 +83,25 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          # TrollgeMod.zip is the installable one: Codename names a mod after the
+          # file it loads, and freeplay looks for LIB_<thatName>.txt. The
+          # versioned zip is the same bytes under a human-readable name.
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-*.zip
           generate_release_notes: true
+          body: |
+            ## Install
+
+            1. Download **`TrollgeMod.zip`** below.
+            2. Drop it into Codename Engine's `mods/` folder — or extract it so you get `mods/TrollgeMod/`.
+            3. Launch the engine, open **Mods**, pick **TrollgeMod**.
+
+            **Install from `TrollgeMod.zip`, not the versioned file.** Codename takes a mod's name from the file it
+            loads (`MainState` → `loadLib(path, currentModFolder)` → `ModsFolderLibrary.modName`), and freeplay then
+            reads `config/freeplaySonglist/LIB_<modName>.txt`. Under the versioned name the mod is called
+            `superscarytrollge-v3.6.0`, so this mod's freeplay list is not found and the engine forgets your mod
+            choice on the next launch. The two zips contain exactly the same files.
+
+            Requires [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) — this is not a Psych or
+            YoshiCrafter mod.

@@ -34,6 +34,8 @@ pip install pillow numpy soundfile
 
 # make your change, then rebuild whatever you touched
 python3 tools/make_art.py      # only if you touched trollge_art.py / make_art.py
+                                # (every random pass must be seeded -- an unseeded
+                                #  one makes the shipped art differ on every run)
 python3 tools/make_audio.py    # only if you touched song_layout.py / make_audio.py
 python3 tools/make_noteskin.py # only if you touched make_noteskin.py (arrow skins + splashes)
 python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + countdown)
@@ -48,6 +50,23 @@ python3 tools/make_stage_preview.py  # if you touched the stage xml
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
 python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
 ```
+
+### The zip's name is part of the contract
+
+Do not rename the installable archive. Codename names a mod after the file it loads, not after `mod.json`:
+
+```
+MainState.loadLib(path, ModsFolder.currentModFolder)
+  -> ModsFolderLibrary.modName = libName.toLowerCase()      # the zip's file stem
+  -> FreeplayState: Paths.txt('config/freeplaySonglist/LIB_$modName')
+```
+
+So `TrollgeMod.zip` finds `LIB_TrollgeMod.txt`; `SuperScaryTrollge-v3.6.0.zip` looks for
+`LIB_superscarytrollge-v3.6.0.txt`, misses, and falls back to scanning `songs/` — which is alphabetical, not scare
+order. The saved mod name (`Options.lastLoadedMod`) is compared against the `mods/` listing by `ModsFolder.init()` on
+every launch, so a versioned file name also makes the engine forget the selection between sessions.
+`tools/package_mod.py` writes both names (same bytes) and `tools/validate_mod.py` fails if `INSTALL_NAME`, the mod
+folder and the `LIB_` file ever disagree.
 
 Commit the regenerated files together with the generator change, in one commit, e.g.:
 
