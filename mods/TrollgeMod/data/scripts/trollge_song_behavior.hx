@@ -34,16 +34,15 @@ function trollgePhase2(a = null):Void {
 	var old = ps.dad;
 	if (old == null) return;
 
-	var sum:Character = new Character(old.x, old.y, 'trollge_scary', false);
-	sum.x = old.x;
-	sum.y = old.y;
-	sum.scrollFactor.set(old.scrollFactor.x, old.scrollFactor.y);
+	var newChar:Character = new Character(old.x, old.y, 'trollge_scary', false);
+	newChar.x = old.x;
+	newChar.y = old.y;
+	newChar.scrollFactor.set(old.scrollFactor.x, old.scrollFactor.y);
 
-	ps.insert(ps.members.indexOf(old), sum);
+	ps.insert(ps.members.indexOf(old), newChar);
 	ps.remove(old);
 	if (ps.strumLines.members[0] != null)
-		ps.strumLines.members[0].characters[0] = sum;
-	old.destroy();
+		ps.strumLines.members[0].characters[0] = newChar;
 
 	if (ps.iconP2 != null) ps.iconP2.setIcon('trollge_scary');
 	if (ps.healthBar != null) ps.healthBar.updateBar();
@@ -157,11 +156,9 @@ function update(elapsed) {
 	if (ps == null) return;
 
 	// Idle breathing static: scarier songs never fully settle.
-	var base:Float = switch (scareTier) {
-		case 7: 0.055;
-		case 4: 0.02;
-		default: 0.0;
-	};
+	var base:Float = 0.0;
+	if (scareTier >= 7) base = 0.055;
+	else if (scareTier >= 4) base = 0.02;
 	if (staticSpr != null)
 		staticSpr.alpha = Math.max(staticSpr.alpha, base);
 }

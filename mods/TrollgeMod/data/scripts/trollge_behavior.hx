@@ -15,16 +15,20 @@ var scareTier:Int = 1;
 /** 0..1, drives the red flicker on the scary tiers. */
 var flash:Float = 0.0;
 
-/** Base angle, so the tilt never accumulates. */
-var tilt:Float = 0.0;
-
-function create() {
+function readScareTier():Void {
 	var meta = PlayState.SONG != null ? PlayState.SONG.meta : null;
 	var cv = meta != null ? meta.customValues : null;
 	if (cv != null && cv.scareTier != null)
 		scareTier = Std.int(cv.scareTier);
+}
 
-	tilt = 0.0;
+// Character scripts are attached while the Character is still being built, so a
+// `create()` hook here would never fire (the pack's create pass already ran).
+// Initialise at load time, and refresh in postCreate as a safety net.
+readScareTier();
+
+function postCreate() {
+	readScareTier();
 }
 
 function beatHit(curBeat) {
@@ -35,7 +39,7 @@ function beatHit(curBeat) {
 
 function onDance(event) {
 	// Even the idle dance gets twitchy once things go bad.
-	if (scareTier >= 7 && FlxG.random.bool(18)) playAnim('laugh', true, "DANCE");
+	if (scareTier >= 7 && FlxG.random.bool(18)) this.playAnim('laugh', true, "DANCE");
 }
 
 function postUpdate(elapsed) {
