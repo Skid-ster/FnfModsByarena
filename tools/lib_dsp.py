@@ -101,6 +101,71 @@ def soft_clip(x, drive=1.0):
     return np.tanh(x * drive)
 
 
+def eq_curve(x, points, sr=SR):
+    """Zero-phase graphic EQ from (Hz, dB) breakpoints (log-frequency interpolation).
+
+    Used for the master bus: tame the sub, lift the presence/air band so the
+    mix is not a wall of bass, which is exactly what the audit measures.
+    """
+    freqs_hz = [max(1.0, p[0]) for p in points]
+    gains_db = np.array([p[1] for p in points], dtype=np.float64)
+
+    def mag(f):
+        db = np.interp(np.log10(np.maximum(f, 1e-9)), np.log10(freqs_hz), gains_db)
+        return 10.0 ** (db / 20.0)
+
+    return _fft_shape(x, mag, sr)
+
+
+def pan(x, position):
+    """Constant-power pan: -1 = hard left, 0 = centre, +1 = hard right."""
+    angle = (position + 1.0) * np.pi / 4.0
+    return x * float(np.cos(angle)), x * float(np.sin(angle))
+
+
+def haas(x, delay_s=0.012, sr=SR, right=True):
+    """Delay one channel slightly: instant, decorrelated width for pads/leads."""
+    n = max(1, int(delay_s * sr))
+    left = np.concatenate([x, np.zeros(n)])[: len(x)]
+    right_ch = np.concatenate([np.zeros(n), x])[: len(x)]
+    return (left, right_ch) if not right else (right_ch, left)
+
+
+def sidechain(target, key, depth=0.45, release_s=0.16, sr=SR):
+    """Duck `target` with the envelope of `key` (mono buffers)."""
+    hop = int(0.005 * sr)
+    frames = max(1, len(key) // hop)
+    env = np.array([np.max(np.abs(key[i * hop:(i + 1) * hop])) for i in range(frames)])
+    # Release-smoothed envelope, one-pole.
+    smoothed = np.zeros_like(env)
+    coeff = np.exp(-hop / (release_s * sr))
+    value = 0.0
+    for i, sample in enumerate(env):
+        value = max(sample, value * coeff)
+        smoothed[i] = value
+    gain = 1.0 - depth * np.clip(smoothed / (smoothed.max() or 1.0), 0.0, 1.0)
+    curve = np.repeat(gain, hop)[: len(target)]
+    if len(curve) < len(target):
+        curve = np.pad(curve, (0, len(target) - len(curve)), constant_values=1.0)
+    return target * curve
+
+
+def limiter(x, ceiling=0.94, sr=SR, block=64, attack_ms=6.0):
+    """Block-based peak limiter (memory-cheap: no look-ahead ring buffers)."""
+    peak = np.abs(x)
+    nb = max(1, len(x) // block)
+    blocks = peak[: nb * block].reshape(nb, block).max(axis=1)
+    gain = np.minimum(1.0, ceiling / np.maximum(blocks, 1e-6))
+    smooth = max(1, int((attack_ms / 1000.0) * sr / block))
+    if smooth > 1:
+        kernel = np.ones(smooth) / smooth
+        gain = np.convolve(gain, kernel, mode="same")
+    curve = np.repeat(gain, block)
+    if len(curve) < len(x):
+        curve = np.pad(curve, (0, len(x) - len(curve)), constant_values=1.0)
+    return soft_clip(x * curve[: len(x)], 1.0)
+
+
 def bitcrush(x, bits=6, hold=4):
     step = 2.0 ** (bits - 1)
     y = np.round(x * step) / step
@@ -172,6 +237,49 @@ def add_at(buf, signal, at_seconds, gain=1.0, sr=SR):
     end = min(len(buf), start + len(signal))
     buf[start:end] += gain * signal[: end - start]
     return buf
+
+
+def compress(x, threshold_db=-21.0, ratio=2.6, attack_ms=9.0, release_ms=170.0,
+             sr=SR, block=128, makeup_db=0.0):
+    """Block-RMS compressor: raises perceived loudness without flattening the kick."""
+    import math
+
+    nb = max(1, len(x) // block)
+    blocks = x[: nb * block].reshape(nb, block)
+    level = np.sqrt(np.mean(blocks ** 2, axis=1))
+    level_db = 20.0 * np.log10(np.maximum(level, 1e-9))
+    over = np.maximum(0.0, level_db - threshold_db)
+    target = -over * (1.0 - 1.0 / ratio)
+
+    attack = math.exp(-block / ((attack_ms / 1000.0) * sr))
+    release = math.exp(-block / ((release_ms / 1000.0) * sr))
+    smoothed = np.zeros_like(target)
+    previous = 0.0
+    for i, value in enumerate(target):
+        coeff = attack if value < previous else release     # more reduction = faster
+        previous = value + (previous - value) * coeff
+        smoothed[i] = previous
+
+    curve = np.repeat(10.0 ** ((smoothed + makeup_db) / 20.0), block)
+    if len(curve) < len(x):
+        curve = np.pad(curve, (0, len(x) - len(curve)), constant_values=1.0)
+    return x * curve[: len(x)]
+
+
+def widen(left, right, amount=1.9, crossover=200.0, sr=SR):
+    """Mid/side widener with a mono bass: the standard trick that makes a
+    centre-heavy drum mix feel stereo without smearing the low end."""
+    lo_l, lo_r = lowpass(left, crossover, sr), lowpass(right, crossover, sr)
+    hi_l, hi_r = left - lo_l, right - lo_r
+    mid = 0.5 * (hi_l + hi_r)
+    side = 0.5 * (hi_l - hi_r) * amount
+    lo_mid = 0.5 * (lo_l + lo_r)
+    return mid + side + lo_mid, mid - side + lo_mid
+
+
+def dc_block(x, cutoff_hz=24.0, sr=SR):
+    """Remove DC / sub-rumble that soft clipping introduces."""
+    return highpass(x - np.mean(x), cutoff_hz, sr)
 
 
 def normalize(x, peak=0.89):

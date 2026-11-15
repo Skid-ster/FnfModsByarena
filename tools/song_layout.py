@@ -120,6 +120,7 @@ SONGS = [
         "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_characters.py
         "trollge": "trollge_static",   # art_src/trollge/trollgeStatic1.* (phase 3)
         "noteskin": NOTESKIN_CORRUPT,
+        "hands_from": 17,          # last three sections: two-lane chords on the beat
         "bpm": 160.0,
         "scare": 7,
         "offset": 1.5,
@@ -287,7 +288,7 @@ def sections(song):
 
 
 #: Sections that end on a held note (sustains make the chart breathe).
-SUSTAIN_EVERY = 4
+SUSTAIN_EVERY = 2
 SUSTAIN_MS_FACTOR = 2.0
 
 
@@ -307,6 +308,26 @@ def notes(song):
             if n is last:
                 n["sLen"] = beat(song) * 1000.0 * SUSTAIN_MS_FACTOR
                 break
+    # Finale hands: from `hands_from` onward the player also hits the opposite
+    # lane on every beat, which is what pushes the last act to 7/10.
+    hands_from = song.get("hands_from")
+    if hands_from is not None:
+        secs = sections(song)
+        beats = beat(song) * 1000.0
+        extra = []
+        for i, section in enumerate(secs):
+            if i < hands_from:
+                continue
+            for n in section["notes"]:
+                if n["side"] != "player":
+                    continue
+                if abs((n["time"] - measure_time(song, n["measure"])) % beats) > 1.0:
+                    continue
+                extra.append({"id": (n["id"] + 2) % 4, "side": "player",
+                              "time": n["time"], "measure": n["measure"], "sLen": 0.0})
+        all_notes.extend(extra)
+        all_notes.sort(key=lambda n: (n["time"], n["side"], n["id"]))
+
     for n in all_notes:
         n.setdefault("sLen", 0.0)
     return all_notes

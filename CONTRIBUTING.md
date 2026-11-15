@@ -36,6 +36,7 @@ python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + c
 python3 tools/make_chart.py    # if you touched song_layout.py (charts)
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
+python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
 ```
 
 Commit the regenerated files together with the generator change, in one commit, e.g.:
@@ -46,6 +47,17 @@ feat(song3): denser final section
 - song_layout: +2 spacing-1 sections in the last act
 - regenerated charts + instrumental
 ```
+
+## Changing the music
+
+* **Arrangement** is by section role, not by hand: `section_roles()` in `tools/make_audio.py` labels every chart
+  section (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and note spacing, and
+  `ROLE_GAIN` sets how hard each role pushes. Add a role, or change where one lands, and all three songs follow.
+* **Mix balance** lives in the pan table near the end of `render_song()` (stem -> left/right gains), the master EQ
+  breakpoints and the loudness target `TARGET_RMS`. Change them and `tools/audit_songs.py` tells you what it did to
+  the spectrum, width and dynamics — it is the same script CI runs with `--strict`.
+* **Do not chase loudness by squashing.** The audit enforces a crest factor window (7-20 dB) and 5+ dB of section
+  dynamics on purpose: a wall of sound fails the build.
 
 ## Changing the arrows or the HUD
 

@@ -27,6 +27,9 @@ jobs:
       - name: Validate charts, configs, atlases and audio
         run: python3 tools/validate_mod.py
 
+      - name: Audit the mix and the chart style
+        run: python3 tools/audit_songs.py --strict
+
       - name: Package mod archive
         run: python3 tools/package_mod.py
 

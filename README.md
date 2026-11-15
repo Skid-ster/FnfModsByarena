@@ -10,7 +10,7 @@ escalates song by song: **2/10 → 4/10 → 7/10** — and the characters, the a
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **1. Trolling** | 2/10 | 140 | 104.0 s | 256 | `bf_blue` | `trollge` (phase 1) | 3 |
 | **2. It's Getting Dark** | 4/10 | 150 | 103.6 s | 320 | `bf_smiler` | `trollge_glitch` (phase 2) | 6 |
-| **3. Super Scary Trollge** | 7/10 | 160 | 103.5 s | 640 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
+| **3. Super Scary Trollge** | 7/10 | 160 | 103.5 s | 658 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
 
 Each song also ships its own **arrow skin**, from bright violet/mint to a corrupted glitch atlas:
 
@@ -23,6 +23,8 @@ Each song also ships its own **arrow skin**, from bright violet/mint to a corrup
 ![Arrow skins](docs/noteskin.png)
 
 Both **easy** and **normal** difficulties are charted for all three songs (easy = half density, no sustains).
+Sustains land every other section, and the last three sections of song 3 drop **two-lane chords on the beat** — that is
+what takes it from a 4/10 chart to a 7/10 one.
 
 ![Three scare tiers](docs/stages.png)
 
@@ -162,11 +164,37 @@ The HUD is themeable by filename alone, so `tools/make_hud.py` ships:
 
 ### Audio
 
-All audio is synthesised with numpy (`tools/make_audio.py`) at 44.1 kHz stereo, exported as OGG/Vorbis:
+All audio is synthesised with numpy (`tools/make_audio.py`) at 44.1 kHz stereo, exported as OGG/Vorbis.
 
-* `songs/<id>/song/Inst.ogg` — the instrumental, **built from the chart notes** (kick/snare/hats, sub bass,
-  pads, an arpeggio lead whose pitches come straight from the note ids) with extra horror layers per scare tier:
-  tape hiss, dread drone, tritone grit, bitcrushed drums, whisper swells.
+**The instrumentals are built from the chart notes.** Each song is arranged by *section role* — the renderer labels
+every chart section and gives it a part, so the songs build, drop and breathe instead of looping one drum pattern:
+
+| Role | Where it lands | What plays |
+| --- | --- | --- |
+| `intro` | section 1 | pad, one kick, off-beat hats, no snare |
+| `verse` | most sections | kick on 1 + 3, snare on 2 + 4, 8th hats, walking bass |
+| `build` | every 4th section | verse + 16th hats and a busier bass |
+| `drop` | dense sections (spacing ≤ 2) | syncopated 16th bass, extra kicks, 16th hats, air sizzle |
+| `break` | mid-song + just before the finale | half-time heartbeat, open hats, most of the mix gone |
+| `finale` | last two sections | drop + octave-doubled lead |
+
+On top of that: snare fills and a riser + crash into every section that gets bigger, a horror layer per scare tier
+(dread drone → tape hiss → whisper swells), scripted stingers behind every `HScript Call` event, and a **real ending**
+— the instruments stop two beats early so the last chord, crash and sub drop ring out (no lazy fade-out).
+
+**Mixing and mastering.** Parts are rendered as mono stems and placed in stereo; bass and kick stay centred, hats,
+pads and leads are panned apart, the lead reverb doubles as a snare room with a Haas delay, and the pads and bass are
+sidechained to the kick. The master chain is graphic EQ (sub cut, presence + air lift) → gentle glue compression →
+mid/side widener with mono bass → loudness normalisation to −15.5 dBFS RMS → limiter with 2 dB of headroom, because
+Vorbis overshoots the source peak.
+
+Every one of those claims is **measured**, not vibes: `tools/audit_songs.py` decodes the shipped `Inst.ogg` files and
+checks loudness, crest factor, section dynamics, spectral balance, stereo width, side/mid ratio, clipping and DC —
+plus chart style (off-beat ratio, same-lane runs, density curve). The results live in
+[`docs/song_report.md`](docs/song_report.md) and CI fails if a metric leaves its window.
+
+* `songs/<id>/song/Inst.ogg` — the instrumental; kick/snare/hats, sub bass, pads, and an arpeggio lead whose pitches
+  come straight from the note ids.
 * `sounds/trollge_jump_scare.ogg`, `trollge_distortion.ogg`, `trollge_invert.ogg` — event stingers.
 * `sounds/trollge_hit.ogg`, `trollge_miss.ogg` — custom note feedback.
 * `sounds/trollge_theme.ogg`, `trollge_theme_scary.ogg` — 24 s music-box loops, free to use in menus/cutscenes.
@@ -215,6 +243,7 @@ python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt) + splas
 python3 tools/make_hud.py         # health bar frame + READY/SET/GO badges
 python3 tools/make_chart.py       # meta.json, events.json, charts for all difficulties
 python3 tools/validate_mod.py     # 1182 checks: schemas, atlas bounds, skins, HUD, note times, audio length...
+python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
 python3 tools/package_mod.py      # dist/SuperScaryTrollge-v2.4.0.zip
 ```
 
@@ -230,7 +259,8 @@ the three generators — the chart, the instrumental and the stingers all follow
 1. **Validate** — JSON/XML schemas, atlas frame bounds, animation-prefix collisions, note/time sanity,
    `HScript Call` targets actually exist, every chart character + animation resolves, `Inst.ogg` duration
    matches the chart length, note-skin frame sets match across skins, splash anims resolve in their atlas,
-   HUD art is sane.
+   HUD art is sane. Then `tools/audit_songs.py --strict` measures the mix (loudness, dynamics, spectral
+   balance, stereo width, clipping) and the chart style (off-beat ratio, jacks, density escalation).
 2. **Charts in sync** — regenerates the charts and fails if the committed files drifted.
 3. **Release** — pushing a `v*` tag builds the zip and publishes it.
 
