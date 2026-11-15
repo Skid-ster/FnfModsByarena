@@ -16,6 +16,7 @@ Shared (sounds/):
 Run with:  python3 tools/make_audio.py
 """
 
+import math
 import os
 import sys
 
@@ -114,6 +115,21 @@ def lead_note(midi, dur, bright=True, drive=1.25, detune=1.0038, grit=0.0):
     env = adsr(n, attack=0.004, decay=0.11, sustain=0.42, release=0.12)
     out = lowpass(voice * env, 4600.0 if bright else 2300.0)
     return soft_clip(out, drive) * 0.5
+
+
+def human(index, step_s, swing=0.0):
+    """Deterministic micro-timing and velocity for one hit.
+
+    A grid-perfect renderer is the main reason a synth track sounds like a
+    metronome instead of a band: every hit lands on the same microsecond with
+    the same level. This returns a small timing nudge (plus swing on the odd
+    16ths) and a velocity multiplier, both repeatable for a given index.
+    """
+    rng = (index * 2654435761) % 4294967296
+    jitter = ((rng / 4294967296.0) - 0.5) * 0.007 * max(1.0, step_s / 0.1)
+    velocity = 0.90 + (((rng >> 11) % 1000) / 1000.0) * 0.10
+    shift = swing * step_s if index % 2 else 0.0
+    return jitter + shift, velocity
 
 
 # --------------------------------------------------------------------------- #
@@ -472,6 +488,12 @@ def render_song(song):
         chord = [song["tonic"] + root + t for t in tones]
         cutoff = {"intro": 1100.0, "verse": 1600.0, "build": 1900.0,
                   "drop": 2400.0, "break": 900.0, "finale": 2700.0}[role]
+        # A seventh turns a triad into harmony: the pad breathes with the chord
+        # instead of just holding the root position.
+        seventh = chord[1] + 10 if len(chord) >= 2 else chord[0] + 10
+        chord = list(chord) + [seventh]
+        # Slow filter movement, so no two bars of pad are identical.
+        cutoff *= 0.86 + 0.28 * (0.5 + 0.5 * math.sin(m * 0.9 + song["scare"]))
         gain = 0.075 * ROLE_GAIN[role]
         sig = pad_chord(chord, measure * 1.04, gain=gain, cutoff=cutoff)
         # Wide: one take per side, the right side delayed a few ms.
@@ -722,7 +744,33 @@ def render_song(song):
                 riser = bandpass(noise(riser_n, seed=81 + m), 500.0, 9000.0) * (rt / rt[-1]) ** 2
                 add_at(fx_s, riser, crash_at - beat * 2.0, 0.10 + 0.04 * tier)
 
+    # ---- groove polish: ghosts, accents and fills -------------------------- #
+    # Real drum programming is 20 % notes and 80 % the quiet stuff between them.
+    for m in range(total_measures):
+        t0 = L.measure_time(song, m) / 1000.0
+        role = measure_role.get(m, "verse")
+        if role not in ("verse", "build", "drop", "finale"):
+            continue
+        intensity = ROLE_GAIN[role]
+        nudge, velocity = human(m, beat)
+        # Ghost snares on the "e" and "a" of the beat: felt, not heard.
+        for beat_index in (1, 3):
+            for fraction in (0.25, 0.75):
+                if role == "verse" and fraction == 0.25:
+                    continue
+                add_at(snare_s, snare_for(style, 300 + m * 4 + beat_index),
+                       t0 + beat_index * beat + fraction * beat,
+                       0.09 * intensity * velocity)
+        # Open hat as the bar turns around, every second bar.
+        if m % 2 == 1:
+            add_at(hat_r, hat_for(style, True, 400 + m), t0 + 3.5 * beat,
+                   0.16 * intensity)
+        # A fill every eight bars, and always into a new role.
+        if (m + 1) % 8 == 0:
+            drum_fill(t0 + 3 * beat + nudge, beat, loudness=0.55 + 0.35 * tier, seed=500 + m)
+
     # ---- lead: literally the chart notes ---------------------------------- #
+    lead_index = []
     for note in L.notes(song):
         at = note["time"] / 1000.0
         role = measure_role.get(note["measure"], "verse")
@@ -732,9 +780,18 @@ def render_song(song):
         accent = 1.0 if note["time"] % (beat * 1000.0) < 1.0 else 0.85
         if style == "trap":
             dur *= 1.25        # bells ring, they do not stab
+        # Swing the off-16ths and let every note sit a hair off the grid.
+        nudge, velocity = human(len(lead_index), step, swing=0.14)
+        lead_index.append(at)
+        at = max(0.0, at + nudge)
         sig = lead_for(style, midi, dur, tier, note["id"])
+        # Sub-oscillator an octave down: the lead gets a chest instead of being
+        # a thin chip whistle.
+        sub = lead_for(style, midi - 12, dur * 0.92, tier, note["id"])
+        sub = np.pad(sub, (0, max(0, len(sig) - len(sub))))[:len(sig)]
+        sig = sig + sub * 0.22
         target = lead_p if note["side"] == "player" else lead_o
-        add_at(target, sig, at, 0.64 * accent * (0.75 + 0.35 * ROLE_GAIN[role]))
+        add_at(target, sig, at, 0.64 * accent * velocity * (0.75 + 0.35 * ROLE_GAIN[role]))
         # Finale: octave doubling makes the last act feel bigger.
         if role == "finale" and note["side"] == "player":
             add_at(target, lead_for(style, midi + 12, dur * 0.8, tier, note["id"]), at,
@@ -900,10 +957,19 @@ def render_song(song):
                      (16000.0, 6.0), (20000.0, 2.0)]
     left = eq_curve(left, master_points)
     right = eq_curve(right, master_points)
+    # Tape: a touch of harmonic grit and a soft top-end, so the stems glue
+    # together instead of reading as separate layers.
+    left = soft_clip(left * 1.16, 1.02) * 0.88
+    right = soft_clip(right * 1.16, 1.02) * 0.88
     # Glue compression (gentle: only the loudest peaks, so the quiet sections
     # keep their space) -> width -> loudness target -> limiter.
     left = compress(left, threshold_db=-15.0, ratio=2.0, makeup_db=2.0)
     right = compress(right, threshold_db=-15.0, ratio=2.0, makeup_db=2.0)
+    # Parallel compression: a smashed copy of the mid blended back in, which is
+    # what makes drums feel loud without eating the dynamic range.
+    crushed = compress(0.5 * (left + right), threshold_db=-28.0, ratio=5.0, makeup_db=7.0)
+    left = left + crushed * 0.16
+    right = right + crushed * 0.16
     left, right = widen(left, right, amount=2.2 + 0.2 * tier)
 
     loudness = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))

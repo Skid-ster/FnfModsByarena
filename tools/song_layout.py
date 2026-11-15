@@ -85,6 +85,22 @@ SONGS = [
         "scroll": 1.60,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [HALF, HALF, QUARTERS, HALF],
+        # the hook: the four-lane figure this song is built on. The audio
+        # renders these lanes as pitches, so the chart follows the melody.
+        "hooks": [[0, 2, 1, 3], [3, 1, 2, 0]],
+        "cutscene": {
+            "frame": "ui/cutscene_frame",
+            "tag": "TROLLGE WEEK  //  1 OF 5",
+            "lines": [
+                ("TROLLGE", "hey. you're the guy from the video.", 1.0),
+                ("BF", "beep bop! i'm gonna win.", 0.0),
+                ("TROLLGE", "sure you are.", 1.4),
+            ],
+            "outro": [
+                ("", "he only ever wanted a friend.", 0.0),
+                ("", "that is the scary part.", 0.0),
+            ],
+        },
         "tonic": 50,  # D3
         "progression": [
             (0, [0, 3, 7]),
@@ -122,6 +138,21 @@ SONGS = [
         "scroll": 1.85,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 2, 2, 4, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [CLAP, HALF, QUARTERS, HALF],
+        # the hook: the four-lane figure this song is built on. The audio
+        # renders these lanes as pitches, so the chart follows the melody.
+        "hooks": [[0, 1, 0, 2], [3, 2, 1, 2]],
+        "cutscene": {
+            "frame": "ui/cutscene_frame",
+            "tag": "TROLLGE WEEK  //  2 OF 5",
+            "lines": [
+                ("TROLLGE", "it's getting dark.", 1.2),
+                ("BF", "it's still light out??", 0.0),
+                ("TROLLGE", "not for long.", 1.6),
+            ],
+            "outro": [
+                ("", "the light went out on its own.", 0.0),
+            ],
+        },
         "tonic": 48,  # C3 -- a semitone under the D minor opener
         "progression": [
             (0, [0, 3, 7]),
@@ -163,6 +194,21 @@ SONGS = [
         "scroll": 2.05,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [QUARTERS, QUARTERS, QUARTERS_SYNC, TRAP],
+        # the hook: the four-lane figure this song is built on. The audio
+        # renders these lanes as pitches, so the chart follows the melody.
+        "hooks": [[0, 3, 1, 3], [2, 3, 0, 2]],
+        "cutscene": {
+            "frame": "ui/cutscene_frame_dark",
+            "tag": "TROLLGE WEEK  //  3 OF 5",
+            "lines": [
+                ("TROLLGE", "don't look back.", 1.4),
+                ("BF", "why not?", 0.0),
+                ("TROLLGE", "because i'm already there.", 2.0),
+            ],
+            "outro": [
+                ("", "you looked.", 0.0),
+            ],
+        },
         "tonic": 49,  # C#3
         "progression": [
             (0, [0, 3, 7]),
@@ -208,6 +254,21 @@ SONGS = [
         "scroll": 2.25,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [QUARTERS, TRAP, DRIVE, QUARTERS],
+        # the hook: the four-lane figure this song is built on. The audio
+        # renders these lanes as pitches, so the chart follows the melody.
+        "hooks": [[0, 2, 3, 1], [3, 1, 0, 2]],
+        "cutscene": {
+            "frame": "ui/cutscene_frame_dark",
+            "tag": "TROLLGE WEEK  //  4 OF 5",
+            "lines": [
+                ("TROLLGE", "you keep coming back.", 1.6),
+                ("BF", "i don't have a choice!", 0.0),
+                ("TROLLGE", "neither do i.", 2.2),
+            ],
+            "outro": [
+                ("", "something followed you home.", 0.0),
+            ],
+        },
         "tonic": 47,  # B2 -- lower, heavier
         "progression": [
             (0, [0, 3, 6]),      # tritone instead of the fifth
@@ -256,6 +317,24 @@ SONGS = [
         "scroll": 2.45,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 4, 2, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
         "cells": [TRAP, DRIVE, SKITTER, QUARTERS],
+        # the hook: the four-lane figure this song is built on. The audio
+        # renders these lanes as pitches, so the chart follows the melody.
+        "hooks": [[0, 1, 3, 2], [2, 0, 1, 3]],
+        "cutscene": {
+            "frame": "ui/cutscene_frame_dark",
+            "tag": "TROLLGE WEEK  //  5 OF 5",
+            "lines": [
+                ("TROLLGE", "this is where it started.", 1.8),
+                ("BF", "...where what started?", 0.6),
+                ("TROLLGE", "the incident.", 2.6),
+            ],
+            "outro": [
+                ("", "GOODBYE.", 2.0),
+                ("", "he stopped fighting.", 1.0),
+                ("", "the incident is over.", 0.0),
+                ("", "...or maybe it never ended.", 0.6),
+            ],
+        },
         "tonic": 45,  # A2 -- the bottom of the register
         "progression": [
             (0, [0, 1, 6]),      # semitone + tritone: nothing resolves
@@ -448,17 +527,25 @@ def sections(song):
     out = []
     cells = song["cells"]
     roles = section_roles(song)
+    call, answer = song["hooks"][0], song["hooks"][1]
     for i, (bars, start) in enumerate(zip(song["section_measures"], song["_block_starts"])):
         # A breakdown is sparse in the chart exactly where the drums drop out.
         cell = CELLS[HALF if roles[i] == "break" else cells[i % len(cells)]]
-        shape = SHAPES[i % len(SHAPES)]
         side = side_for_block(i)
+        hook = call if side == "opponent" else answer
+        # Every fourth exchange the answer comes back inverted: call/response,
+        # not a loop. The chords move underneath, so the melody never repeats
+        # at the same pitch twice.
+        if side == "player" and (i // 2) % 4 == 3:
+            hook = [3 - note for note in hook]
+        count = bars * len(cell)
         notes = []
         for bar in range(bars):
             for k, offset in enumerate(cell):
-                nid = int(shape[(k + 3 * bar) % len(shape)])
-                if side == "player":
-                    nid = 3 - nid            # the answer mirrors the call
+                index = bar * len(cell) + k
+                nid = hook[index % len(hook)]
+                if index == count - 1:
+                    nid = 0              # every phrase lands on the root
                 notes.append(
                     {
                         "id": nid,

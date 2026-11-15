@@ -187,6 +187,11 @@ def check_week_and_freeplay():
     week = os.path.join(MOD, "data", "weeks", "weeks", "trollge_week.xml")
     if os.path.isfile(week):
         root = ET.parse(week).getroot()
+        # Story mode offers only the difficulties the week declares: shipping a
+        # hard chart the week never lists means nobody can select it.
+        listed_diffs = [node.get("name") for node in root.findall("difficulty")]
+        ok(listed_diffs == list(L.DIFFICULTIES),
+           "week difficulties are %s, expected %s" % (listed_diffs, list(L.DIFFICULTIES)))
         listed = [node.text.strip() for node in root.iter("song") if node.text]
         ok(listed == ids, "week song list is %s, expected %s" % (listed, ids))
 
@@ -387,6 +392,79 @@ def check_hud():
 # --------------------------------------------------------------------------- #
 
 STRUM_POSITIONS = {"dad", "boyfriend", "girlfriend"}
+
+
+def check_cutscenes():
+    """Cutscenes are code, so they are checked like code.
+
+    Codename finds songs/<song>/cutscene.hx and songs/<song>/cutscene-end.hx on
+    its own; if either is missing the song silently loses its intro / outro. If
+    the script references an image or a sound that does not ship, the cutscene
+    throws at load time and the player sees nothing at all.
+    """
+    for song in L.SONGS:
+        base = os.path.join(MOD, "songs", song["id"])
+        for name in ("cutscene.hx", "cutscene-end.hx"):
+            path = os.path.join(base, name)
+            if not ok(os.path.isfile(path), "%s is missing %s" % (song["id"], name)):
+                continue
+            text = open(path, encoding="utf-8").read()
+            ok("function create()" in text,
+               "%s/%s has no create()" % (song["id"], name))
+            ok("function destroy()" in text,
+               "%s/%s has no destroy(): the HUD would stay hidden" % (song["id"], name))
+            ok("camHUD.visible = true" in text,
+               "%s/%s never restores the HUD" % (song["id"], name))
+            ok("FlxG.cameras.remove(cam)" in text,
+               "%s/%s leaks its camera" % (song["id"], name))
+
+            for sound in set(re.findall(r'Paths\.sound\("([^"]+)"\)', text)):
+                ok(os.path.isfile(os.path.join(MOD, "sounds", sound + ".ogg")),
+                   "%s/%s plays sounds/%s.ogg, which does not exist"
+                   % (song["id"], name, sound))
+            for image in set(re.findall(r'Paths\.image\("([^"]+)"\)', text)):
+                ok(os.path.isfile(os.path.join(MOD, "images", image + ".png")),
+                   "%s/%s loads images/%s.png, which does not exist"
+                   % (song["id"], name, image))
+
+        # The dialogue itself comes from song_layout, so it cannot be empty.
+        cutscene = song.get("cutscene")
+        ok(cutscene is not None, "%s has no cutscene data in song_layout" % song["id"])
+        if cutscene is None:
+            continue
+        ok(len(cutscene["lines"]) >= 2,
+           "%s needs at least two intro lines" % song["id"])
+        ok(len(cutscene["outro"]) >= 1, "%s has no outro line" % song["id"])
+        for who, line, _shake in cutscene["lines"]:
+            ok(bool(line.strip()), "%s has an empty cutscene line" % song["id"])
+            ok(who in ("TROLLGE", "BF", ""),
+               "%s: unknown speaker %r" % (song["id"], who))
+        for _who, line, _shake in cutscene["outro"]:
+            ok(bool(line.strip()), "%s has an empty outro line" % song["id"])
+        script = open(os.path.join(base, "cutscene.hx"), encoding="utf-8").read()
+        for _who, line, _shake in cutscene["lines"]:
+            ok(hx_quote(line) in script,
+               "%s/cutscene.hx is out of date (missing %r); run tools/make_cutscenes.py"
+               % (song["id"], line))
+
+    # The art the cutscenes draw must exist at the size the layout assumes.
+    from PIL import Image
+    for name, size in (("ui/cutscene_bar_top", (1280, 100)),
+                       ("ui/cutscene_bar_bottom", (1280, 100)),
+                       ("ui/cutscene_frame", (1180, 208)),
+                       ("ui/cutscene_frame_dark", (1180, 208)),
+                       ("ui/cutscene_veil", (1280, 720))):
+        path = os.path.join(MOD, "images", name + ".png")
+        if not ok(os.path.isfile(path), "missing cutscene art %s.png" % name):
+            continue
+        with Image.open(path) as img:
+            ok(img.size == size, "%s.png is %s, expected %s" % (name, img.size, size))
+            if "veil" not in name:
+                ok(img.mode == "RGBA", "%s.png needs an alpha channel" % name)
+
+
+def hx_quote(text):
+    return '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def check_charts():
@@ -659,9 +737,11 @@ def check_scripts():
     # Cheap syntax safety net for every HScript file (no engine needed).
     for path in walk(".hx"):
         src = open(path, encoding="utf-8").read()
-        stripped = re.sub(r"//[^\n]*", "", src)
+        # Strings first: a "//" inside a string literal is not a comment, and
+        # the cutscene titles are full of them ("TROLLGE WEEK  //  3 OF 5").
+        stripped = re.sub(r'"(?:\\.|[^"\\])*"', '""', src)
+        stripped = re.sub(r"//[^\n]*", "", stripped)
         stripped = re.sub(r"/\*.*?\*/", "", stripped, flags=re.S)
-        stripped = re.sub(r'"(?:\\.|[^"\\])*"', '""', stripped)
         for open_ch, close_ch in (("{", "}"), ("(", ")"), ("[", "]")):
             ok(stripped.count(open_ch) == stripped.count(close_ch),
                "%s: unbalanced %r / %r" % (rel(path), open_ch, close_ch))
@@ -755,6 +835,7 @@ def main():
     check_mod_json()
     check_week_and_freeplay()
     check_charts()
+    check_cutscenes()
     check_noteskin()
     check_hud()
     check_shaders()

@@ -7,4 +7,5 @@
 	<song>the-incident</song>
 	<difficulty name="easy"/>
 	<difficulty name="normal"/>
+	<difficulty name="hard"/>
 </week>

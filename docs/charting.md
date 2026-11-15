@@ -178,6 +178,39 @@ sings his blocks an octave down with a growl and a dark vowel, the player sings 
 an octave above with a bright vowel, and the two are panned apart. The result is
 `song/Voices.ogg`, exactly the length of `Inst.ogg` and mastered ~6 dB under it.
 
+
+### The hook: why the chart is the melody
+
+The base game's charts follow the vocals, and the vocals are a hook — four notes you
+can hum. `tools/song_layout.py` models that directly: every song defines `hooks`,
+two four-lane figures. The opponent sings the call, the player answers with the
+other figure, and every fourth exchange the answer comes back inverted. Because
+`note_pitch()` turns the lane into a scale degree and the chord changes every bar,
+the same four lanes never sound twice the same way. The chart and both audio files
+are generated from those lanes, so the hook the player hears is the hook the player
+hits, and every phrase cadences on the root.
+
+That is also why the difficulty filters can be mechanical: easy/normal/hard are
+subsets of the same melody, not three different songs.
+
+### Cutscenes
+
+Codename finds them without being asked (`PlayState.createPost` →
+`startCutscene("", cutscene)`; `PlayState` → `startCutscene("end-", endCutscene,
+nextSong)`), so a song cutscene is just `songs/<song>/cutscene.hx` and
+`songs/<song>/cutscene-end.hx`. Both are scripted cutscenes: the substate sets
+`persistentUpdate` on the game, so the stage keeps running underneath while the
+script draws on its own camera.
+
+This pack generates those scripts (`tools/make_cutscenes.py`) rather than
+hand-writing them, because the text lives next to the song data in
+`tools/song_layout.py`. The scripts only touch APIs the engine itself uses —
+`FlxCamera` + camera lists (DialogueCutscene), `FlxSprite.loadGraphic` (every stage
+script), `FlxTypeText` with `font = Paths.font("vcr.ttf")` (DialogueBox.hx) and
+`FlxTimer` (guns' cutscene) — and every class comes from the engine's script
+globals (`Script.hx` default imports), not from `import` statements, which in
+HScript try to load a `.hx` *file* instead.
+
 ## 4. How it is enforced
 
 `tools/validate_mod.py` (structural, runs on every push):

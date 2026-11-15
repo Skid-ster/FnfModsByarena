@@ -1,11 +1,11 @@
 {
 	"name": "Super Scary Trollge",
 	"id": "TrollgeMod",
-	"version": "3.1.0",
+	"version": "3.2.0",
 	"engine": "Codename Engine",
 	"apiVersion": "1.0.0",
 	"modpack": "data/config/modpack.ini",
-	"description": "Five songs of escalating Trollge horror (2/10 to 10/10) with hand-drawn Trollge phases that mutate mid-song, a different Boyfriend for every song, per-song arrow skins, a VHS screen grade, camera shake and zoom that scale with the scare tier, per-character note-hit voices, and five distinct instrumentals (bounce / trap / glitch / industrial / finale).",
+	"description": "Five songs of escalating Trollge horror (2/10 to 10/10) with hand-written cutscenes and a real ending, hand-drawn Trollge phases that mutate mid-song, a different Boyfriend for every song, per-song arrow skins, a VHS screen grade, camera shake and zoom that scale with the scare tier, per-character note-hit voices, singable vocal tracks (Voices.ogg) and five distinct instrumentals (bounce / trap / glitch / industrial / finale) built from the charts themselves.",
 	"authors": [
 		"Skid-ster"
 	],

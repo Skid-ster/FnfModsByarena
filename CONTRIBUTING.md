@@ -38,6 +38,7 @@ python3 tools/make_audio.py    # only if you touched song_layout.py / make_audio
 python3 tools/make_noteskin.py # only if you touched make_noteskin.py (arrow skins + splashes)
 python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + countdown)
 python3 tools/make_chart.py    # if you touched song_layout.py (charts)
+python3 tools/make_cutscenes.py # if you touched the cutscene lines or their art
 python3 tools/make_stage_preview.py  # if you touched the stage xml
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
@@ -62,6 +63,9 @@ feat(song3): denser final section
 * **Chart shape** is `section_measures` (bars per phrase block, 2-4 like the base game) plus `cells` (one rhythm cell
   per block, cycled). Blocks alternate `opponent → player`, so every bar is owned by exactly one character; keep it
   that way, or `tools/validate_mod.py` fails with "a bar mixes player and opponent notes".
+* **Cutscene copy** lives in `song_layout.py` too (`"cutscene": {"tag", "lines", "outro"}`). Edit the words there and
+  run `tools/make_cutscenes.py`: it rewrites `songs/<song>/cutscene.hx`, `songs/<song>/cutscene-end.hx` and the frames
+  in `images/ui/`. Never hand-edit the `.hx` files, CI diffs them.
 * **Difficulties** come from `notes(song, difficulty)`: hard keeps every note, normal two in three, easy every second.
   Do not hand-write an easy chart — it is a strided subset, so the three charts can never disagree about timing.
 * **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `glitch`, `industrial`, `finale`). Each style
@@ -137,6 +141,18 @@ no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float li
 5. `python3 tools/validate_mod.py` -- it now checks that every character a chart references exists,
    that all of its animations resolve to real frames, and that the atlas is uniformly framed.
 
+## Writing HScript for this mod
+
+Codename scripts are interpreted, and the engine registers a fixed set of classes as
+script globals (`Script.hx`: `FlxSprite`, `FlxText`, `FlxTypeText`, `FlxCamera`,
+`FlxTween`, `FlxTimer`, `Paths`, `PlayState`, …). Two rules that cost an afternoon each:
+
+* **Do not `import` Haxe classes.** In HScript an `import` is a *file* import: it tries to
+  load `assets/…/Class.hx` and fails. Use the globals.
+* **Anything you hide or create must be put back in `destroy()`.** `tools/validate_mod.py`
+  checks the cutscene scripts for `camHUD.visible = true` and `FlxG.cameras.remove(cam)`;
+  a missing line means the player finishes the cutscene with no HUD or a leaked camera.
+
 ## Ideas that fit well
 
 * New story event functions in `data/scripts/trollge_song_behavior.hx` (add them to the event list in
@@ -145,6 +161,8 @@ no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float li
 * Better backdrops/horror grading in `tools/make_art.py`.
 * A fourth difficulty (e.g. `erect`) — add it to `L.DIFFICULTIES` and `DIFFICULTY_STRIDE` in `tools/song_layout.py`;
   `tools/make_chart.py` writes a chart per entry and `meta.json` follows.
+* A mid-song cutscene — `PlayState.startCutscene("midsong-", ...)` picks up
+  `songs/<song>/midsong-cutscene.hx` if you want to interrupt a song.
 * More rhythm cells — add one to `CELLS` in `tools/song_layout.py` and reference it from a song's `cells` list.
 
 ## Reporting bugs
