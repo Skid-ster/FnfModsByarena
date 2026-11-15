@@ -1,0 +1,26 @@
+{
+	"displayName": "Super Scary Trollge",
+	"bpm": 160.0,
+	"beatsPerMeasure": 4,
+	"stepsPerBeat": 4,
+	"icon": "trollge_final",
+	"color": "#C4101E",
+	"coopAllowed": false,
+	"opponentModeAllowed": true,
+	"needsVoices": true,
+	"difficulties": [
+		"easy",
+		"normal",
+		"hard"
+	],
+	"customValues": {
+		"scareTier": 8,
+		"songKey": "B minor",
+		"lengthSeconds": 103.5,
+		"noteCounts": {
+			"easy": 162,
+			"normal": 201,
+			"hard": 308
+		}
+	}
+}

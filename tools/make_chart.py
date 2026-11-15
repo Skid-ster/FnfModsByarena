@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """
-Builds every chart / metadata file for the three Super Scary Trollge songs.
+Builds every chart / metadata file for the five Super Scary Trollge songs.
 
-Per song (all in Codename Engine 1.x layout):
+Layout (Codename Engine 1.x, matching how the base game ships a song):
 
-    mods/TrollgeMod/songs/<id>/meta.json      display name, BPM, icon, difficulties
-    mods/TrollgeMod/songs/<id>/events.json    scripted story beats
-    mods/TrollgeMod/songs/<id>/charts/normal.json
+    mods/TrollgeMod/songs/<id>/song/Inst.ogg     instrumental
+    mods/TrollgeMod/songs/<id>/song/Voices.ogg   the characters' vocals
+    mods/TrollgeMod/songs/<id>/meta.json         display name, BPM, icon, difficulties
+    mods/TrollgeMod/songs/<id>/events.json       scripted story beats
     mods/TrollgeMod/songs/<id>/charts/easy.json
+    mods/TrollgeMod/songs/<id>/charts/normal.json
+    mods/TrollgeMod/songs/<id>/charts/hard.json
+
+Every file is generated from tools/song_layout.py, so the audio that was
+rendered and the chart that is played are the same note list.
 
 Run with:  python3 tools/make_chart.py
 """
@@ -24,7 +30,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SONGS_DIR = os.path.join(ROOT, "mods", "TrollgeMod", "songs")
 
 STAGE = "trollge"
-SCROLL_SPEED = 1.0
 CHART_VERSION = "1.6.0"
 
 #: Icon + health-bar colour per song (gets redder as it gets scarier).
@@ -32,10 +37,10 @@ CHART_VERSION = "1.6.0"
 #: back to the base game's "face" when it is not, which hides a missing phase.
 STYLES = {
     "trolling": {"icon": "trollge", "color": "#3F7BD1"},
-    "getting_dark": {"icon": "trollge_glitch", "color": "#8A1023"},
-    "dont_look_back": {"icon": "trollge_static", "color": "#A8142B"},
-    "super_scary": {"icon": "trollge_final", "color": "#C4101E"},
-    "the_incident": {"icon": "trollge_sad", "color": "#5C0610"},
+    "getting-dark": {"icon": "trollge_glitch", "color": "#8A1023"},
+    "dont-look-back": {"icon": "trollge_static", "color": "#A8142B"},
+    "super-scary": {"icon": "trollge_final", "color": "#C4101E"},
+    "the-incident": {"icon": "trollge_sad", "color": "#5C0610"},
 }
 
 BOOKMARK_COLORS = ["#6E0D1B", "#8A1023", "#A8142B", "#C4101E"]
@@ -58,19 +63,26 @@ def note_obj(note):
     }
 
 
-def make_easy(notes):
-    """Half density, no sustains: keeps the rhythm but never overwhelms."""
-    return [dict(n, sLen=0.0) for i, n in enumerate(notes) if i % 2 == 0]
+def build_chart(song, difficulty):
+    """One difficulty chart.
 
-
-def build_chart(song, notes, with_camera=True):
+    Chart conventions taken from the base game:
+      * a section is one bar (16 steps) and belongs to exactly one side, which
+        the bookmark + `mustHitSection` field records for the editor,
+      * the opponent's strum line holds the opponent's sections and the player's
+        holds the player's, so the two characters alternate phrase blocks,
+      * scroll speed rises with the difficulty instead of being flat.
+    """
+    notes = L.notes(song, difficulty)
+    sections = L.sections(song)
     bookmarks = [
         {
             "time": round(sec["time"], 3),
-            "name": "%02d - %s" % (i + 1, sec["name"]),
+            "name": "%02d - %s%s" % (i + 1, sec["name"],
+                                     "" if sec["side"] == "player" else " (dad)"),
             "color": BOOKMARK_COLORS[i % len(BOOKMARK_COLORS)],
         }
-        for i, sec in enumerate(L.sections(song))
+        for i, sec in enumerate(sections)
     ]
 
     opponent = [n for n in notes if n["side"] == "opponent"]
@@ -78,12 +90,15 @@ def build_chart(song, notes, with_camera=True):
 
     return {
         "stage": STAGE,
-        "scrollSpeed": SCROLL_SPEED,
+        "scrollSpeed": L.scroll_speed(song, difficulty),
         "chartVersion": CHART_VERSION,
         "codenameChart": True,
         "noteTypes": L.note_types(song),
         "bookmarks": bookmarks,
-        "events": L.camera_events(song) if with_camera else [],
+        # No `sections` array: Codename charts are strum-line native and the
+        # editor derives 16-step sections (and mustHitSection) from which strum
+        # line a note sits in -- exactly what the two lists below encode.
+        "events": L.camera_events(song),
         "strumLines": [
             {
                 "position": "dad",
@@ -92,6 +107,7 @@ def build_chart(song, notes, with_camera=True):
                 "keyCount": 4,
                 "visible": True,
                 "strumScale": 1.0,
+                "scrollSpeed": L.scroll_speed(song, difficulty),
                 "notes": [note_obj(n) for n in opponent],
             },
             {
@@ -101,6 +117,7 @@ def build_chart(song, notes, with_camera=True):
                 "keyCount": 4,
                 "visible": True,
                 "strumScale": 1.0,
+                "scrollSpeed": L.scroll_speed(song, difficulty),
                 "notes": [note_obj(n) for n in player],
             },
         ],
@@ -113,6 +130,7 @@ def count_notes(chart):
 
 def meta_json(song):
     style = STYLES[song["id"]]
+    counts = {d: len(L.notes(song, d)) for d in L.DIFFICULTIES}
     return {
         "displayName": song["display"],
         "bpm": song["bpm"],
@@ -122,11 +140,13 @@ def meta_json(song):
         "color": style["color"],
         "coopAllowed": False,
         "opponentModeAllowed": True,
-        "needsVoices": False,
-        "difficulties": ["easy", "normal"],
+        "needsVoices": True,
+        "difficulties": list(L.DIFFICULTIES),
         "customValues": {
             "scareTier": song["scare"],
+            "songKey": L.key_name(song),
             "lengthSeconds": round(L.length(song), 3),
+            "noteCounts": counts,
         },
     }
 
@@ -135,24 +155,23 @@ def main():
     total_notes = 0
     for song in L.SONGS:
         base = os.path.join(SONGS_DIR, song["id"])
-        notes = L.notes(song)
         json_dump(os.path.join(base, "meta.json"), meta_json(song))
         json_dump(os.path.join(base, "events.json"), {"events": L.story_events(song)})
 
-        variants = {"normal": notes, "easy": make_easy(notes)}
-        for name, variant in variants.items():
-            chart = build_chart(song, variant)
-            json_dump(os.path.join(base, "charts", "%s.json" % name), chart)
-            if name == "normal":
+        for difficulty in L.DIFFICULTIES:
+            chart = build_chart(song, difficulty)
+            json_dump(os.path.join(base, "charts", "%s.json" % difficulty), chart)
+            if difficulty == "hard":
                 total_notes += count_notes(chart)
-            print("  %-14s %-6s %4d notes  %6.2fs  %2d sections  cv:%.0f"
-                  % (song["id"], name, count_notes(chart), L.length(song),
-                     len(L.sections(song)), song["bpm"]))
+            print("  %-14s %-6s %4d notes  scroll %.2f  %6.2fs"
+                  % (song["id"], difficulty, count_notes(chart),
+                     L.scroll_speed(song, difficulty), L.length(song)))
 
-        print("    meta: scare %d/10, %d scripted story beats"
-              % (song["scare"], len(song["events"])))
+        print("    meta: %s, scare %d/10, %d bars in %d phrase blocks, %d story beats"
+              % (L.key_name(song), song["scare"], L.measures(song),
+                 len(L.sections(song)), len(song["events"])))
 
-    print("  total normal-mode notes: %d" % total_notes)
+    print("  total hard-mode notes: %d" % total_notes)
 
 
 if __name__ == "__main__":

@@ -7,13 +7,13 @@ and the HUD mutate with it.
 
 ![The cast](docs/cast.png)
 
-| Song | Scare | BPM | Sound | Length | Notes (normal) | Boyfriend | Trollge | Story beats |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **1. Trolling** | 2/10 | 140 | 8-bit **bounce** | 104.0 s | 256 | `bf_blue` | `trollge` | 3 |
-| **2. It's Getting Dark** | 4/10 | 150 | half-time **trap** | 103.6 s | 320 | `bf_smiler` | `trollge` → `trollge_glitch` | 7 |
-| **3. Don't Look Back** | 6/10 | 152 | **glitch** | 111.9 s | 640 | `bf_glitched` | `trollge_glitch` → `trollge_static` | 10 |
-| **4. Super Scary Trollge** | 8/10 | 160 | **industrial** | 103.5 s | 658 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
-| **5. The Incident** | 10/10 | 170 | **finale** | 92.0 s | 782 | `bf_damned` | `trollge_final` → `trollge_sad` | 16 |
+| Song | Folder | Key | Scare | BPM | Sound | Length | Notes EZ/NM/HARD | Boyfriend | Trollge | Story beats |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **1. Trolling** | `trolling` | D minor | 2/10 | 140 | 8-bit **bounce** | 1:44 | 92 / 110 / 152 | `bf_blue` | `trollge` | 3 |
+| **2. It's Getting Dark** | `getting-dark` | C minor | 4/10 | 150 | half-time **trap** | 1:43 | 108 / 128 / 176 | `bf_smiler` | `trollge` → `trollge_glitch` | 7 |
+| **3. Don't Look Back** | `dont-look-back` | C# minor | 6/10 | 152 | **glitch** | 1:51 | 153 / 185 / 266 | `bf_glitched` | `trollge_glitch` → `trollge_static` | 10 |
+| **4. Super Scary Trollge** | `super-scary` | B minor | 8/10 | 160 | **industrial** | 1:43 | 162 / 201 / 308 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
+| **5. The Incident** | `the-incident` | A minor | 10/10 | 170 | **finale** | 1:48 | 206 / 257 / 378 | `bf_damned` | `trollge_final` → `trollge_sad` | 16 |
 
 Each song also ships its own **arrow skin**, from bright violet/mint to a corrupted glitch atlas:
 
@@ -27,9 +27,14 @@ Each song also ships its own **arrow skin**, from bright violet/mint to a corrup
 
 ![Arrow skins](docs/noteskin.png)
 
-Both **easy** and **normal** difficulties are charted for all five songs (easy = half density, no sustains).
-Sustains land every other section, and the last three sections of songs 4 and 5 drop **two-lane chords on the beat** —
-that is what takes a chart from "busy" to "10/10".
+All three base-game difficulties — **easy, normal, hard** — are charted for every song, with scroll speed rising per
+difficulty (1.25 → 2.45 across the pack). Easy and normal are strided subsets of the hard chart (every second / two in
+three notes), so nothing can drift: sustains and the finale's **two-lane chords** exist on hard only.
+
+Charts are built the way the base game builds them: **one bar (16 steps) belongs to one character**, phrase blocks of
+2–4 bars alternate `dad → bf`, the player sings the last phrase, every song opens with an intro block and breathes on
+two breakdowns, and note density climbs 1.5 → 3.5 notes/second instead of 2.5 → 8.5. Song 5 is the longest and hardest.
+The full reasoning, the base-game reference numbers and the engine citations are in **[docs/charting.md](docs/charting.md)**.
 
 All five songs are in **freeplay** (via `data/config/freeplaySonglist/LIB_TrollgeMod.txt`, which lists them in
 scare order) and in story mode (the week plays them back to back).
@@ -41,7 +46,7 @@ scare order) and in story mode (the week plays them back to back).
 ## Install
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
-2. Grab `SuperScaryTrollge-v3.0.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
+2. Grab `SuperScaryTrollge-v3.1.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
 3. Drop the **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **Super Scary Trollge**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
@@ -63,8 +68,9 @@ mods/
     ├── images/           characters/, icons/, stages/, menus/, event overlays,
     │                     game/notes/{default,shadow,corrupt,torn}, game/splashes,
     │                     game/healthBar.png, game/{ready,set,go}.png
-    ├── songs/            trolling/, getting_dark/, dont_look_back/,
-    │                     super_scary/, the_incident/
+    ├── songs/            trolling/, getting-dark/, dont-look-back/,
+    │                     super-scary/, the-incident/  (song/Inst.ogg +
+    │                     song/Voices.ogg + charts/{easy,normal,hard}.json)
     └── sounds/           stingers, themes, countdown hits, custom hit/miss,
                           per-character note voices
 ```
@@ -235,7 +241,7 @@ every chart section and gives it a part, so the songs build, drop and breathe in
 | `intro` | section 1 | pad, one kick, off-beat hats, no snare |
 | `verse` | most sections | kick on 1 + 3, snare on 2 + 4, 8th hats, walking bass |
 | `build` | every 4th section | verse + 16th hats and a busier bass |
-| `drop` | dense sections (spacing ≤ 2) | syncopated 16th bass, extra kicks, 16th hats, air sizzle |
+| `drop` | blocks with 16th-note cells | syncopated 16th bass, extra kicks, 16th hats, air sizzle |
 | `break` | mid-song + just before the finale | half-time heartbeat, open hats, most of the mix gone |
 | `finale` | last two sections | drop + octave-doubled lead |
 
@@ -305,9 +311,9 @@ The validator checks the shader file for `#pragma header`, a `main()`, no `switc
 
 ## How the charts work
 
-`tools/song_layout.py` is the single source of truth: it defines the BPM, chord progression, section list
-(`count` notes per section, `spacing` in 16ths), the characters each song uses, and the story beats for all
-five songs. `tools/make_chart.py` and `tools/make_audio.py` both read it, so **the music and the chart can
+`tools/song_layout.py` is the single source of truth: it defines the BPM, the key, the chord progression, the phrase
+blocks (`section_measures` in bars), the rhythm cell of each block (`cells`), the difficulty filters, the characters
+each song uses, and the story beats for all five songs. `tools/make_chart.py` and `tools/make_audio.py` both read it, so **the music and the chart can
 never drift apart**.
 
 Charts are written in Codename's own format:
@@ -326,7 +332,9 @@ Charts are written in Codename's own format:
 }
 ```
 
-Each song ships 16–24 named section bookmarks so the charter shows the song structure at a glance.
+Each song ships 16–28 named phrase bookmarks (marked `(dad)` when the opponent sings) so the editor shows the song
+structure at a glance, plus its own `song/Voices.ogg` — the characters actually sing, which is what `needsVoices`
+gates in `PlayState.hx`.
 
 ---
 
@@ -339,18 +347,19 @@ pip install pillow numpy soundfile
 
 python3 tools/make_characters.py  # imported atlases -> normalised atlases, icons, character XML (~25 s)
 python3 tools/make_art.py         # backdrops, VHS overlays, week banner, previews (~10 s)
-python3 tools/make_audio.py       # 5 instrumentals + stingers + themes + countdown + note voices (~6 min)
+python3 tools/make_audio.py       # 5 instrumentals + 5 vocal tracks + stingers/themes/note voices (~18 min)
 python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt/torn) + splashes (~12 s)
 python3 tools/make_hud.py         # health bar frame + READY/SET/GO badges
-python3 tools/make_chart.py       # meta.json, events.json, charts for all difficulties
+python3 tools/make_chart.py       # meta.json, events.json, charts {easy,normal,hard}
 python3 tools/make_stage_preview.py  # engine framing check -> docs/stage.png + margin report
-python3 tools/validate_mod.py     # 1686 checks: schemas, atlas bounds, skins, HUD, note times, audio length...
+python3 tools/validate_mod.py     # ~1900 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
-python3 tools/package_mod.py      # dist/SuperScaryTrollge-v3.0.0.zip
+python3 tools/package_mod.py      # dist/SuperScaryTrollge-v3.1.0.zip
 ```
 
-Want a different song? Edit `tools/song_layout.py` (spacings, progression, scare tier, event times) and re-run
-the generators — the chart, the instrumental, the week and the freeplay list all follow.
+Want a different song? Edit `tools/song_layout.py` (phrase blocks, rhythm cells, progression, key, scare tier, event
+times) and re-run the generators — the charts, the instrumental, the vocal track, the week and the freeplay list all
+follow.
 
 ---
 

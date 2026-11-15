@@ -51,6 +51,26 @@ NOTESKIN_DARK = "shadow"      # song 2: colour drained out
 NOTESKIN_CORRUPT = "corrupt"  # songs 3-4: glitched arrows
 NOTESKIN_TORN = "torn"        # song 5: burnt through
 
+#: Rhythm cells -- one bar written as 16th-note offsets.
+HALF = "HALF"
+QUARTERS = "QUARTERS"
+QUARTERS_SYNC = "QUARTERS_SYNC"
+CLAP = "CLAP"
+TRAP = "TRAP"
+DRIVE = "DRIVE"
+SKITTER = "SKITTER"
+
+CELLS = {
+    HALF:          [0, 8],
+    QUARTERS:      [0, 4, 8, 12],
+    QUARTERS_SYNC: [0, 3, 8, 11],       # pushes the "and" of 1 and 3
+    CLAP:          [0, 6, 8, 14],       # backbeat with a late pickup
+    TRAP:          [0, 4, 8, 10, 12],
+    DRIVE:         [0, 2, 4, 8, 10, 12],
+    SKITTER:       [0, 3, 6, 8, 11, 14],
+}
+
+
 SONGS = [
     {
         "id": "trolling",
@@ -62,8 +82,9 @@ SONGS = [
         "bpm": 140.0,
         "scare": 2,
         "offset": 1.1428571428571428,
-        "count": 16,
-        "spacings": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4],
+        "scroll": 1.60,   # hard-mode scroll speed (base game: 1.2-2.6)
+        "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
+        "cells": [HALF, HALF, QUARTERS, HALF],
         "tonic": 50,  # D3
         "progression": [
             (0, [0, 3, 7]),
@@ -89,7 +110,7 @@ SONGS = [
         ],
     },
     {
-        "id": "getting_dark",
+        "id": "getting-dark",
         "display": "It's Getting Dark",
         "bf": "bf_smiler",       # art_src/bf/Smiler_Boyfriend_3.* -> tools/make_characters.py
         "trollge": "trollge",   # starts clean, mutates at 62 s (see events)
@@ -98,9 +119,10 @@ SONGS = [
         "bpm": 150.0,
         "scare": 4,
         "offset": 1.2,
-        "count": 16,
-        "spacings": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 2, 2, 4, 2, 4],
-        "tonic": 50,
+        "scroll": 1.85,   # hard-mode scroll speed (base game: 1.2-2.6)
+        "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 2, 2, 4, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
+        "cells": [CLAP, HALF, QUARTERS, HALF],
+        "tonic": 48,  # C3 -- a semitone under the D minor opener
         "progression": [
             (0, [0, 3, 7]),
             (0, [0, 3, 7]),
@@ -129,7 +151,7 @@ SONGS = [
         ],
     },
     {
-        "id": "dont_look_back",
+        "id": "dont-look-back",
         "display": "Don't Look Back",
         "bf": "bf_glitched",      # blue BF, corrupted (tools/make_characters.py "tint")
         "trollge": "trollge_glitch",  # phase 2 in, phase 3 out (event at 75 s)
@@ -138,8 +160,9 @@ SONGS = [
         "bpm": 152.0,
         "scare": 6,
         "offset": 1.4,
-        "count": 32,
-        "spacings": [2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1],
+        "scroll": 2.05,   # hard-mode scroll speed (base game: 1.2-2.6)
+        "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2],   # bars per section (FNF counts sections in 4-bar blocks)
+        "cells": [QUARTERS, QUARTERS, QUARTERS_SYNC, TRAP],
         "tonic": 49,  # C#3
         "progression": [
             (0, [0, 3, 7]),
@@ -172,7 +195,7 @@ SONGS = [
         ],
     },
     {
-        "id": "super_scary",
+        "id": "super-scary",
         "display": "Super Scary Trollge",
         "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_characters.py
         "trollge": "trollge_static",   # art_src/trollge/trollgeStatic1.* (phase 3)
@@ -182,8 +205,9 @@ SONGS = [
         "bpm": 160.0,
         "scare": 8,
         "offset": 1.5,
-        "count": 32,
-        "spacings": [2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2],
+        "scroll": 2.25,   # hard-mode scroll speed (base game: 1.2-2.6)
+        "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
+        "cells": [QUARTERS, TRAP, DRIVE, QUARTERS],
         "tonic": 47,  # B2 -- lower, heavier
         "progression": [
             (0, [0, 3, 6]),      # tritone instead of the fifth
@@ -219,7 +243,7 @@ SONGS = [
         ],
     },
     {
-        "id": "the_incident",
+        "id": "the-incident",
         "display": "The Incident",
         "bf": "bf_damned",       # bf_super_scary recoloured (tools/make_characters.py "tint")
         "trollge": "trollge_final",   # red-eyed final form from the first beat
@@ -229,8 +253,9 @@ SONGS = [
         "bpm": 170.0,
         "scare": 10,
         "offset": 1.6,
-        "count": 32,
-        "spacings": [1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2],
+        "scroll": 2.45,   # hard-mode scroll speed (base game: 1.2-2.6)
+        "section_measures": [2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 4, 2, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
+        "cells": [TRAP, DRIVE, SKITTER, QUARTERS],
         "tonic": 45,  # A2 -- the bottom of the register
         "progression": [
             (0, [0, 1, 6]),      # semitone + tritone: nothing resolves
@@ -249,6 +274,7 @@ SONGS = [
             "HE IS EVERYWHERE", "THE FIRST SCREAM", "THE PICTURE IS GONE", "THE FIRST SCREAM",
             "THERE IS NO ENDING", "THE FIRST SCREAM", "TROLLGE WINS", "THE FIRST SCREAM",
             "GOODBYE", "THE FIRST SCREAM", "I AM SORRY", "THE INCIDENT",
+            "HE IS HERE", "NO ONE LEAVES", "I AM SORRY", "GOODBYE",
         ],
         "events": [
             (8.0, "trollgeJumpScare"),
@@ -263,10 +289,10 @@ SONGS = [
             (62.0, "trollgeDistort"),
             (68.0, "trollgeJumpScare"),
             (74.0, "trollgeScreenShake"),
-            (79.0, "trollgeInvert"),
-            (84.0, "trollgeToSad"),        # he stops fighting. the incident is over.
-            (86.0, "trollgeJumpScare"),
-            (88.0, "trollgeStatic"),
+            (94.0, "trollgeInvert"),
+            (101.0, "trollgeToSad"),       # he stops fighting. the incident is over.
+            (103.0, "trollgeJumpScare"),
+            (106.0, "trollgeStatic"),
         ],
     },
 ]
@@ -279,6 +305,15 @@ def note_types(song):
     entry re-skins every arrow of that song (Note.hx -> game/notes/<name>)."""
     skin = song.get("noteskin")
     return [skin] if skin else []
+
+
+#: Note names for the stated key of each song (base game lists one per track).
+NOTE_NAMES = ("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
+
+
+def key_name(song):
+    """Stated key of the song, e.g. "D minor"."""
+    return NOTE_NAMES[song["tonic"] % 12] + " minor"
 
 
 def characters(song, side="player"):
@@ -303,7 +338,7 @@ def measure(song):
 
 
 def measures(song):
-    return sum(song["count"] * sp for sp in song["spacings"]) // 16
+    return sum(song["section_measures"])
 
 
 def length(song):
@@ -316,27 +351,35 @@ def measure_time(song, index):
 
 
 def section_time(song, index):
-    return measure_time(song, song["_section_measures"][index])
+    _prepare(song)
+    return measure_time(song, song["_block_starts"][index])
 
 
 # --------------------------------------------------------------------------- #
 # Sections & notes
+#
+# Charting conventions copied from the base game (see docs/charting.md):
+#   * a chart section is one bar (16 steps, `lengthInSteps: 16`),
+#   * one character sings a whole phrase block (2-4 bars) and the other answers,
+#     so every section belongs to exactly one side (`mustHitSection`),
+#   * rhythms are 16th-note cells, not a constant stream: week 1 sings halves and
+#     quarters, the hardest songs add eighths and short 16th runs.
 # --------------------------------------------------------------------------- #
 
 def _prepare(song):
-    if "_section_measures" in song:
+    if "_block_starts" in song:
         return song
     starts, m = [], 0
-    for sp in song["spacings"]:
+    for bars in song["section_measures"]:
         starts.append(m)
-        m += song["count"] * sp // 16
-    song["_section_measures"] = starts
+        m += bars
+    song["_block_starts"] = starts
     song["_measures"] = m
     return song
 
 
-#: Rendering "shapes" per section -- keeps the riff moving instead of looping one
-#: 16-note cell for three minutes.
+#: Arrow shapes per phrase block -- keeps the riff moving instead of looping one
+#: 16-note cell for two minutes.
 SHAPES = [
     "0123321001233210",
     "0123012332103210",
@@ -352,82 +395,160 @@ SHAPES = [
     "3012301230123012",
 ]
 
-SIDE_PATTERNS = [
-    "OOOOPPPPOOOOPPPP",
-    "OPOPOPOPPOPOPOPO",
-    "OPOPOPOPOPOPOPOP",
-    "OOOPPPPOOOPPPPPP",
-    "PPPOOOOPPPPOOOO",
-]
+
+#: How hard each part of the arrangement pushes, by section role.
+ROLE_GAIN = {
+    "intro": 0.10,
+    "verse": 0.70,
+    "build": 0.86,
+    "drop": 1.04,
+    "break": 0.18,
+    "finale": 1.12,
+}
+
+
+def section_roles(song):
+    """One arrangement role per phrase block, shared by the audio and the chart.
+
+    The audio renderer drops the drums on a "break" block; the chart writes a
+    sparse cell there, so the two never disagree about where the song breathes.
+    """
+    count = len(song["section_measures"])
+    roles = []
+    for i in range(count):
+        position = i / max(1, count - 1)
+        density = len(CELLS[song["cells"][i % len(song["cells"])]])
+        if i == 0:
+            role = "intro"
+        elif i >= count - 2:
+            role = "finale"
+        elif 0.46 <= position <= 0.54:
+            role = "break"          # mid-song breakdown
+        elif 0.80 <= position <= 0.86:
+            role = "break"          # the breath before the last act
+        elif density >= 6 and position >= 0.25:
+            role = "drop"           # 16th-note sections, but not in the first quarter
+        elif i % 4 == 2:
+            role = "build"
+        else:
+            role = "verse"
+        roles.append(role)
+    return roles
+
+
+def side_for_block(index):
+    """Base-game phrasing: the opponent opens, then the two characters trade
+    phrase blocks for the rest of the song (and the player always gets the last
+    word)."""
+    return "opponent" if index % 2 == 0 else "player"
 
 
 def sections(song):
     _prepare(song)
     out = []
-    for i, (sp, start) in enumerate(zip(song["spacings"], song["_section_measures"])):
-        note_count = song["count"]
+    cells = song["cells"]
+    roles = section_roles(song)
+    for i, (bars, start) in enumerate(zip(song["section_measures"], song["_block_starts"])):
+        # A breakdown is sparse in the chart exactly where the drums drop out.
+        cell = CELLS[HALF if roles[i] == "break" else cells[i % len(cells)]]
         shape = SHAPES[i % len(SHAPES)]
-        ids = [int(shape[j % len(shape)]) for j in range(note_count)]
-        side_pat = SIDE_PATTERNS[i % len(SIDE_PATTERNS)]
-
+        side = side_for_block(i)
         notes = []
-        for j in range(note_count):
-            steps = j * sp
-            # Mirror the riff every other section so it "answers" itself.
-            nid = ids[j] if i % 2 == 0 else 3 - ids[j]
-            notes.append(
-                {
-                    "id": nid,
-                    "side": "player" if side_pat[j % len(side_pat)] == "P" else "opponent",
-                    "time": measure_time(song, start) + steps * step(song) * 1000.0,
-                    "measure": start + int(steps // 16),
-                }
-            )
-        name = song["section_names"][i % len(song["section_names"])]
+        for bar in range(bars):
+            for k, offset in enumerate(cell):
+                nid = int(shape[(k + 3 * bar) % len(shape)])
+                if side == "player":
+                    nid = 3 - nid            # the answer mirrors the call
+                notes.append(
+                    {
+                        "id": nid,
+                        "side": side,
+                        "time": measure_time(song, start + bar) + offset * step(song) * 1000.0,
+                        "measure": start + bar,
+                        "offset": offset,
+                    }
+                )
         out.append(
             {
                 "index": i,
-                "name": name,
+                "name": song["section_names"][i % len(song["section_names"])],
                 "time": measure_time(song, start),
-                "measures": note_count * sp // 16,
+                "measures": bars,
+                "role": roles[i],
+                "side": side,
+                "mustHitSection": side == "player",
                 "notes": notes,
             }
         )
     return out
 
 
+#: Difficulties, easiest first -- the same three the base game ships.
+DIFFICULTIES = ("easy", "normal", "hard")
+
+#: How many notes of a phrase block each difficulty keeps (0 = everything).
+#: Base-game charts sit at roughly 1 : 2 : 3 notes for easy : normal : hard.
+DIFFICULTY_STRIDE = {"easy": 2, "normal": 3, "hard": 1}
+
+#: Scroll speed per difficulty, inside the base game's 1.2-2.6 range.
+DIFFICULTY_SCROLL = {"easy": -0.35, "normal": -0.15, "hard": 0.0}
+
 #: Sections that end on a held note (sustains make the chart breathe).
-SUSTAIN_EVERY = 2
+SUSTAIN_EVERY = 3
 SUSTAIN_MS_FACTOR = 2.0
 
 
-def notes(song):
-    all_notes = []
+def _keep(index, stride):
+    """True when note `index` of a phrase survives that difficulty's filter."""
+    if stride <= 1:
+        return True
+    if stride == 2:
+        return index % 2 == 0
+    return index % 3 != 2
+
+
+def notes(song, difficulty="hard"):
+    """Every note of `difficulty`, in time order.
+
+    The audio renderer asks for "hard": the instrumental and the vocal track are
+    the full melody, and the easier charts are a subset of the same notes.
+    """
+    if difficulty not in DIFFICULTY_STRIDE:
+        raise ValueError("unknown difficulty %r" % (difficulty,))
+    stride = DIFFICULTY_STRIDE[difficulty]
+
     secs = sections(song)
+    all_notes = []
     for section in secs:
-        all_notes.extend(section["notes"])
+        kept = [n for i, n in enumerate(section["notes"]) if _keep(i, stride)]
+        if not kept:
+            kept = [section["notes"][0]]
+        # A phrase always lands its last note: that is where the sustain lives.
+        if kept[-1] is not section["notes"][-1]:
+            kept.append(section["notes"][-1])
+        section["kept"] = kept
+        all_notes.extend(kept)
 
-    all_notes.sort(key=lambda n: (n["time"], n["side"]))
+    all_notes.sort(key=lambda n: (n["time"], n["side"], n["id"]))
 
-    for i, section in enumerate(secs):
-        if i % SUSTAIN_EVERY != SUSTAIN_EVERY - 1:
-            continue
-        last = section["notes"][-1]
-        for n in all_notes:
-            if n is last:
-                n["sLen"] = beat(song) * 1000.0 * SUSTAIN_MS_FACTOR
-                break
+    if stride == 1:
+        for i, section in enumerate(secs):
+            if i % SUSTAIN_EVERY != SUSTAIN_EVERY - 1:
+                continue
+            last = section["kept"][-1]
+            last["sLen"] = beat(song) * 1000.0 * SUSTAIN_MS_FACTOR
+
     # Finale hands: from `hands_from` onward the player also hits the opposite
-    # lane on every beat, which is what pushes the last act to 7/10.
+    # lane on every beat, which is what pushes the last act to 10/10. Hard only:
+    # doubled lanes are what makes a hard chart hard.
     hands_from = song.get("hands_from")
-    if hands_from is not None:
-        secs = sections(song)
+    if hands_from is not None and stride == 1:
         beats = beat(song) * 1000.0
         extra = []
         for i, section in enumerate(secs):
             if i < hands_from:
                 continue
-            for n in section["notes"]:
+            for n in section["kept"]:
                 if n["side"] != "player":
                     continue
                 if abs((n["time"] - measure_time(song, n["measure"])) % beats) > 1.0:
@@ -437,9 +558,44 @@ def notes(song):
         all_notes.extend(extra)
         all_notes.sort(key=lambda n: (n["time"], n["side"], n["id"]))
 
+    _break_jacks(all_notes)
     for n in all_notes:
         n.setdefault("sLen", 0.0)
     return all_notes
+
+
+def _break_jacks(notes, limit=3):
+    """No lane may be hit more than `limit` times in a row.
+
+    A four-note jack is a charting bug in the base game, not a difficulty ramp:
+    the arrow shapes and the finale's doubled lanes can both produce one, so the
+    notes are nudged to a free lane here -- before the audio is rendered from
+    them -- instead of leaving an unplayable streak in the chart.
+    """
+    by_side = {}
+    for note in notes:
+        by_side.setdefault(note["side"], []).append(note)
+    for side_notes in by_side.values():
+        side_notes.sort(key=lambda n: (n["time"], n["id"]))
+        run_id, run_len = None, 0
+        for note in side_notes:
+            if note["id"] == run_id:
+                run_len += 1
+            else:
+                run_id, run_len = note["id"], 1
+            if run_len <= limit:
+                continue
+            taken = {m["id"] for m in side_notes if abs(m["time"] - note["time"]) < 1.0}
+            for candidate in (1, 2, 3, 0):
+                if candidate != note["id"] and candidate not in taken:
+                    note["id"] = candidate
+                    break
+            run_id, run_len = note["id"], 1
+
+
+def scroll_speed(song, difficulty):
+    song_scroll = song.get("scroll", 1.9)
+    return round(max(1.1, song_scroll + DIFFICULTY_SCROLL[difficulty]), 3)
 
 
 # --------------------------------------------------------------------------- #

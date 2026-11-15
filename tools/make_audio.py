@@ -326,6 +326,55 @@ def lead_for(style, midi, dur, tier, note_id=0):
     return soft_clip(lowpass(voice * env, 7000.0), 1.05) * 0.6
 
 
+#: Vowel formants per character: (centre Hz, gain). "ah" for the player, a
+#: darker "oh" for the Trollge, so the two voices are distinguishable even when
+#: they sing the same riff.
+VOICE_FORMANTS = {
+    False: ((730.0, 1.00), (1090.0, 0.55), (2440.0, 0.20)),
+    True: ((470.0, 1.00), (850.0, 0.50), (2000.0, 0.16)),
+}
+
+
+def voice_note(midi, dur, dark=False):
+    """One sung syllable: a band-limited glottal pulse through vowel formants.
+
+    This is the vocal layer of a FNF song, not another lead: the chart's notes are
+    the melody, the formants decide who is singing it.
+    """
+    n = max(int(0.12 * SR), int(dur * SR))
+    t = np.arange(n) / SR
+    f0 = midi_to_hz(midi)
+    scoop = 1.0 + 0.035 * np.exp(-t * 26.0)                 # singers slide in
+    vib = 1.0 + (0.007 if dark else 0.013) * np.sin(
+        2 * np.pi * (4.6 if dark else 5.6) * t) * np.clip((t - 0.09) / 0.18, 0.0, 1.0)
+    phase = 2 * np.pi * np.cumsum(f0 * scoop * vib) / SR
+
+    src = np.zeros(n)                                        # glottal source
+    for h in range(1, 30):
+        if f0 * h > 7000.0:
+            break
+        src += np.sin(phase * h) / h
+
+    out = np.zeros(n)
+    for hz, amp in VOICE_FORMANTS[dark]:
+        out += bandpass(src, max(80.0, hz * 0.70), hz * 1.35) * amp
+
+    # Consonant: a breath of noise on the attack reads as a sung syllable.
+    n_c = int(0.035 * SR)
+    out[:n_c] += bandpass(noise(n_c, seed=int(f0) % 251), 2400.0, 7000.0) * 0.30
+
+    env = np.ones(n)
+    attack = int(0.012 * SR)
+    env[:attack] = np.linspace(0.0, 1.0, attack)
+    env[attack:] = np.exp(-(t[attack:] - t[attack]) * (2.4 if dark else 1.7))
+    release = int(0.05 * SR)
+    env[-release:] *= np.linspace(1.0, 0.0, release)
+    out *= env
+    if dark:
+        out = soft_clip(out * 1.9, 1.4)                      # growl
+    return out
+
+
 def pad_chord(midis, dur, gain=0.075, cutoff=1500.0):
     n = int(dur * SR)
     out = np.zeros(n)
@@ -377,32 +426,9 @@ def tier_for(scare):
 
 
 def section_roles(song):
-    """Label every chart section so the arrangement builds, drops and breathes.
-
-    Derived from the layout (section count + note spacing) so editing
-    `song_layout.py` re-arranges the music for free: an intro, a mid-song
-    breakdown, a breath before the finale, and drops wherever the chart gets dense.
-    """
-    count = len(song["spacings"])
-    roles = []
-    for i, spacing in enumerate(song["spacings"]):
-        position = i / max(1, count - 1)
-        if i == 0:
-            role = "intro"
-        elif i >= count - 2:
-            role = "finale"
-        elif 0.46 <= position <= 0.54:
-            role = "break"          # mid-song breakdown
-        elif 0.84 <= position <= 0.90:
-            role = "break"          # the breath before the last act
-        elif spacing <= 2:
-            role = "drop"
-        elif i % 4 == 2:
-            role = "build"
-        else:
-            role = "verse"
-        roles.append(role)
-    return roles
+    """Arrangement roles live in song_layout.py so the chart and the audio can
+    never disagree about where a song breathes."""
+    return L.section_roles(song)
 
 
 def render_song(song):
@@ -894,6 +920,57 @@ def render_song(song):
     return left, right
 
 
+def render_vocals(song):
+    """The characters' vocal track -- `song/Voices.ogg`.
+
+    Base-game songs ship one Voices track: the opponent sings the opponent's
+    phrase blocks and the player sings theirs. Codename only loads it when
+    `meta.needsVoices` is true *and* `songs/<song>/song/Voices.ogg` exists
+    (PlayState -> Paths.voices), so without this file the characters mouth the
+    lyrics in silence.
+
+    Rendered from the same note list as the instrumental, so the voices hit
+    exactly where the chart says they do.
+    """
+    total = L.length(song)
+    n_total = int(round(total * SR))
+    player = empty(total)
+    opponent = empty(total)
+
+    for note in L.notes(song):
+        at = note["time"] / 1000.0
+        dur = max(0.16, note["sLen"] / 1000.0 if note["sLen"] else L.step(song) * 2.0)
+        midi = L.note_pitch(song, note["measure"], note["id"])
+        if note["side"] == "player":
+            add_at(player, voice_note(midi, dur * 0.95, dark=False), at, 0.85)
+        else:
+            add_at(opponent, voice_note(midi - 12, dur, dark=True), at, 0.85)
+
+    wet = reverb(0.4 * (player + opponent), wet=0.26, size=0.7)
+    wet_l, wet_r = haas(wet, 0.017)
+    del wet
+
+    left = player * 0.36 + opponent * 0.50 + wet_l * 0.28
+    right = player * 0.50 + opponent * 0.36 + wet_r * 0.28
+    del player, opponent, wet_l, wet_r
+
+    def fit(x):
+        x = dc_block(np.asarray(x[:n_total], dtype=np.float64))
+        tail = int(0.20 * SR)
+        x[-tail:] *= np.linspace(1.0, 0.0, tail)
+        return x
+
+    left, right = fit(left), fit(right)
+    # Vocals sit under the instrumental, the way they do in the base game.
+    rms = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))
+    scale = (0.55 * TARGET_RMS) / max(rms, 1e-9)
+    left, right = limiter(left * scale, 0.84), limiter(right * scale, 0.84)
+    peak = max(float(np.max(np.abs(left))), float(np.max(np.abs(right))), 1e-9)
+    if peak > 0.80:
+        left, right = left * (0.80 / peak), right * (0.80 / peak)
+    return left, right
+
+
 def write_song(path, left, right, ceiling=0.95, attempts=4):
     """Encode, then decode and re-check: Vorbis overshoots, so clipping is only
     proven gone when the *decoded* file measures clean."""
@@ -1064,6 +1141,11 @@ def main():
         path = os.path.join(song_dir, "Inst.ogg")
         write_song(path, left, right)
         print("  -> %-44s %6.1f KB" % (os.path.relpath(path, ROOT), os.path.getsize(path) / 1024))
+        del left, right
+        vleft, vright = render_vocals(song)
+        vpath = os.path.join(song_dir, "Voices.ogg")
+        write_song(vpath, vleft, vright)
+        print("  -> %-44s %6.1f KB" % (os.path.relpath(vpath, ROOT), os.path.getsize(vpath) / 1024))
 
     print("Rendering ambient themes...")
     for name, scary in (("trollge_theme", False), ("trollge_theme_scary", True)):

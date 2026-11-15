@@ -117,7 +117,7 @@ SKINS = [
         "dead": ("Gameover", 24),
     },
     {
-        "song": "getting_dark",
+        "song": "getting-dark",
         "role": "player",
         "source": SRC_BF,
         "files": ("Smiler_Boyfriend_3.png", "Smiler_Boyfriend_3.xml"),
@@ -147,7 +147,7 @@ SKINS = [
         "dead": ("Gameover", 24),
     },
     {
-        "song": "super_scary",
+        "song": "super-scary",
         "role": "player",
         "source": SRC_BF,
         "files": ("Boyfriend_crazy2.png", "Boyfriend_crazy2.xml"),
@@ -178,7 +178,7 @@ SKINS = [
     },
     {
         # song 3 (6/10) -- the same boy, but he is not rendering correctly
-        "song": "dont_look_back",
+        "song": "dont-look-back",
         "role": "player",
         "source": SRC_BF,
         "files": ("new_blue_boyfriend.png", "new_blue_boyfriend.xml"),
@@ -211,7 +211,7 @@ SKINS = [
     },
     {
         # song 5 (10/10) -- scorched red, all the way down
-        "song": "the_incident",
+        "song": "the-incident",
         "role": "player",
         "source": SRC_BF,
         "files": ("Boyfriend_crazy2.png", "Boyfriend_crazy2.xml"),
@@ -274,7 +274,7 @@ SKINS = [
     },
     {
         # song 2 (4/10) -- he is breaking up
-        "song": "getting_dark",
+        "song": "getting-dark",
         "role": "opponent",
         "source": SRC_TROLLGE,
         "files": ("trollgeGlitch.png", "trollgeGlitch.xml"),
@@ -301,7 +301,7 @@ SKINS = [
     },
     {
         # song 3 (7/10) -- barely holding together
-        "song": "super_scary",
+        "song": "super-scary",
         "role": "opponent",
         "source": SRC_TROLLGE,
         "files": ("trollgeStatic1.png", "trollgeStatic1.xml"),
@@ -328,7 +328,7 @@ SKINS = [
     },
     {
         # song 3, 60 s -- the red-eyed final form
-        "song": "super_scary",
+        "song": "super-scary",
         "role": "opponent",
         "source": SRC_TROLLGE,
         "files": ("TrollgeFinal.png", "TrollgeFinal.xml"),
@@ -356,7 +356,7 @@ SKINS = [
     },
     {
         # song 3, 96 s -- he just stands there. one pose. that is the point.
-        "song": "super_scary",
+        "song": "super-scary",
         "role": "opponent",
         "source": SRC_TROLLGE,
         "files": ("trollgesad.png", "trollgesad.xml"),

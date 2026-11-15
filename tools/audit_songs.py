@@ -46,7 +46,11 @@ TARGETS = {
     # Measured after mastering: the limiter trades a few tenths of a dB of macro
     # dynamics for loudness, so the window starts at 4 dB rather than 5.
     "section_range_db": (4.0, 26.0),  # the arrangement actually breathes
-    "offbeat_ratio": (0.03, 0.90),    # some syncopation, never a wall of 16ths
+    "offbeat_ratio": (0.00, 0.90),    # week 1 is on-beat; nothing is a wall of 16ths
+    "hard_density": (1.0, 6.0),       # notes/second in the hard chart (playable)
+    "voices_peak_db": (-8.0, -0.50),  # the vocal track is there and never clips
+    "voices_cover": (0.90, 1.01),     # share of chart notes with vocals under them
+    "mixed_bars": (0, 0),             # a bar is sung by exactly one character
     "air_pct": (1.5, 22.0),           # there is a top end
     "sub_pct": (2.0, 38.0),           # the sub is not the whole mix
     "width": (0.10, 0.95),            # stereo width in the mid/high band
@@ -142,7 +146,7 @@ def analyse_audio(path, song):
     }
 
 
-def analyse_chart(song, difficulty="normal"):
+def analyse_chart(song, difficulty="hard"):
     path = os.path.join(MOD, "songs", song["id"], "charts", difficulty + ".json")
     chart = json.load(open(path, encoding="utf-8"))
     step_ms = L.step(song) * 1000.0
@@ -195,8 +199,29 @@ def analyse_chart(song, difficulty="normal"):
         per_section.append(count / max(0.001, (end - start) / 1000.0))
 
     player = sum(1 for _t, _i, _s, p in notes if p == "boyfriend")
+
+    # Phrase blocks: consecutive bars must belong to one character and the two
+    # characters must trade blocks (base-game convention), never interleave.
+    measure_ms = L.measure(song) * 1000.0
+    bar_side = {}
+    for t, _i, _s, pos in notes:
+        bar = int((t - offset_ms) / measure_ms + 1e-6)
+        bar_side.setdefault(bar, set()).add(pos)
+    mixed_bars = sum(1 for sides in bar_side.values() if len(sides) > 1)
+    runs, last = [], None
+    for bar in sorted(bar_side):
+        side = next(iter(bar_side[bar])) if len(bar_side[bar]) == 1 else "mixed"
+        if side == last:
+            runs[-1] += 1
+        else:
+            runs.append(1)
+            last = side
+
     return {
         "difficulty": difficulty,
+        "scroll": float(chart.get("scrollSpeed", 0.0)),
+        "mixed_bars": mixed_bars,
+        "phrase_runs": runs,
         "min_gap_ms": float(np.min(gaps)) if len(gaps) else 0.0,
         "notes": len(notes),
         "player": player,
@@ -209,6 +234,41 @@ def analyse_chart(song, difficulty="normal"):
         "simultaneous": simultaneous,
         "median_gap_ms": float(np.median(gaps)) if len(gaps) else 0.0,
         "density_curve": per_section,
+    }
+
+
+def analyse_voices(path, song, chart):
+    """Measure the vocal track: it has to be the same length as the song, loud
+    enough to hear, and actually singing under the chart's notes.
+
+    A base-game song always ships one (`song/Voices.ogg`, gated by
+    `meta.needsVoices`); a missing or silent track means the characters mouth
+    the lyrics in silence, which is the single most obvious "this is not FNF"
+    tell.
+    """
+    data, sr = sf.read(path, always_2d=True)
+    mono = data.mean(axis=1)
+    peak = db(max(float(np.max(np.abs(data))), 1e-9))
+    level = db(rms(mono))
+
+    # Is there a voice under the notes? Sample a 90 ms window at each note time.
+    window = int(0.09 * sr)
+    floor = db(rms(mono)) - 24.0
+    covered = 0
+    frames = 0
+    for note in L.notes(song, chart["difficulty"]):
+        start = int(note["time"] / 1000.0 * sr)
+        chunk = mono[start:start + window]
+        if len(chunk) < window // 4:
+            continue
+        frames += 1
+        if db(rms(chunk)) > floor:
+            covered += 1
+    return {
+        "duration": len(mono) / sr,
+        "peak_db": peak,
+        "rms_db": level,
+        "cover": covered / max(1, frames),
     }
 
 
@@ -237,21 +297,32 @@ def main():
             problems.append("%s: missing Inst.ogg" % song["id"])
             continue
         audio = analyse_audio(inst, song)
-        chart = analyse_chart(song, "normal")
+        per_difficulty = {d: analyse_chart(song, d) for d in L.DIFFICULTIES}
+        chart = per_difficulty["hard"]
         charts.append(chart)
         fingerprints.append(audio["fingerprint"])
 
-        # Easy has to stay easy: half the notes, no sustains, no sudden gaps.
-        easy = analyse_chart(song, "easy")
-        report_easy = "| easy charts | %s | %s |" % (
-            "%d notes, %.1f/s" % (easy["notes"], easy["notes_per_s"]),
-            "ok" if (easy["notes"] * 2 == chart["notes"] and easy["sustains"] == 0
-                     and easy["max_lane_run"] <= 3) else "**out of window**")
-        if not (easy["notes"] * 2 == chart["notes"] and easy["sustains"] == 0
-                and easy["max_lane_run"] <= 3):
-            problems.append("%s: easy chart drifted (%d notes vs %d normal, %d sustains, run %d)"
-                            % (song["id"], easy["notes"], chart["notes"], easy["sustains"],
-                               easy["max_lane_run"]))
+        voices_path = os.path.join(MOD, "songs", song["id"], "song", "Voices.ogg")
+        voices = analyse_voices(voices_path, song, chart) if os.path.isfile(voices_path) else None
+        if voices is None:
+            problems.append("%s: no song/Voices.ogg (the characters would sing in silence)"
+                            % song["id"])
+
+        # The difficulty spread has to be a real spread, not three copies.
+        counts = [per_difficulty[d]["notes"] for d in L.DIFFICULTIES]
+        spread_ok = counts[0] < counts[1] < counts[2] and per_difficulty["easy"]["sustains"] == 0
+        report_easy = "| difficulty spread | %s | %s |" % (
+            " → ".join("%s %d" % (d, per_difficulty[d]["notes"]) for d in L.DIFFICULTIES),
+            "ok" if spread_ok else "**not a spread**")
+        if not spread_ok:
+            problems.append("%s: difficulty spread is not easy < normal < hard (%s)"
+                            % (song["id"], counts))
+        if chart["mixed_bars"]:
+            problems.append("%s: %d bars mix player and opponent notes"
+                            % (song["id"], chart["mixed_bars"]))
+        if not (voices is None) and abs(voices["duration"] - L.length(song)) > 0.15:
+            problems.append("%s: Voices.ogg is %.2fs, the song is %.2fs"
+                            % (song["id"], voices["duration"], L.length(song)))
 
         print("\n%s  (%s, scare %d/10)" % (song["display"], song["id"], song["scare"]))
         print("  audio  %.2fs  peak %.1f dB  true-peak %.1f dB  rms %.1f dB  crest %.1f dB  centroid %.0f Hz"
@@ -268,6 +339,14 @@ def main():
         print("         sustains %d  simultaneous %d  player %d / opponent %d"
               % (chart["sustains"], chart["simultaneous"], chart["player"], chart["opponent"]))
         print("  density " + " ".join("%.1f" % d for d in chart["density_curve"]))
+        print("  chart  %s  scroll %s  phrase blocks %s"
+              % (L.key_name(song),
+                 " ".join("%s %.2f" % (d, per_difficulty[d]["scroll"]) for d in L.DIFFICULTIES),
+                 " ".join(str(r) for r in chart["phrase_runs"][:8])))
+        if voices:
+            print("  voices %.2fs  peak %.1f dB  rms %.1f dB  under %.0f%% of notes"
+                  % (voices["duration"], voices["peak_db"], voices["rms_db"],
+                     voices["cover"] * 100))
 
         report += ["## %s — %d/10" % (song["display"], song["scare"]), "",
                    "| Metric | Value | Target |", "| --- | --- | --- |"]
@@ -293,6 +372,15 @@ def main():
                               audio["side_mid"], "side_mid"))
         report.append(fmt_row("onsets", "%.1f /s" % audio["onsets_per_s"]))
         report.append(fmt_row("clipped samples", "%d" % audio["clipped"]))
+        report.append(fmt_row("key", L.key_name(song)))
+        report.append(fmt_row("phrase blocks", "%d bars, runs %s"
+                              % (L.measures(song),
+                                 "/".join(str(r) for r in chart["phrase_runs"][:6]))))
+        report.append(fmt_row("hard notes/second", "%.2f /s" % chart["notes_per_s"],
+                              chart["notes_per_s"], "hard_density"))
+        report.append(fmt_row("mixed bars (player + opponent)",
+                              "%d" % chart["mixed_bars"],
+                              chart["mixed_bars"], "mixed_bars"))
         report.append(fmt_row("off-beat notes", "%.0f %%" % (chart["offbeat_ratio"] * 100),
                               chart["offbeat_ratio"], "offbeat_ratio"))
         report.append(fmt_row("same-lane run", "%d" % chart["max_lane_run"],
@@ -302,6 +390,19 @@ def main():
         report.append(fmt_row("simultaneous notes", "%d" % chart["simultaneous"]))
         report.append(fmt_row("player / opponent", "%d / %d" % (chart["player"], chart["opponent"])))
         report.append(report_easy)
+        for difficulty in L.DIFFICULTIES:
+            entry = per_difficulty[difficulty]
+            report.append(fmt_row("%s chart" % difficulty,
+                                  "%d notes, %d sustains, scroll %.2f, run %d"
+                                  % (entry["notes"], entry["sustains"], entry["scroll"],
+                                     entry["max_lane_run"])))
+        if voices:
+            report.append(fmt_row("Voices.ogg", "%.2fs, peak %.1f dBFS, %.0f%% of notes covered"
+                                  % (voices["duration"], voices["peak_db"], voices["cover"] * 100)))
+            report.append(fmt_row("vocal peak", "%.1f dBFS" % voices["peak_db"],
+                                  voices["peak_db"], "voices_peak_db"))
+            report.append(fmt_row("vocal coverage", "%.0f %%" % (voices["cover"] * 100),
+                                  voices["cover"], "voices_cover"))
         report.append("")
 
         for key, value in (("peak_db", audio["peak_db"]), ("crest_db", audio["crest_db"]),
@@ -310,6 +411,7 @@ def main():
                            ("true_peak_db", audio["true_peak_db"]),
                            ("width", audio["width"]), ("side_mid", audio["side_mid"]),
                            ("offbeat_ratio", chart["offbeat_ratio"]),
+                           ("hard_density", chart["notes_per_s"]),
                            ("max_lane_run", chart["max_lane_run"])):
             lo, hi = TARGETS[key]
             if not (lo <= value <= hi):
@@ -346,13 +448,19 @@ def main():
     if len(set(s.get("style") for s in L.SONGS)) != len(L.SONGS):
         problems.append("every song needs its own instrumental style")
 
-    # Style escalation: later songs must be more syncopated and denser.
+    # Style escalation: the axes the base game actually scales -- tempo, note
+    # density, scroll speed and production tier -- must all rise song by song.
     if len(charts) == len(L.SONGS) and charts:
-        for key in ("offbeat_ratio", "notes_per_s"):
-            values = [c[key] for c in charts]
+        axes = (
+            ("bpm", [s["bpm"] for s in L.SONGS], "%.0f"),
+            ("hard notes", [c["notes"] for c in charts], "%.0f"),
+            ("notes/second", [c["notes_per_s"] for c in charts], "%.2f"),
+            ("scroll speed (hard)", [c["scroll"] for c in charts], "%.2f"),
+        )
+        for key, values, fmt in axes:
             rising = all(b >= a for a, b in zip(values, values[1:]))
             report.append("")
-            line = "| %s | %s | %s |" % (key, " → ".join("%.2f" % v for v in values),
+            line = "| %s | %s | %s |" % (key, " → ".join(fmt % v for v in values),
                                          "ok" if rising else "**must rise**")
             style_rows.append(line)
             if not rising:

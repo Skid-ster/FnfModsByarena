@@ -1,0 +1,26 @@
+{
+	"displayName": "The Incident",
+	"bpm": 170.0,
+	"beatsPerMeasure": 4,
+	"stepsPerBeat": 4,
+	"icon": "trollge_sad",
+	"color": "#5C0610",
+	"coopAllowed": false,
+	"opponentModeAllowed": true,
+	"needsVoices": true,
+	"difficulties": [
+		"easy",
+		"normal",
+		"hard"
+	],
+	"customValues": {
+		"scareTier": 10,
+		"songKey": "A minor",
+		"lengthSeconds": 108.894,
+		"noteCounts": {
+			"easy": 206,
+			"normal": 257,
+			"hard": 378
+		}
+	}
+}

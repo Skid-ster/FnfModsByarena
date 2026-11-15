@@ -1,0 +1,26 @@
+{
+	"displayName": "Don't Look Back",
+	"bpm": 152.0,
+	"beatsPerMeasure": 4,
+	"stepsPerBeat": 4,
+	"icon": "trollge_static",
+	"color": "#A8142B",
+	"coopAllowed": false,
+	"opponentModeAllowed": true,
+	"needsVoices": true,
+	"difficulties": [
+		"easy",
+		"normal",
+		"hard"
+	],
+	"customValues": {
+		"scareTier": 6,
+		"songKey": "C# minor",
+		"lengthSeconds": 111.926,
+		"noteCounts": {
+			"easy": 153,
+			"normal": 185,
+			"hard": 266
+		}
+	}
+}

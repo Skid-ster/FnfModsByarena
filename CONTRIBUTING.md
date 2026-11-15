@@ -49,15 +49,21 @@ Commit the regenerated files together with the generator change, in one commit, 
 ```
 feat(song3): denser final section
 
-- song_layout: +2 spacing-1 sections in the last act
+- song_layout: +2 dense phrase blocks in the last act
 - regenerated charts + instrumental
 ```
 
 ## Changing the music
 
-* **Arrangement** is by section role, not by hand: `section_roles()` in `tools/make_audio.py` labels every chart
-  section (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and note spacing, and
-  `ROLE_GAIN` sets how hard each role pushes. Add a role, or change where one lands, and all five songs follow.
+* **Arrangement** is by section role, not by hand: `section_roles()` in `tools/song_layout.py` labels every phrase
+  block (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and rhythm cell, and `ROLE_GAIN`
+  sets how hard each role pushes. The chart writer reads the same list, so a `break` block drops its drums *and*
+  becomes a sparse `HALF` cell. Add a role, or change where one lands, and all five songs follow.
+* **Chart shape** is `section_measures` (bars per phrase block, 2-4 like the base game) plus `cells` (one rhythm cell
+  per block, cycled). Blocks alternate `opponent → player`, so every bar is owned by exactly one character; keep it
+  that way, or `tools/validate_mod.py` fails with "a bar mixes player and opponent notes".
+* **Difficulties** come from `notes(song, difficulty)`: hard keeps every note, normal two in three, easy every second.
+  Do not hand-write an easy chart — it is a strided subset, so the three charts can never disagree about timing.
 * **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `glitch`, `industrial`, `finale`). Each style
   picks its own kit,
   bass and lead voice from `kick_for` / `snare_for` / `hat_for` / `bass_for` / `lead_for` and its own groove in
@@ -137,7 +143,9 @@ no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float li
   `tools/song_layout.py` so the charts and audio stingers pick them up).
 * More poses in `tools/trollge_art.py` — the pose library is a list, adding a pose automatically adds atlas frames.
 * Better backdrops/horror grading in `tools/make_art.py`.
-* Extra difficulty (`hard`) — extend `tools/make_chart.py` and the `difficulties` list in `meta.json`.
+* A fourth difficulty (e.g. `erect`) — add it to `L.DIFFICULTIES` and `DIFFICULTY_STRIDE` in `tools/song_layout.py`;
+  `tools/make_chart.py` writes a chart per entry and `meta.json` follows.
+* More rhythm cells — add one to `CELLS` in `tools/song_layout.py` and reference it from a song's `cells` list.
 
 ## Reporting bugs
 

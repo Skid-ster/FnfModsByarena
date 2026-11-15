@@ -18,6 +18,7 @@ Exit code 1 on any error.
 """
 
 import json
+import math
 import os
 import re
 import sys
@@ -398,14 +399,24 @@ def check_charts():
         meta = json.load(open(meta_path, encoding="utf-8"))
 
         ok(meta["bpm"] == song["bpm"], "%s meta bpm mismatch" % song["id"])
-        ok(sorted(meta["difficulties"]) == ["easy", "normal"],
-           "%s must ship easy + normal difficulties" % song["id"])
-        ok(meta.get("customValues", {}).get("scareTier") == song["scare"],
-           "%s scareTier mismatch" % song["id"])
+        ok(tuple(meta["difficulties"]) == tuple(L.DIFFICULTIES),
+           "%s must ship the base game's difficulties %s, not %s"
+           % (song["id"], list(L.DIFFICULTIES), meta["difficulties"]))
+        custom = meta.get("customValues", {})
+        ok(custom.get("scareTier") == song["scare"], "%s scareTier mismatch" % song["id"])
+        ok(custom.get("songKey") == L.key_name(song),
+           "%s: meta songKey must be %r" % (song["id"], L.key_name(song)))
+        ok(meta.get("needsVoices") is True and os.path.isfile(
+            os.path.join(base, "song", "Voices.ogg")),
+           "%s: needsVoices is true but song/Voices.ogg is missing "
+           "(the characters would sing in silence)" % song["id"])
         ok(os.path.isfile(os.path.join(base, "song", "Inst.ogg")),
            "%s is missing song/Inst.ogg" % song["id"])
+        ok(song["id"] == song["id"].lower() and "_" not in song["id"],
+           "%s: song folder names are lowercase-hyphenated like the base game" % song["id"])
 
         expected_length = L.length(song) * 1000.0
+        bars = int(round(L.measures(song)))
 
         for difficulty in meta["difficulties"]:
             chart_path = os.path.join(base, "charts", "%s.json" % difficulty)
@@ -418,7 +429,11 @@ def check_charts():
             ok(chart.get("stage") == "trollge", "%s/%s: stage must be trollge" % (song["id"], difficulty))
             ok(chart.get("noteTypes") == L.note_types(song),
                "%s/%s: noteTypes must be %r" % (song["id"], difficulty, L.note_types(song)))
-            ok(1 <= float(chart.get("scrollSpeed", 0)) <= 3, "%s/%s: odd scrollSpeed" % (song["id"], difficulty))
+            ok(1.1 <= float(chart.get("scrollSpeed", 0)) <= 2.6,
+               "%s/%s: scrollSpeed must sit in the base game's 1.2-2.6 range"
+               % (song["id"], difficulty))
+            ok(abs(float(chart.get("scrollSpeed", 0)) - L.scroll_speed(song, difficulty)) < 1e-6,
+               "%s/%s: scrollSpeed does not match song_layout" % (song["id"], difficulty))
 
             lines = chart.get("strumLines", [])
             ok(len(lines) == 2, "%s/%s: expected 2 strum lines" % (song["id"], difficulty))
@@ -443,9 +458,25 @@ def check_charts():
                    "%s/%s: negative sustain" % (song["id"], difficulty))
 
             ok(total > 0, "%s/%s: chart has no notes" % (song["id"], difficulty))
-            if difficulty == "normal":
-                ok(total == len(L.notes(song)),
-                   "%s/normal: expected %d notes, found %d" % (song["id"], len(L.notes(song)), total))
+            ok(total == len(L.notes(song, difficulty)),
+               "%s/%s: expected %d notes, found %d"
+               % (song["id"], difficulty, len(L.notes(song, difficulty)), total))
+
+            # Charting convention: every bar is sung by exactly one character.
+            # A bar with notes in both strum lines is the old mixed-side bug.
+            measure_ms = L.measure(song) * 1000.0
+            offset_ms = song["offset"] * 1000.0
+            bar_sides = {}
+            for line in lines:
+                for note in line["notes"]:
+                    # +1e-6: a note exactly on the bar line must land in that bar,
+                    # not the previous one (float division lands just under it).
+                    bar = int(math.floor((float(note["time"]) - offset_ms) / measure_ms + 1e-6))
+                    bar_sides.setdefault(bar, set()).add(line["position"])
+            ok(all(len(sides) == 1 for sides in bar_sides.values()),
+               "%s/%s: a bar mixes player and opponent notes" % (song["id"], difficulty))
+            ok(len(bar_sides) >= bars - 2,
+               "%s/%s: %d of %d bars have notes" % (song["id"], difficulty, len(bar_sides), bars))
 
             bookmarks = chart.get("bookmarks", [])
             ok(len(bookmarks) == len(L.sections(song)),
@@ -694,6 +725,15 @@ def check_audio():
         ok(abs(info.duration - expected) < 0.15,
            "%s: Inst.ogg is %.2fs, chart expects %.2fs" % (song["id"], info.duration, expected))
         ok(info.samplerate >= 44100 // 2, "%s: unexpected sample rate" % song["id"])
+
+        voices = os.path.join(MOD, "songs", song["id"], "song", "Voices.ogg")
+        if os.path.isfile(voices):
+            vinfo = sf.info(voices)
+            ok(abs(vinfo.duration - expected) < 0.15,
+               "%s: Voices.ogg is %.2fs, the instrumental is %.2fs (they must sync)"
+               % (song["id"], vinfo.duration, expected))
+            ok(vinfo.samplerate == info.samplerate,
+               "%s: Voices.ogg and Inst.ogg must share a sample rate" % song["id"])
 
     for sfx in ("trollge_jump_scare", "trollge_distortion", "trollge_invert",
                 "trollge_hit", "trollge_miss", "trollge_theme", "trollge_theme_scary",
