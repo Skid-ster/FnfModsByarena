@@ -1,15 +1,17 @@
 """
-Super Scary Trollge -- shared song layout for all three songs.
+Super Scary Trollge -- shared song layout for all five songs.
 
 Every generator in `tools/` imports this module, so the instrumental audio, the
 charts and the event track can never drift apart: the melody is rendered from
 the exact note list that ends up in the chart.
 
-The three songs escalate the horror, which is expressed here as a `scare` tier:
+The five songs escalate the horror, which is expressed here as a `scare` tier:
 
-    1. "Trolling"              scare 2/10   140 BPM   bouncy, only slightly wrong
-    2. "It's Getting Dark"     scare 4/10   150 BPM   minor, distorted, stalked
-    3. "Super Scary Trollge"   scare 7/10   160 BPM   16th-note chaos, screams
+    1. "Trolling"              scare  2/10   140 BPM   bouncy, only slightly wrong
+    2. "It's Getting Dark"     scare  4/10   150 BPM   minor, distorted, stalked
+    3. "Don't Look Back"       scare  6/10   152 BPM   glitched, something follows
+    4. "Super Scary Trollge"   scare  8/10   160 BPM   16th-note chaos, screams
+    5. "The Incident"          scare 10/10   170 BPM   the origin, nothing resolves
 
 Codename Engine chart facts used here (verified against the engine source):
     chartVersion 1.6.0 / codenameChart: true
@@ -40,11 +42,14 @@ ID_TO_DEGREE = {LEFT: 0, DOWN: 2, UP: 4, RIGHT: 6}
 #:   bounce     -- 8-bit pluck lead, clap backbeat, round sub, bouncy
 #:   trap       -- half-time 808, rolling hats, FM bell lead, haunted
 #:   industrial -- distorted kit, screaming lead, 16th drive, hostile
-STYLES = ("bounce", "trap", "industrial")
+#:   glitch     -- bitcrushed chip lead, gated stutter hats, 808 kick
+#:   finale     -- industrial kit + FM bell doubling, choir pad, maximum chaos
+STYLES = ("bounce", "trap", "glitch", "industrial", "finale")
 
-NOTESKIN_PLAIN = None        # song 1 uses images/game/notes/default
-NOTESKIN_DARK = "shadow"     # song 2: colour drained out
-NOTESKIN_CORRUPT = "corrupt"  # song 3: glitched arrows
+NOTESKIN_PLAIN = None         # song 1 uses images/game/notes/default
+NOTESKIN_DARK = "shadow"      # song 2: colour drained out
+NOTESKIN_CORRUPT = "corrupt"  # songs 3-4: glitched arrows
+NOTESKIN_TORN = "torn"        # song 5: burnt through
 
 SONGS = [
     {
@@ -87,7 +92,7 @@ SONGS = [
         "id": "getting_dark",
         "display": "It's Getting Dark",
         "bf": "bf_smiler",       # art_src/bf/Smiler_Boyfriend_3.* -> tools/make_characters.py
-        "trollge": "trollge_glitch",   # art_src/trollge/trollgeGlitch.*  (phase 2, corrupted)
+        "trollge": "trollge",   # starts clean, mutates at 62 s (see events)
         "noteskin": NOTESKIN_DARK,      # images/game/notes/<id> (tools/make_noteskin.py)
         "style": STYLES[1],
         "bpm": 150.0,
@@ -117,9 +122,53 @@ SONGS = [
             (26.0, "trollgeStatic"),
             (36.0, "trollgeJumpScare"),
             (52.0, "trollgeDistort"),
+            (62.0, "trollgeToGlitch"),    # phase 2 arrives
             (66.0, "trollgeScreenShake"),
             (80.0, "trollgeStatic"),
             (92.0, "trollgeJumpScare"),
+        ],
+    },
+    {
+        "id": "dont_look_back",
+        "display": "Don't Look Back",
+        "bf": "bf_glitched",      # blue BF, corrupted (tools/make_characters.py "tint")
+        "trollge": "trollge_glitch",  # phase 2 in, phase 3 out (event at 75 s)
+        "noteskin": NOTESKIN_CORRUPT,
+        "style": STYLES[2],
+        "bpm": 152.0,
+        "scare": 6,
+        "offset": 1.4,
+        "count": 32,
+        "spacings": [2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1],
+        "tonic": 49,  # C#3
+        "progression": [
+            (0, [0, 3, 7]),
+            (0, [0, 3, 6]),      # the fifth slips to a tritone
+            (-2, [-2, 1, 5]),
+            (-2, [-2, 1, 5]),
+            (4, [4, 7, 11]),
+            (4, [4, 7, 11]),
+            (-3, [-3, 0, 6]),
+            (-3, [-3, 0, 6]),
+        ],
+        "section_names": [
+            "DON'T LOOK BACK", "SOMETHING FOLLOWS", "COUNT THE STEPS", "TOO MANY STEPS",
+            "IT IS BEHIND YOU", "DO NOT TURN", "YOU TURNED", "THE GRIN AGAIN",
+            "FASTER", "FASTER", "THE HALL BENDS", "IT IS IN FRONT NOW",
+            "WHICH ONE IS REAL", "BOTH OF THEM", "STATIC IN THE AIR", "HE IS INSIDE THE SONG",
+            "THE PICTURE BREAKS", "DO NOT LOOK BACK", "YOU LOOKED", "TROLLGE",
+        ],
+        "events": [
+            (14.0, "trollgeStatic"),
+            (26.0, "trollgeScreenShake"),
+            (34.0, "trollgeDistort"),
+            (46.0, "trollgeJumpScare"),
+            (58.0, "trollgeInvert"),
+            (70.0, "trollgeStatic"),
+            (75.0, "trollgeToStatic"),    # phase 3 arrives
+            (80.0, "trollgeJumpScare"),
+            (90.0, "trollgeScreenShake"),
+            (102.0, "trollgeJumpScare"),
         ],
     },
     {
@@ -128,10 +177,10 @@ SONGS = [
         "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_characters.py
         "trollge": "trollge_static",   # art_src/trollge/trollgeStatic1.* (phase 3)
         "noteskin": NOTESKIN_CORRUPT,
-        "style": STYLES[2],
+        "style": STYLES[3],
         "hands_from": 17,          # last three sections: two-lane chords on the beat
         "bpm": 160.0,
-        "scare": 7,
+        "scare": 8,
         "offset": 1.5,
         "count": 32,
         "spacings": [2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2],
@@ -159,14 +208,65 @@ SONGS = [
             (33.0, "trollgeDistort"),
             (42.0, "trollgeJumpScare"),
             (52.0, "trollgeStatic"),
-            (60.0, "trollgeFinalForm"),   # static -> red-eyed final form
-            (96.0, "trollgeSad"),         # ...and then he just stands there
+            (60.0, "trollgeFinalForm"),   # phase 3 -> red-eyed final form
             (66.0, "trollgeJumpScare"),
             (74.0, "trollgeScreenShake"),
             (82.0, "trollgeDistort"),
             (88.0, "trollgeInvert"),
             (94.0, "trollgeJumpScare"),
+            (96.0, "trollgeSad"),         # ...and then he just stands there
             (100.0, "trollgeInvert"),
+        ],
+    },
+    {
+        "id": "the_incident",
+        "display": "The Incident",
+        "bf": "bf_damned",       # bf_super_scary recoloured (tools/make_characters.py "tint")
+        "trollge": "trollge_final",   # red-eyed final form from the first beat
+        "noteskin": NOTESKIN_TORN,
+        "style": STYLES[4],
+        "hands_from": 15,
+        "bpm": 170.0,
+        "scare": 10,
+        "offset": 1.6,
+        "count": 32,
+        "spacings": [1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2],
+        "tonic": 45,  # A2 -- the bottom of the register
+        "progression": [
+            (0, [0, 1, 6]),      # semitone + tritone: nothing resolves
+            (0, [0, 1, 6]),
+            (-1, [-1, 0, 5]),
+            (-1, [-1, 0, 5]),
+            (5, [5, 6, 11]),
+            (5, [5, 6, 11]),
+            (-6, [-6, -5, 0]),
+            (-6, [-6, -5, 0]),
+        ],
+        "section_names": [
+            "THE INCIDENT", "IT STARTED HERE", "NOBODY CAME", "THE FIRST SCREAM",
+            "HE WAS ALWAYS THERE", "THE FIRST SCREAM", "WE SHOULD HAVE RUN", "THE FIRST SCREAM",
+            "EVERYTHING BURNS", "THE FIRST SCREAM", "DO NOT REMEMBER", "THE FIRST SCREAM",
+            "HE IS EVERYWHERE", "THE FIRST SCREAM", "THE PICTURE IS GONE", "THE FIRST SCREAM",
+            "THERE IS NO ENDING", "THE FIRST SCREAM", "TROLLGE WINS", "THE FIRST SCREAM",
+            "GOODBYE", "THE FIRST SCREAM", "I AM SORRY", "THE INCIDENT",
+        ],
+        "events": [
+            (8.0, "trollgeJumpScare"),
+            (14.0, "trollgeScreenShake"),
+            (20.0, "trollgeDistort"),
+            (26.0, "trollgeInvert"),
+            (32.0, "trollgeJumpScare"),
+            (38.0, "trollgeStatic"),
+            (44.0, "trollgeScreenShake"),
+            (50.0, "trollgeJumpScare"),
+            (56.0, "trollgeInvert"),
+            (62.0, "trollgeDistort"),
+            (68.0, "trollgeJumpScare"),
+            (74.0, "trollgeScreenShake"),
+            (79.0, "trollgeInvert"),
+            (84.0, "trollgeToSad"),        # he stops fighting. the incident is over.
+            (86.0, "trollgeJumpScare"),
+            (88.0, "trollgeStatic"),
         ],
     },
 ]

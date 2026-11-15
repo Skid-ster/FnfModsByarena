@@ -152,7 +152,7 @@
 			"name": "Add Camera Zoom",
 			"time": 13500.0,
 			"params": [
-				0.07,
+				0.08,
 				"camGame"
 			]
 		},
@@ -199,7 +199,7 @@
 			"name": "Add Camera Zoom",
 			"time": 28500.0,
 			"params": [
-				0.07,
+				0.08,
 				"camGame"
 			]
 		},
@@ -246,7 +246,7 @@
 			"name": "Add Camera Zoom",
 			"time": 43500.0,
 			"params": [
-				0.07,
+				0.08,
 				"camGame"
 			]
 		},
@@ -293,7 +293,7 @@
 			"name": "Add Camera Zoom",
 			"time": 58500.0,
 			"params": [
-				0.07,
+				0.08,
 				"camGame"
 			]
 		},
@@ -340,7 +340,7 @@
 			"name": "Add Camera Zoom",
 			"time": 73500.0,
 			"params": [
-				0.07,
+				0.08,
 				"camGame"
 			]
 		},
@@ -387,7 +387,7 @@
 			"name": "Add Camera Zoom",
 			"time": 88500.0,
 			"params": [
-				0.07,
+				0.08,
 				"camGame"
 			]
 		},

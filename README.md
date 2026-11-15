@@ -1,16 +1,19 @@
 # 🎭 Super Scary Trollge — a Codename Engine mod
 
-**Three songs. One trollge. It gets worse every time.**
+**Five songs. One trollge. It gets worse every time.**
 A complete, playable [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) mod where the horror
-escalates song by song: **2/10 → 4/10 → 7/10** — and the characters, the arrows and the HUD mutate with it.
+escalates song by song: **2/10 → 4/10 → 6/10 → 8/10 → 10/10** — and the characters, the arrows, the camera
+and the HUD mutate with it.
 
 ![The cast](docs/cast.png)
 
 | Song | Scare | BPM | Sound | Length | Notes (normal) | Boyfriend | Trollge | Story beats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **1. Trolling** | 2/10 | 140 | 8-bit **bounce** | 104.0 s | 256 | `bf_blue` | `trollge` (phase 1) | 3 |
-| **2. It's Getting Dark** | 4/10 | 150 | half-time **trap** | 103.6 s | 320 | `bf_smiler` | `trollge_glitch` (phase 2) | 6 |
-| **3. Super Scary Trollge** | 7/10 | 160 | **industrial** | 103.5 s | 658 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
+| **1. Trolling** | 2/10 | 140 | 8-bit **bounce** | 104.0 s | 256 | `bf_blue` | `trollge` | 3 |
+| **2. It's Getting Dark** | 4/10 | 150 | half-time **trap** | 103.6 s | 320 | `bf_smiler` | `trollge` → `trollge_glitch` | 7 |
+| **3. Don't Look Back** | 6/10 | 152 | **glitch** | 111.9 s | 640 | `bf_glitched` | `trollge_glitch` → `trollge_static` | 10 |
+| **4. Super Scary Trollge** | 8/10 | 160 | **industrial** | 103.5 s | 658 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
+| **5. The Incident** | 10/10 | 170 | **finale** | 92.0 s | 782 | `bf_damned` | `trollge_final` → `trollge_sad` | 16 |
 
 Each song also ships its own **arrow skin**, from bright violet/mint to a corrupted glitch atlas:
 
@@ -18,25 +21,30 @@ Each song also ships its own **arrow skin**, from bright violet/mint to a corrup
 | --- | --- | --- |
 | Trolling | `game/notes/default` | violet, blue, mint and crimson arrows with soft glow |
 | It's Getting Dark | `game/notes/shadow` | the same arrows with the colour drained out |
-| Super Scary Trollge | `game/notes/corrupt` | sliced, RGB-split, static-speckled arrows |
+| Don't Look Back | `game/notes/corrupt` | sliced, RGB-split, static-speckled arrows |
+| Super Scary Trollge | `game/notes/corrupt` | the same corruption, now with two-lane chords behind it |
+| The Incident | `game/notes/torn` | burnt through: ember red, ripped edges, more static |
 
 ![Arrow skins](docs/noteskin.png)
 
-Both **easy** and **normal** difficulties are charted for all three songs (easy = half density, no sustains).
-Sustains land every other section, and the last three sections of song 3 drop **two-lane chords on the beat** — that is
-what takes it from a 4/10 chart to a 7/10 one.
+Both **easy** and **normal** difficulties are charted for all five songs (easy = half density, no sustains).
+Sustains land every other section, and the last three sections of songs 4 and 5 drop **two-lane chords on the beat** —
+that is what takes a chart from "busy" to "10/10".
 
-![Three scare tiers](docs/stages.png)
+All five songs are in **freeplay** (via `data/config/freeplaySonglist/LIB_TrollgeMod.txt`, which lists them in
+scare order) and in story mode (the week plays them back to back).
+
+![Five scare tiers](docs/stages.png)
 
 ---
 
 ## Install
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
-2. Grab `SuperScaryTrollge-v2.4.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
+2. Grab `SuperScaryTrollge-v3.0.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
 3. Drop the **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **Super Scary Trollge**.
-5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all three songs are in freeplay.
+5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
 
 ```
 mods/
@@ -45,17 +53,20 @@ mods/
     ├── data/
     │   ├── characters/   trollge.xml, trollge_glitch.xml, trollge_static.xml,
     │   │                 trollge_final.xml, trollge_sad.xml,
-    │   │                 bf_blue.xml, bf_smiler.xml, bf_super_scary.xml (+ _dead variants)
-    │   ├── config/       modpack.ini
+    │   │                 bf_blue.xml, bf_smiler.xml, bf_glitched.xml,
+    │   │                 bf_super_scary.xml, bf_damned.xml (+ _dead variants)
+    │   ├── config/       modpack.ini, freeplaySonglist/LIB_TrollgeMod.txt
     │   ├── scripts/      trollge_behavior.hx, trollge_song_behavior.hx
     │   ├── splashes/     default.xml (note splash config)
     │   ├── stages/       trollge.xml, trollge.hx
     │   └── weeks/        weeks/trollge_week.xml, characters/trollge.xml
     ├── images/           characters/, icons/, stages/, menus/, event overlays,
-    │                     game/notes/{default,shadow,corrupt}, game/splashes,
+    │                     game/notes/{default,shadow,corrupt,torn}, game/splashes,
     │                     game/healthBar.png, game/{ready,set,go}.png
-    ├── songs/            trolling/, getting_dark/, super_scary/
-    └── sounds/           stingers, themes, countdown hits, custom hit/miss
+    ├── songs/            trolling/, getting_dark/, dont_look_back/,
+    │                     super_scary/, the_incident/
+    └── sounds/           stingers, themes, countdown hits, custom hit/miss,
+                          per-character note voices
 ```
 
 > **Codename Engine only.** Psych Engine / YoshiCrafter mods use a different format; this mod uses the
@@ -71,11 +82,11 @@ All Trollge art is hand-drawn and imported from `art_src/trollge/` by `tools/mak
 
 | Phase | Art | Used by |
 | --- | --- | --- |
-| `trollge` | `trollge.png` — clean grin, hunched, clawed hands | song 1 |
-| `trollge_glitch` | `trollgeGlitch.png` — RGB-split, breaking apart | song 2 |
-| `trollge_static` | `trollgeStatic1.png` — hatched, buzzing with static | song 3 (0–60 s) |
-| `trollge_final` | `TrollgeFinal.png` — red-eyed final form | song 3 (60 s →) |
-| `trollge_sad` | `trollgesad.png` — one pose. he just stands there. | song 3 (96 s →) |
+| `trollge` | `trollge.png` — clean grin, hunched, clawed hands | song 1; song 2 (0–62 s) |
+| `trollge_glitch` | `trollgeGlitch.png` — RGB-split, breaking apart | song 2 (62 s →); song 3 (0–75 s) |
+| `trollge_static` | `trollgeStatic1.png` — hatched, buzzing with static | song 3 (75 s →); song 4 (0–60 s) |
+| `trollge_final` | `TrollgeFinal.png` — red-eyed final form | song 4 (60–96 s); song 5 (0–84 s) |
+| `trollge_sad` | `trollgesad.png` — one pose. he just stands there. | song 4 (96 s →); song 5 (84 s →) |
 
 Every phase ships `idle`, all four sing poses, all four **miss** poses, `scared`, `laugh`, `attack`, `hit`,
 `die` and its own health icon. The importer:
@@ -92,11 +103,16 @@ Every phase ships `idle`, all four sing poses, all four **miss** poses, `scared`
 
 ![bf_blue](docs/bf_blue.png)
 ![bf_smiler](docs/bf_smiler.png)
+![bf_glitched](docs/bf_glitched.png)
 ![bf_super_scary](docs/bf_super_scary.png)
+![bf_damned](docs/bf_damned.png)
 
-`bf_blue` (song 1) → `bf_smiler` (song 2) → `bf_super_scary` (song 3), imported from `art_src/bf/`.
-The blue skin has no miss art in its upload, so the importer grades its sing poses into blood-washed
-miss poses; every skin also gets a game-over sprite (`gameOverChar`) and a two-frame health icon.
+`bf_blue` (song 1) → `bf_smiler` (song 2) → `bf_glitched` (song 3) → `bf_super_scary` (song 4) → `bf_damned`
+(song 5). Songs 1–2 are imported straight from `art_src/bf/`; songs 3 and 5 are **re-coloured** from the same two
+uploads with the importer's `tint` pass (`bf_glitched` = the blue boy gone sickly green, `bf_damned` = the crazy
+boy burnt red and desaturated) — a real second cast without a second upload. The blue skin has no miss art in its
+upload, so the importer grades its sing poses into blood-washed miss poses; every skin also gets a game-over sprite
+(`gameOverChar`) and a two-frame health icon.
 
 `tools/make_characters.py` is the only thing that writes character atlases/XML/icons:
 
@@ -113,25 +129,28 @@ Charts call HScript functions through `HScript Call` events, implemented in
 | Function | Effect |
 | --- | --- |
 | `trollgeJumpScare` | Full-screen scream built from the trollge's **own face**, stinger, white flash, camera shake |
-| `trollgeFinalForm` | 60 s of song 3: static mess → red-eyed final form, with a stinger + hard shake |
-| `trollgeSad` | 96 s of song 3: he stops fighting. One pose. Stillness. |
+| `trollgeToGlitch` | 62 s of song 2: the clean trollge corrupts where he stands |
+| `trollgeToStatic` | 75 s of song 3: phase 2 collapses into phase 3 |
+| `trollgeFinalForm` | 60 s of song 4: static mess → red-eyed final form, with a stinger + hard shake |
+| `trollgeToSad` / `trollgeSad` | 84 s of song 5 / 96 s of song 4: he stops fighting. One pose. Stillness. |
 | `trollgeScreenShake` | Camera + HUD shake with a red flash |
 | `trollgeDistort` | Glitch overlay + shake |
 | `trollgeStatic` | CRT static burst |
 | `trollgeInvert` | Corrupted-frame overlay while reality flips |
 
 Which beats fire when is data-driven: each song has an `events.json` with its own scare schedule
-(Trolling: 3 beats, It's Getting Dark: 6, Super Scary Trollge: 13 — four jumpscares, two inversions and a
-phase change).
+(Trolling: 3 beats, It's Getting Dark: 7, Don't Look Back: 10, Super Scary Trollge: 13, The Incident: 16).
 
 The stage (`data/stages/trollge.hx`) reads `customValues.scareTier` from the song's `meta.json` and picks one of
-three backdrops, plus how much ambient static to flicker:
+five backdrops, plus how much ambient static to flicker:
 
 | Tier | Backdrop |
 | --- | --- |
 | 2/10 | `bg.png` — dim, quiet |
 | 4/10 | `bg_scary.png` — red bleed, scanlines, grain |
-| 7/10 | `bg_nightmare.png` — RGB-split, corrupted |
+| 6/10 | `bg_glitch.png` — the room double-exposing on itself |
+| 8/10 | `bg_nightmare.png` — RGB-split, corrupted |
+| 10/10 | `bg_hell.png` — the original photograph, burning |
 
 ### Arrows, splashes and the HUD
 
@@ -141,13 +160,14 @@ The note skin is drawn in code by `tools/make_noteskin.py` (no borrowed FNF art)
 * `images/game/notes/default.png/.xml` — 49 frames: idle strums (`arrowLEFT`…), `left press` and
   `left confirm` (4 frames each), the four scrolling notes (`purple`…`red`), hold bodies and hold caps.
 * `images/game/notes/shadow.png/.xml` — same layout, colour drained (song 2).
-* `images/game/notes/corrupt.png/.xml` — same layout, glitched (song 3).
+* `images/game/notes/corrupt.png/.xml` — same layout, glitched (songs 3–4).
+* `images/game/notes/torn.png/.xml` — same layout, burnt to ember and ripped (song 5).
 * `images/game/splashes/default.png/.xml` + `data/splashes/default.xml` — the burst that fires when a note is
   hit, per lane, 4 frames each.
 
 How each song gets its skin:
 
-1. The chart's `noteTypes` list names the atlas (`["shadow"]`, `["corrupt"]`, `[]` = default). The engine maps
+1. The chart's `noteTypes` list names the atlas (`["shadow"]`, `["corrupt"]`, `["torn"]`, `[]` = default). The engine maps
    note type `0` onto that name and loads `game/notes/<name>` — see `Note.hx`.
 2. Strums always load `game/notes/default`, so `data/stages/trollge.hx` implements `onStrumCreation` and swaps
    `event.sprite` to the same atlas, keyed off the song's `customValues.scareTier`.
@@ -161,6 +181,47 @@ The HUD is themeable by filename alone, so `tools/make_hud.py` ships:
   and ending in a distorted blast.
 
 ![HUD](docs/hud.png)
+
+### Positioning and camera
+
+The stage is not hand-placed and hoped for: `tools/make_stage_preview.py` re-implements the engine's framing
+(`FlxAtlasFrames` frame offsets → `Character.__getCameraPositionInto` → `FlxCamera` zoom/scroll) and renders
+`docs/stage.png` — one tile per camera side, with the ground line and each character's safe frame drawn in.
+
+![Engine framing, both camera sides](docs/stage.png)
+
+It prints the clear space around each character at the stage zoom **and** at the tightest zoom any song reaches,
+and fails if anything is clipped, if the two pairs of feet are more than 2 px apart, or if the backdrop does not
+cover what the camera can see. The numbers it validates:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| ground line | Trollge `y=60`, Boyfriend `y=82` | the two atlases have different canvas heights (600 vs 560), so the y offset is exactly their baseline difference — the feet land on the same line to the pixel |
+| character gap | 520 px | the camera swings between the two strumlines; this is the widest gap that still keeps both characters in frame with at least 45 px of clear space on the tightest zoom |
+| `camyoffset` | 60 | without it the Trollge's feet sit on the bottom edge whenever the camera is on his side |
+| `zoom` | 0.95 → 1.026 | the stage's 0.95 plus 0.0095 per scare step: song 1 is framed loose, song 5 is pressed in |
+
+Camera work lives in `data/stages/trollge.hx` and scales with the scare tier, so the last two songs physically feel
+different from the first one:
+
+* a **zoom pulse** on every beat (`0.0022 + 0.0004 × tier`), pulled back by the engine's own lerp to `defaultCamZoom`;
+* a **push on every fourth measure** and a **tiny push on every correct note** — a clean section visibly breathes;
+* **screen shake** from 6/10 up on every beat, plus a 4 px slam every fourth beat at 10/10, on top of the scripted
+  event shakes (which already scaled with the tier).
+
+### Note-hit voices
+
+The engine plays nothing when a note is hit (only miss sounds), so both sides used to mime silently. Now every hit
+plays **that character's own syllable**, and the pitch follows the arrow — up is highest, down is lowest:
+
+| Side | Sound | Files |
+| --- | --- | --- |
+| Player | bright nasal syllable | `sounds/bf_note_{up,down,left,right}.ogg` |
+| Opponent | low growling syllable | `sounds/trollge_note_{up,down,left,right}.ogg` |
+
+They are synthesised in `tools/make_audio.py` (`render_note_voices()`), triggered from the stage script's
+`onNoteHit` hook, and skipped for sustain ticks so holds do not machine-gun. The sing poses themselves are the
+engine's own (`singLEFT`…), so a correct arrow gives you **the pose and the voice** for whichever side is singing.
 
 ### Audio
 
@@ -178,20 +239,23 @@ every chart section and gives it a part, so the songs build, drop and breathe in
 | `break` | mid-song + just before the finale | half-time heartbeat, open hats, most of the mix gone |
 | `finale` | last two sections | drop + octave-doubled lead |
 
-**Three songs, three bands.** The songs do not share instruments — same renderer, different kit, bass voice, lead voice
+**Five songs, five bands.** The songs do not share instruments — same renderer, different kit, bass voice, lead voice
 and groove (`"style"` in `tools/song_layout.py`, voices in `tools/make_audio.py`):
 
 | Style | Kit | Bass | Lead | Groove |
 | --- | --- | --- | --- | --- |
 | `bounce` (song 1) | punchy kick, layered **clap**, open hats, woodblock answers | plucked saw, 8th-note bounce | pulse-wave **chip** lead | straight backbeat, off-beat bass |
 | `trap` (song 2) | long **808** boom, rim-shot snare, rolling/ triplet hats | sliding 808 sub, long notes | two-operator **FM bell** with a tail | half-time, reversed cymbals |
-| `industrial` (song 3) | distorted metal kick, ghost snares, 16th ride | crushed detuned saw, 16ths | screaming saw + tritone, bitcrushed | four-on-the-floor, noise bursts |
+| `glitch` (song 3) | clipped sub thump, gate-stuttered snare, hat holes and 32nd stutters | sample-and-hold octave corruption | bitcrushed square with random dropouts | broken beat: kick on 1 and the "a" of 2 |
+| `industrial` (song 4) | distorted metal kick, ghost snares, 16th ride | crushed detuned saw, 16ths | screaming saw + tritone, bitcrushed | four-on-the-floor, noise bursts |
+| `finale` (song 5) | double kick, blast-beat snares, 16th rolls, gong hits | sub + distorted saw octave | choir of detuned saws with fifths | driving 8ths with a fifth stab |
 
 `tools/audit_songs.py` measures that separation too: the minimum pairwise song "fingerprint" distance (band energy +
-centroid + onset rate) has to stay above 0.10, and it currently reads **0.39**.
+centroid + onset rate) has to stay above 0.10, and it currently reads **0.33**.
 
 On top of that: snare fills and a riser + crash into every section that gets bigger, a horror layer per scare tier
-(dread drone → tape hiss → whisper swells), scripted stingers behind every `HScript Call` event, and a **real ending**
+(dread drone → tape hiss → whisper swells → a breathing, detuned tritone → heartbeat, whispers and a choir root),
+scripted stingers behind every `HScript Call` event, and a **real ending**
 — the instruments stop two beats early so the last chord, crash and sub drop ring out (no lazy fade-out).
 
 **Mixing and mastering.** Parts are rendered as mono stems and placed in stereo; bass and kick stay centred, hats,
@@ -200,7 +264,7 @@ sidechained to the kick. The master chain is graphic EQ (sub cut, presence + air
 mid/side widener with mono bass → loudness normalisation to −15.5 dBFS RMS → limiter with 2 dB of headroom, because
 Vorbis overshoots the source peak — so the encoder **decodes its own output** and re-normalises if the file clips
 (`write_song()`), and the audit reports the 4x-oversampled true peak of the shipped OGG. Nothing in the package
-peaks above −0.9 dBTP.
+peaks above −0.7 dBTP.
 
 Every one of those claims is **measured**, not vibes: `tools/audit_songs.py` decodes the shipped `Inst.ogg` files and
 checks loudness, crest factor, section dynamics, spectral balance, stereo width, side/mid ratio, clipping and DC —
@@ -221,7 +285,7 @@ plus chart style (off-beat ratio, same-lane runs, density curve). The results li
 * banded VHS wobble, radial chromatic aberration, a 5-tap **halation** glow on highlights, drifting scanlines,
   film grain, vignette, then a small contrast/saturation lift so the grade sharpens the picture instead of washing
   it out;
-* intensity follows the scare tier (0.35 / 0.62 / 1.0) and every story event in the chart (`trollgeJumpScare`,
+* intensity follows the scare tier (0.35 / 0.51 / 0.67 / 0.83 / 1.0) and every story event in the chart (`trollgeJumpScare`,
   `trollgeInvert`, `trollgePhase2`…) punches `uGlitch` for 1.2 s; song 3 also twitches on every beat;
 * all sampling is **clamped to the texture**, so the offsets never pull from outside the frame — that was causing
   the edges of the screen to smear/clip on the first pass;
@@ -243,7 +307,7 @@ The validator checks the shader file for `#pragma header`, a `main()`, no `switc
 
 `tools/song_layout.py` is the single source of truth: it defines the BPM, chord progression, section list
 (`count` notes per section, `spacing` in 16ths), the characters each song uses, and the story beats for all
-three songs. `tools/make_chart.py` and `tools/make_audio.py` both read it, so **the music and the chart can
+five songs. `tools/make_chart.py` and `tools/make_audio.py` both read it, so **the music and the chart can
 never drift apart**.
 
 Charts are written in Codename's own format:
@@ -262,7 +326,7 @@ Charts are written in Codename's own format:
 }
 ```
 
-Each song ships 16–20 named section bookmarks so the charter shows the song structure at a glance.
+Each song ships 16–24 named section bookmarks so the charter shows the song structure at a glance.
 
 ---
 
@@ -275,17 +339,18 @@ pip install pillow numpy soundfile
 
 python3 tools/make_characters.py  # imported atlases -> normalised atlases, icons, character XML (~25 s)
 python3 tools/make_art.py         # backdrops, VHS overlays, week banner, previews (~10 s)
-python3 tools/make_audio.py       # 3 instrumentals + stingers + themes + countdown (~40 s)
-python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt) + splashes (~10 s)
+python3 tools/make_audio.py       # 5 instrumentals + stingers + themes + countdown + note voices (~6 min)
+python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt/torn) + splashes (~12 s)
 python3 tools/make_hud.py         # health bar frame + READY/SET/GO badges
 python3 tools/make_chart.py       # meta.json, events.json, charts for all difficulties
-python3 tools/validate_mod.py     # 1182 checks: schemas, atlas bounds, skins, HUD, note times, audio length...
+python3 tools/make_stage_preview.py  # engine framing check -> docs/stage.png + margin report
+python3 tools/validate_mod.py     # 1686 checks: schemas, atlas bounds, skins, HUD, note times, audio length...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
-python3 tools/package_mod.py      # dist/SuperScaryTrollge-v2.4.0.zip
+python3 tools/package_mod.py      # dist/SuperScaryTrollge-v3.0.0.zip
 ```
 
 Want a different song? Edit `tools/song_layout.py` (spacings, progression, scare tier, event times) and re-run
-the three generators — the chart, the instrumental and the stingers all follow.
+the generators — the chart, the instrumental, the week and the freeplay list all follow.
 
 ---
 

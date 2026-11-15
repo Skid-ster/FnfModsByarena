@@ -1,0 +1,19 @@
+{
+	"displayName": "The Incident",
+	"bpm": 170.0,
+	"beatsPerMeasure": 4,
+	"stepsPerBeat": 4,
+	"icon": "trollge_sad",
+	"color": "#5C0610",
+	"coopAllowed": false,
+	"opponentModeAllowed": true,
+	"needsVoices": false,
+	"difficulties": [
+		"easy",
+		"normal"
+	],
+	"customValues": {
+		"scareTier": 10,
+		"lengthSeconds": 91.953
+	}
+}

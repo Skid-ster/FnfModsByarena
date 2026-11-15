@@ -84,6 +84,7 @@ REQUIRED_FILES = [
     "data/stages/trollge.xml",
     "data/stages/trollge.hx",
     "data/weeks/weeks/trollge_week.xml",
+    "data/config/freeplaySonglist/LIB_TrollgeMod.txt",
     "data/weeks/characters/trollge.xml",
     "images/icons/trollge/icon.png",
     "data/characters/bf_blue.xml",
@@ -92,18 +93,30 @@ REQUIRED_FILES = [
     "data/characters/bf_smiler_dead.xml",
     "data/characters/bf_super_scary.xml",
     "data/characters/bf_super_scary_dead.xml",
+    "data/characters/bf_glitched.xml",
+    "data/characters/bf_glitched_dead.xml",
+    "data/characters/bf_damned.xml",
+    "data/characters/bf_damned_dead.xml",
     "images/characters/Boyfriend_blue.png",
     "images/characters/Boyfriend_blue.xml",
     "images/characters/Boyfriend_smiler.png",
     "images/characters/Boyfriend_smiler.xml",
     "images/characters/Boyfriend_super_scary.png",
     "images/characters/Boyfriend_super_scary.xml",
+    "images/characters/Boyfriend_glitched.png",
+    "images/characters/Boyfriend_glitched.xml",
+    "images/characters/Boyfriend_damned.png",
+    "images/characters/Boyfriend_damned.xml",
     "images/icons/bf_blue/icon.png",
     "images/icons/bf_smiler/icon.png",
     "images/icons/bf_super_scary/icon.png",
+    "images/icons/bf_glitched/icon.png",
+    "images/icons/bf_damned/icon.png",
     "images/stages/trollge/bg.png",
     "images/stages/trollge/bg_scary.png",
+    "images/stages/trollge/bg_glitch.png",
     "images/stages/trollge/bg_nightmare.png",
+    "images/stages/trollge/bg_hell.png",
     "images/menus/storymenu/weeks/trollge_week.png",
     "images/menus/storymenu/characters/trollge.png",
     "images/trollge_jump_scare.png",
@@ -122,6 +135,8 @@ REQUIRED_FILES = [
     "images/game/notes/shadow.xml",
     "images/game/notes/corrupt.png",
     "images/game/notes/corrupt.xml",
+    "images/game/notes/torn.png",
+    "images/game/notes/torn.xml",
     "images/game/splashes/default.png",
     "images/game/splashes/default.xml",
     "data/splashes/default.xml",
@@ -165,6 +180,26 @@ def check_xml():
             ERRORS.append("invalid XML %s: %s" % (rel(path), exc))
 
 
+def check_week_and_freeplay():
+    """Both menus have to offer all five songs, in scare order."""
+    ids = [s["id"] for s in L.SONGS]
+    week = os.path.join(MOD, "data", "weeks", "weeks", "trollge_week.xml")
+    if os.path.isfile(week):
+        root = ET.parse(week).getroot()
+        listed = [node.text.strip() for node in root.iter("song") if node.text]
+        ok(listed == ids, "week song list is %s, expected %s" % (listed, ids))
+
+    path = os.path.join(MOD, "data", "config", "freeplaySonglist", "LIB_TrollgeMod.txt")
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as handle:
+            listed = [line.strip() for line in handle if line.strip()]
+        ok(listed == ids, "freeplay songlist is %s, expected %s" % (listed, ids))
+        for song_id in listed:
+            ok(os.path.isfile(os.path.join(MOD, "songs", song_id, "meta.json")),
+               "freeplay songlist lists %r but songs/%s/meta.json is missing"
+               % (song_id, song_id))
+
+
 def check_mod_json():
     data = json.load(open(os.path.join(MOD, "mod.json"), encoding="utf-8"))
     ok(isinstance(data.get("version"), str) and data["version"].count(".") == 2,
@@ -172,6 +207,15 @@ def check_mod_json():
     ids = [s["id"] for s in L.SONGS]
     ok(sorted(data.get("songs", [])) == sorted(ids), "mod.json songs must match the built songs")
     ok(data.get("week") == "trollge_week", "mod.json week must be trollge_week")
+    ok(sorted(data.get("scareTiers", {})) == sorted(ids),
+       "mod.json scareTiers must list every song")
+    ok([data.get("scareTiers", {}).get(i) for i in ids]
+       == sorted(data.get("scareTiers", {}).get(i) for i in ids),
+       "mod.json scareTiers must rise with the song order")
+    ok(sorted(data.get("playerCharacters", {})) == sorted(ids),
+       "mod.json playerCharacters must list every song")
+    ok(len(set(data.get("playerCharacters", {}).values())) == len(ids),
+       "every song needs its own Boyfriend skin")
 
 
 # --------------------------------------------------------------------------- #
@@ -226,7 +270,7 @@ def check_noteskin():
     required = skin_required_frames()
     reference = None
 
-    for skin in ("default", "shadow", "corrupt"):
+    for skin in ("default", "shadow", "corrupt", "torn"):
         png = os.path.join(MOD, "images", "game", "notes", skin + ".png")
         xml = os.path.join(MOD, "images", "game", "notes", skin + ".xml")
         frames = read_atlas(png, xml)
@@ -596,7 +640,12 @@ def check_scripts():
     if os.path.isfile(stage_script):
         code = open(stage_script, encoding="utf-8").read()
         ok("function onStrumCreation" in code, "stage script is missing the onStrumCreation hook")
-        for skin in ("shadow", "corrupt"):
+        ok("function onNoteHit" in code, "stage script is missing the onNoteHit hook")
+        for sfx in ("bf_note_", "trollge_note_"):
+            ok(sfx in code, "stage script never plays the %r voices" % sfx)
+        for fn in ("function camShake", "function zoomPunch", "function measureHit"):
+            ok(fn in code, "stage script is missing %r" % fn)
+        for skin in ("shadow", "corrupt", "torn"):
             ok("'%s'" % skin in code or '"%s"' % skin in code,
                "stage script never references the %r skin" % skin)
             ok(os.path.isfile(os.path.join(MOD, "images", "game", "notes", skin + ".png")),
@@ -610,6 +659,17 @@ def check_scripts():
         for ext in ET.parse(path).getroot().iter("extension"):
             target = os.path.join(MOD, "data", "scripts", ext.get("script") + ".hx")
             ok(os.path.isfile(target), "%s: extension script %r missing" % (char, ext.get("script")))
+
+
+def check_stage_positioning():
+    """The stage numbers are not freehand: tools/make_stage_preview.py proves the
+    engine framing. Re-run it here so a stray edit cannot quietly clip a
+    character or un-level the two ground lines."""
+    import subprocess
+    result = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "make_stage_preview.py")],
+                            capture_output=True, text=True)
+    ok(result.returncode == 0,
+       "stage preview failed:\n%s" % (result.stdout + result.stderr).strip())
 
 
 def check_audio():
@@ -636,7 +696,10 @@ def check_audio():
         ok(info.samplerate >= 44100 // 2, "%s: unexpected sample rate" % song["id"])
 
     for sfx in ("trollge_jump_scare", "trollge_distortion", "trollge_invert",
-                "trollge_hit", "trollge_miss", "trollge_theme", "trollge_theme_scary"):
+                "trollge_hit", "trollge_miss", "trollge_theme", "trollge_theme_scary",
+                "bf_note_up", "bf_note_down", "bf_note_left", "bf_note_right",
+                "trollge_note_up", "trollge_note_down", "trollge_note_left",
+                "trollge_note_right"):
         path = os.path.join(MOD, "sounds", sfx + ".ogg")
         if os.path.isfile(path):
             info = sf.info(path)
@@ -650,6 +713,7 @@ def main():
     check_json()
     check_xml()
     check_mod_json()
+    check_week_and_freeplay()
     check_charts()
     check_noteskin()
     check_hud()
@@ -658,6 +722,7 @@ def main():
     check_character_refs()
     check_icons()
     check_scripts()
+    check_stage_positioning()
     check_audio()
 
     for warning in WARNINGS:

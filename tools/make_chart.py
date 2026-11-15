@@ -28,10 +28,14 @@ SCROLL_SPEED = 1.0
 CHART_VERSION = "1.6.0"
 
 #: Icon + health-bar colour per song (gets redder as it gets scarier).
+#: The icon must be a folder that exists under images/icons/ -- HealthIcon falls
+#: back to the base game's "face" when it is not, which hides a missing phase.
 STYLES = {
     "trolling": {"icon": "trollge", "color": "#3F7BD1"},
-    "getting_dark": {"icon": "trollge", "color": "#8A1023"},
-    "super_scary": {"icon": "trollge_scary", "color": "#C4101E"},
+    "getting_dark": {"icon": "trollge_glitch", "color": "#8A1023"},
+    "dont_look_back": {"icon": "trollge_static", "color": "#A8142B"},
+    "super_scary": {"icon": "trollge_final", "color": "#C4101E"},
+    "the_incident": {"icon": "trollge_sad", "color": "#5C0610"},
 }
 
 BOOKMARK_COLORS = ["#6E0D1B", "#8A1023", "#A8142B", "#C4101E"]

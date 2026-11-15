@@ -1,0 +1,15 @@
+<!DOCTYPE codename-engine-character>
+<character sprite="Boyfriend_damned" icon="bf_damned" color="#7C0A12" flipX="true" isPlayer="true" gameOverChar="bf_damned_dead">
+    <anim name="idle" anim="BFdamned idle" x="0" y="0" fps="24" loop="true"/>
+    <anim name="singUP" anim="BFdamned sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWN" anim="BFdamned sDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFT" anim="BFdamned sLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHT" anim="BFdamned sRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singUPmiss" anim="BFdamned mUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWNmiss" anim="BFdamned mDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFTmiss" anim="BFdamned mLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHTmiss" anim="BFdamned mRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="hey" anim="BFdamned sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="scared" anim="BFdamned mUP" x="0" y="0" fps="12" loop="true"/>
+    <anim name="hit" anim="BFdamned sDOWN" x="0" y="0" fps="24" loop="false"/>
+</character>

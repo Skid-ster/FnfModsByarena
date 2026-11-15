@@ -29,6 +29,7 @@ Run with:  python3 tools/make_characters.py              (everything)
            python3 tools/make_characters.py bf_blue      (one character)
 """
 
+import math
 import os
 import re
 import sys
@@ -56,7 +57,9 @@ PLAYER_GEOM = {
 }
 OPPONENT_GEOM = {
     "canvas": (520, 600),
-    "baseline": 580,
+    "baseline": 560,     # 21 px above the canvas bottom: the camera sits 100 px
+                         # above the character midpoint, so a lower ground line
+                         # would put his feet under the bottom of the screen
     "centre": 260,
     "fit_height": 520,         # scaled up from 692 px, so he towers over BF
 }
@@ -157,6 +160,72 @@ SKINS = [
         "icon_frames": (("idle", 0), ("singUPmiss", 0)),
         "icon_crop": (0.82, 20),
         "derive_miss": False,
+        "anims": [
+            ("idle", "BF idle dance", 24, True),
+            ("singUP", "UP", 24, False),
+            ("singDOWN", "DOWN", 24, False),
+            ("singLEFT", "LEFT", 24, False),
+            ("singRIGHT", "RIGHT", 24, False),
+            ("singUPmiss", "BF NOTE UP MISS", 24, False),
+            ("singDOWNmiss", "BF NOTE DOWN MISS", 24, False),
+            ("singLEFTmiss", "BF NOTE LEFT MISS", 24, False),
+            ("singRIGHTmiss", "BF NOTE RIGHT MISS", 24, False),
+            ("hey", "UP", 24, False),
+            ("scared", "BF NOTE UP MISS", 12, True),
+            ("hit", "DOWN", 24, False),
+        ],
+        "dead": ("Gameover", 24),
+    },
+    {
+        # song 3 (6/10) -- the same boy, but he is not rendering correctly
+        "song": "dont_look_back",
+        "role": "player",
+        "source": SRC_BF,
+        "files": ("new_blue_boyfriend.png", "new_blue_boyfriend.xml"),
+        "short": "BFglitch",
+        "sprite": "Boyfriend_glitched",
+        "character": "bf_glitched",
+        "dead_character": "bf_glitched_dead",
+        "icon": "bf_glitched",
+        "color": "#2FA86B",
+        "icon_frames": (("idle", 0), ("singUPmiss", 0)),
+        "icon_crop": (0.82, 20),
+        "derive_miss": True,
+        "tint": {"hue": -74.0, "sat": 0.72, "contrast": 1.22,
+                 "gain": (0.86, 1.16, 0.92), "gamma": 0.92},
+        "anims": [
+            ("idle", "BF idle dance", 24, True),
+            ("singUP", "BF NOTE UP", 24, False),
+            ("singDOWN", "BF NOTE DOWN", 24, False),
+            ("singLEFT", "BF NOTE LEFT", 24, False),
+            ("singRIGHT", "BF NOTE RIGHT", 24, False),
+            ("singUPmiss", "BF NOTE UP MISS", 24, False),
+            ("singDOWNmiss", "BF NOTE DOWN MISS", 24, False),
+            ("singLEFTmiss", "BF NOTE LEFT MISS", 24, False),
+            ("singRIGHTmiss", "BF NOTE RIGHT MISS", 24, False),
+            ("hey", "BF HEY", 24, False),
+            ("scared", "BF NOTE UP MISS", 12, True),
+            ("hit", "BF NOTE DOWN", 24, False),
+        ],
+        "dead": ("Gameover", 24),
+    },
+    {
+        # song 5 (10/10) -- scorched red, all the way down
+        "song": "the_incident",
+        "role": "player",
+        "source": SRC_BF,
+        "files": ("Boyfriend_crazy2.png", "Boyfriend_crazy2.xml"),
+        "short": "BFdamned",
+        "sprite": "Boyfriend_damned",
+        "character": "bf_damned",
+        "dead_character": "bf_damned_dead",
+        "icon": "bf_damned",
+        "color": "#7C0A12",
+        "icon_frames": (("idle", 0), ("singUPmiss", 0)),
+        "icon_crop": (0.82, 20),
+        "derive_miss": False,
+        "tint": {"hue": -6.0, "sat": 0.58, "contrast": 1.42,
+                 "gain": (0.98, 0.66, 0.62), "lift": 0.0, "gamma": 1.18},
         "anims": [
             ("idle", "BF idle dance", 24, True),
             ("singUP", "UP", 24, False),
@@ -361,6 +430,51 @@ def read_atlas(png_path, xml_path):
         canvas.paste(region, (-fx, -fy))
         frames[d["name"]] = canvas
     return frames
+
+
+def tint_frames(frames, spec):
+    """Re-colour a whole uploaded atlas, so a song can have its own cast without
+    a new upload.
+
+    spec keys (all optional): hue (degrees), sat, contrast, gain=(r,g,b),
+    lift (0..1), gamma. Applied in linear RGB with the alpha channel untouched.
+    """
+    hue = math.radians(spec.get("hue", 0.0))
+    sat = spec.get("sat", 1.0)
+    contrast = spec.get("contrast", 1.0)
+    gain = np.array(spec.get("gain", (1.0, 1.0, 1.0)), dtype=np.float64)
+    lift = spec.get("lift", 0.0)
+    gamma = spec.get("gamma", 1.0)
+
+    cos_a, sin_a = math.cos(hue), math.sin(hue)
+    rot = np.array([
+        [0.213 + cos_a * 0.787 - sin_a * 0.213,
+         0.715 - cos_a * 0.715 - sin_a * 0.715,
+         0.072 - cos_a * 0.072 + sin_a * 0.928],
+        [0.213 - cos_a * 0.213 + sin_a * 0.143,
+         0.715 + cos_a * 0.285 + sin_a * 0.140,
+         0.072 - cos_a * 0.072 - sin_a * 0.283],
+        [0.213 - cos_a * 0.213 - sin_a * 0.787,
+         0.715 - cos_a * 0.715 + sin_a * 0.715,
+         0.072 + cos_a * 0.928 + sin_a * 0.072],
+    ])
+    lum = np.array([0.2126, 0.7152, 0.0722])
+    sat_m = np.array([[lum[0] + sat * (1 - lum[0]), lum[1] * (1 - sat), lum[2] * (1 - sat)],
+                      [lum[0] * (1 - sat), lum[1] + sat * (1 - lum[1]), lum[2] * (1 - sat)],
+                      [lum[0] * (1 - sat), lum[1] * (1 - sat), lum[2] + sat * (1 - lum[2])]])
+    matrix = rot @ sat_m
+
+    out = {}
+    for name, image in frames.items():
+        arr = np.asarray(image, dtype=np.float64) / 255.0
+        rgb = arr[:, :, :3]
+        rgb = (rgb - 0.5) * contrast + 0.5
+        rgb = rgb.reshape(-1, 3) @ matrix.T
+        rgb = rgb * gain + lift
+        rgb = np.clip(rgb, 0.0, 1.0) ** gamma
+        arr[:, :, :3] = rgb.reshape(arr.shape[0], arr.shape[1], 3)
+        out[name] = Image.fromarray((np.clip(arr, 0.0, 1.0) * 255.0).astype(np.uint8), "RGBA")
+    return out
 
 
 def group_anims(frames):
@@ -789,6 +903,8 @@ def build_skin(skin):
     png_src, xml_src = skin["files"]
     frames = read_atlas(os.path.join(skin["source"], png_src),
                         os.path.join(skin["source"], xml_src))
+    if skin.get("tint"):
+        frames = tint_frames(frames, skin["tint"])
     groups = group_anims(frames)
 
     built, anim_prefix, by_engine = build_frames(skin, frames, groups)

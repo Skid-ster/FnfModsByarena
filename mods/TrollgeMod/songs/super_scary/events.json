@@ -22,7 +22,7 @@
 			"name": "Add Camera Zoom",
 			"time": 12000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -48,7 +48,7 @@
 			"name": "Add Camera Zoom",
 			"time": 24000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -74,7 +74,7 @@
 			"name": "Add Camera Zoom",
 			"time": 33000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -100,7 +100,7 @@
 			"name": "Add Camera Zoom",
 			"time": 42000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -126,7 +126,7 @@
 			"name": "Add Camera Zoom",
 			"time": 52000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -152,33 +152,7 @@
 			"name": "Add Camera Zoom",
 			"time": 60000.0,
 			"params": [
-				0.054,
-				"camGame"
-			]
-		},
-		{
-			"name": "HScript Call",
-			"time": 96000.0,
-			"params": [
-				"trollgeSad",
-				"1"
-			]
-		},
-		{
-			"name": "Camera Flash",
-			"time": 96000.0,
-			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
-				"camGame"
-			]
-		},
-		{
-			"name": "Add Camera Zoom",
-			"time": 96000.0,
-			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -204,7 +178,7 @@
 			"name": "Add Camera Zoom",
 			"time": 66000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -230,7 +204,7 @@
 			"name": "Add Camera Zoom",
 			"time": 74000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -256,7 +230,7 @@
 			"name": "Add Camera Zoom",
 			"time": 82000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -282,7 +256,7 @@
 			"name": "Add Camera Zoom",
 			"time": 88000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		},
@@ -308,7 +282,33 @@
 			"name": "Add Camera Zoom",
 			"time": 94000.0,
 			"params": [
-				0.054,
+				0.056,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 96000.0,
+			"params": [
+				"trollgeSad",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 96000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 96000.0,
+			"params": [
+				0.056,
 				"camGame"
 			]
 		},
@@ -334,7 +334,7 @@
 			"name": "Add Camera Zoom",
 			"time": 100000.0,
 			"params": [
-				0.054,
+				0.056,
 				"camGame"
 			]
 		}

@@ -202,7 +202,23 @@ def build_backgrounds():
     tier2 = vignette(tier2, 0.6)
     save(tier2.convert("RGBA"), "stages/trollge/bg_scary.png")
 
-    # Tier 3 -- 7/10: corrupted, split, almost unreadable.
+    # Tier 3 -- 6/10: the room starts double-exposing on itself.
+    tier3 = ImageEnhance.Color(src).enhance(1.55)
+    tier3 = ImageChops.add(tier3, Image.new("RGB", src.size, (0, 60, 70)), scale=1.0, offset=-40)
+    shifted = ImageChops.offset(tier3, 22, 0)
+    tier3 = Image.blend(tier3, shifted, 0.35)
+    for _ in range(26):                     # hard displacement bands
+        y0 = random.randrange(BG_H)
+        band = random.randint(4, 22)
+        dx = random.randint(-90, 90)
+        strip = tier3.crop((0, y0, BG_W, min(BG_H, y0 + band)))
+        tier3.paste(strip, (dx, y0))
+    tier3 = scanlines(tier3, 4, 22)
+    tier3 = grain(tier3, 0.08)
+    tier3 = vignette(tier3, 0.68)
+    save(tier3.convert("RGBA"), "stages/trollge/bg_glitch.png")
+
+    # Tier 4 -- 8/10: corrupted, split, almost unreadable.
     tier3 = ImageEnhance.Color(src).enhance(1.7)
     tier3 = ImageChops.add(tier3, Image.new("RGB", src.size, (140, 0, 10)), scale=1.0, offset=-60)
     tier3 = rgb_split(tier3, 6)
@@ -212,21 +228,34 @@ def build_backgrounds():
     tier3 = vignette(tier3, 0.75)
     save(tier3.convert("RGBA"), "stages/trollge/bg_nightmare.png")
 
+    # Tier 5 -- 10/10: the original photograph, burning.
+    tier4 = ImageEnhance.Brightness(src).enhance(0.58)
+    tier4 = ImageEnhance.Color(tier4).enhance(1.9)
+    ember = Image.new("RGB", src.size, (150, 26, 8))
+    tier4 = ImageChops.add(ImageChops.multiply(tier4, ember.point(lambda v: v // 255 + 1)), tier4)
+    tier4 = ImageChops.add(tier4, Image.new("RGB", src.size, (70, 4, 0)), scale=1.0, offset=-70)
+    tier4 = rgb_split(tier4, 11)
+    tier4 = scanlines(tier4, 2, 52)
+    tier4 = grain(tier4, 0.18)
+    tier4 = ImageEnhance.Contrast(tier4).enhance(1.35)
+    tier4 = vignette(tier4, 0.92)
+    save(tier4.convert("RGBA"), "stages/trollge/bg_hell.png")
+
 
 def build_docs():
     """Repo documentation previews (not shipped with the mod)."""
     docs = os.path.join(ROOT, "docs")
     os.makedirs(docs, exist_ok=True)
 
-    tiers = []
-    for name in ("bg", "bg_scary", "bg_nightmare"):
-        tiers.append(Image.open(os.path.join(IMG, "stages", "trollge", name + ".png")).convert("RGB"))
-    tw2, th2 = 480, 270
-    strip = Image.new("RGB", (tw2 * 3, th2))
+    names = ("bg", "bg_scary", "bg_glitch", "bg_nightmare", "bg_hell")
+    tiers = [Image.open(os.path.join(IMG, "stages", "trollge", n + ".png")).convert("RGB")
+             for n in names]
+    tw2, th2 = 384, 216
+    strip = Image.new("RGB", (tw2 * len(tiers), th2))
     for i, image in enumerate(tiers):
         strip.paste(image.resize((tw2, th2), Image.LANCZOS), (i * tw2, 0))
     strip.save(os.path.join(docs, "stages.png"), optimize=True)
-    print("  -> docs/stages.png (3 scare tiers)")
+    print("  -> docs/stages.png (%d scare tiers)" % len(tiers))
 
     scare_path = os.path.join(IMG, "trollge_jump_scare.png")
     if os.path.isfile(scare_path):

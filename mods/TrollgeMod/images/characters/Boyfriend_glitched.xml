@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<TextureAtlas imagePath="Boyfriend_glitched.png">
+    <SubTexture name="BFglitch idle0000" x="0" y="0" width="392" height="395" frameX="-33" frameY="-144" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch idle0001" x="392" y="0" width="394" height="403" frameX="-33" frameY="-136" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch idle0002" x="786" y="0" width="395" height="405" frameX="-33" frameY="-134" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch idle0003" x="1181" y="0" width="396" height="410" frameX="-33" frameY="-129" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch idle0004" x="1577" y="0" width="397" height="413" frameX="-33" frameY="-126" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sUP0000" x="0" y="413" width="378" height="439" frameX="-40" frameY="-100" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sUP0001" x="378" y="413" width="386" height="442" frameX="-40" frameY="-96" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sDOWN0000" x="764" y="413" width="344" height="357" frameX="-57" frameY="-182" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sDOWN0001" x="1108" y="413" width="346" height="368" frameX="-57" frameY="-172" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sLEFT0000" x="1454" y="413" width="375" height="410" frameX="-42" frameY="-129" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sLEFT0001" x="0" y="855" width="380" height="415" frameX="-36" frameY="-124" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sRIGHT0000" x="380" y="855" width="401" height="414" frameX="-28" frameY="-125" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch sRIGHT0001" x="781" y="855" width="409" height="413" frameX="-28" frameY="-126" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mUP0000" x="1190" y="855" width="378" height="439" frameX="-40" frameY="-100" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mUP0001" x="1568" y="855" width="386" height="442" frameX="-40" frameY="-96" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mDOWN0000" x="0" y="1297" width="344" height="357" frameX="-57" frameY="-182" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mDOWN0001" x="344" y="1297" width="346" height="368" frameX="-57" frameY="-172" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mLEFT0000" x="690" y="1297" width="375" height="410" frameX="-42" frameY="-129" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mLEFT0001" x="1065" y="1297" width="380" height="415" frameX="-36" frameY="-124" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mRIGHT0000" x="1445" y="1297" width="401" height="414" frameX="-28" frameY="-125" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch mRIGHT0001" x="0" y="1712" width="409" height="413" frameX="-28" frameY="-126" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFglitch die0000" x="409" y="1712" width="392" height="395" frameX="-33" frameY="-144" frameWidth="460" frameHeight="560"/>
+</TextureAtlas>

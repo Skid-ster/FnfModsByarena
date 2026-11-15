@@ -1,23 +1,23 @@
 <?xml version='1.0' encoding='utf-8'?>
 <TextureAtlas imagePath="Trollge_final.png">
-    <SubTexture name="TrollgeF idle0000" x="0" y="0" width="313" height="504" frameX="-103" frameY="-77" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF idle0001" x="313" y="0" width="301" height="514" frameX="-103" frameY="-67" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF idle0002" x="614" y="0" width="298" height="514" frameX="-102" frameY="-67" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sUP0000" x="912" y="0" width="507" height="520" frameX="-8" frameY="-60" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sUP0001" x="1419" y="0" width="504" height="518" frameX="-16" frameY="-62" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sDOWN0000" x="0" y="520" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sDOWN0001" x="372" y="520" width="372" height="461" frameX="-71" frameY="-118" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sLEFT0000" x="744" y="520" width="327" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sLEFT0001" x="1071" y="520" width="327" height="507" frameX="-100" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sRIGHT0000" x="1398" y="520" width="486" height="502" frameX="-16" frameY="-79" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF sRIGHT0001" x="0" y="1027" width="474" height="508" frameX="-16" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mUP0000" x="474" y="1027" width="507" height="520" frameX="-8" frameY="-60" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mUP0001" x="981" y="1027" width="504" height="518" frameX="-16" frameY="-62" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mDOWN0000" x="1485" y="1027" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mDOWN0001" x="0" y="1547" width="372" height="461" frameX="-71" frameY="-118" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mLEFT0000" x="372" y="1547" width="327" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mLEFT0001" x="699" y="1547" width="327" height="507" frameX="-100" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mRIGHT0000" x="1026" y="1547" width="486" height="502" frameX="-16" frameY="-79" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF mRIGHT0001" x="1512" y="1547" width="474" height="508" frameX="-16" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeF die0000" x="0" y="2055" width="313" height="504" frameX="-103" frameY="-77" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF idle0000" x="0" y="0" width="313" height="504" frameX="-103" frameY="-57" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF idle0001" x="313" y="0" width="301" height="514" frameX="-103" frameY="-47" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF idle0002" x="614" y="0" width="298" height="514" frameX="-102" frameY="-47" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sUP0000" x="912" y="0" width="507" height="520" frameX="-8" frameY="-40" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sUP0001" x="1419" y="0" width="504" height="518" frameX="-16" frameY="-42" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sDOWN0000" x="0" y="520" width="372" height="453" frameX="-74" frameY="-106" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sDOWN0001" x="372" y="520" width="372" height="461" frameX="-71" frameY="-98" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sLEFT0000" x="744" y="520" width="327" height="507" frameX="-97" frameY="-53" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sLEFT0001" x="1071" y="520" width="327" height="507" frameX="-100" frameY="-53" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sRIGHT0000" x="1398" y="520" width="486" height="502" frameX="-16" frameY="-59" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF sRIGHT0001" x="0" y="1027" width="474" height="508" frameX="-16" frameY="-53" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mUP0000" x="474" y="1027" width="507" height="520" frameX="-8" frameY="-40" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mUP0001" x="981" y="1027" width="504" height="518" frameX="-16" frameY="-42" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mDOWN0000" x="1485" y="1027" width="372" height="453" frameX="-74" frameY="-106" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mDOWN0001" x="0" y="1547" width="372" height="461" frameX="-71" frameY="-98" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mLEFT0000" x="372" y="1547" width="327" height="507" frameX="-97" frameY="-53" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mLEFT0001" x="699" y="1547" width="327" height="507" frameX="-100" frameY="-53" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mRIGHT0000" x="1026" y="1547" width="486" height="502" frameX="-16" frameY="-59" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF mRIGHT0001" x="1512" y="1547" width="474" height="508" frameX="-16" frameY="-53" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeF die0000" x="0" y="2055" width="313" height="504" frameX="-103" frameY="-57" frameWidth="520" frameHeight="600"/>
 </TextureAtlas>

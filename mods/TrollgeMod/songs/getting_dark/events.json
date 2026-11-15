@@ -80,6 +80,32 @@
 		},
 		{
 			"name": "HScript Call",
+			"time": 62000.0,
+			"params": [
+				"trollgeToGlitch",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 62000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 62000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
 			"time": 66000.0,
 			"params": [
 				"trollgeScreenShake",

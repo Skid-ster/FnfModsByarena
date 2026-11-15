@@ -13,17 +13,29 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD = os.path.join(ROOT, "mods", "TrollgeMod")
 DOCS = os.path.join(ROOT, "docs")
 
 #: (image, intensity, aberration, scanline, grain, vignette)
+#: (backdrop, scare tier, vhs intensity) -- one row per song, in play order.
+#: Intensity is the stage script's own formula: 0.35 + (tier - 2) * 0.08.
+TIERS = [
+    ("bg", 2),
+    ("bg_scary", 4),
+    ("bg_glitch", 6),
+    ("bg_nightmare", 8),
+    ("bg_hell", 10),
+]
 STAGES = [
-    ("bg", 0.35, 0.7 + 1.3 * 0.35, 0.25 + 0.45 * 0.35, 0.2 + 0.5 * 0.35, 0.35 + 0.45 * 0.35),
-    ("bg_scary", 0.62, 0.7 + 1.3 * 0.62, 0.25 + 0.45 * 0.62, 0.2 + 0.5 * 0.62, 0.35 + 0.45 * 0.62),
-    ("bg_nightmare", 1.0, 0.7 + 1.3, 0.25 + 0.45, 0.2 + 0.5, 0.35 + 0.45),
+    (name, min(1.0, 0.35 + (tier - 2) * 0.08),
+     0.7 + 1.3 * min(1.0, 0.35 + (tier - 2) * 0.08),
+     0.25 + 0.45 * min(1.0, 0.35 + (tier - 2) * 0.08),
+     0.2 + 0.5 * min(1.0, 0.35 + (tier - 2) * 0.08),
+     0.35 + 0.45 * min(1.0, 0.35 + (tier - 2) * 0.08))
+    for name, tier in TIERS
 ]
 
 
@@ -103,11 +115,17 @@ def main():
     label = 22
     width = tiles[0][1].width
     height = tiles[0][1].height
-    canvas = Image.new("RGB", (pad * 5 + width * 2, pad * 4 + (height + label) * 3), (18, 14, 20))
+    canvas = Image.new("RGB", (pad * 5 + width * 2,
+                               pad * (len(tiles) + 1) + (height + label) * len(tiles)),
+                       (18, 14, 20))
+    draw = ImageDraw.Draw(canvas)
     for row, (name, raw, graded) in enumerate(tiles):
         y = pad + row * (height + label + pad)
         canvas.paste(raw, (pad, y))
         canvas.paste(graded, (pad * 2 + width, y))
+        tier = TIERS[row][1]
+        draw.text((pad, y + height + 4), "%s   %d/10   intensity %.2f"
+                  % (name, tier, STAGES[row][1]), fill=(226, 226, 226))
     os.makedirs(DOCS, exist_ok=True)
     out = os.path.join(DOCS, "grade.png")
     canvas.save(out, optimize=True)

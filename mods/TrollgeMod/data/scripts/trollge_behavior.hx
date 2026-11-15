@@ -10,7 +10,7 @@
 //  assets/data/characters/spirit.hx).
 // ===========================================================================
 
-/** Scare tier of the song currently playing (2, 4 or 7). */
+/** Scare tier of the song currently playing (2, 4, 6, 8 or 10). */
 var scareTier:Int = 1;
 
 /** 0..1, drives the red flicker on the scary tiers. */
@@ -33,14 +33,15 @@ function postCreate() {
 }
 
 function beatHit(curBeat) {
-	// Tier 2 barely flickers, tier 3 flickers all the time. Escalation!
-	if (scareTier >= 7 && curBeat % 2 == 0) flash = 1.0;
+	// 2/10 barely flickers, 10/10 flickers all the time. Escalation!
+	if (scareTier >= 8 && curBeat % 2 == 0) flash = 1.0;
+	else if (scareTier >= 6 && curBeat % 3 == 0) flash = 0.75;
 	else if (scareTier >= 4 && curBeat % 4 == 0) flash = 0.55;
 }
 
 function onDance(event) {
 	// Even the idle dance gets twitchy once things go bad.
-	if (scareTier >= 7 && FlxG.random.bool(0.18)) this.playAnim('laugh', true, "DANCE");
+	if (scareTier >= 8 && FlxG.random.bool(0.18)) this.playAnim('laugh', true, "DANCE");
 }
 
 function postUpdate(elapsed) {
@@ -52,9 +53,9 @@ function postUpdate(elapsed) {
 		this.color = 0xFFFFFFFF;
 	}
 
-	// Creepy sway: only on the scariest tier, and tiny enough not to look broken.
-	if (scareTier >= 7)
-		this.angle = Math.sin(Conductor.songPosition / 220.0) * 0.8;
+	// Creepy sway: only on the scariest songs, and tiny enough not to look broken.
+	if (scareTier >= 8)
+		this.angle = Math.sin(Conductor.songPosition / 220.0) * (scareTier >= 10 ? 1.3 : 0.8);
 	else
 		this.angle = 0.0;
 }

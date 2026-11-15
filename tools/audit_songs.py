@@ -276,6 +276,8 @@ def main():
         report.append(fmt_row("true peak (4x oversampled)", "%.2f dBTP" % audio["true_peak_db"],
                               audio["true_peak_db"], "true_peak_db"))
         report.append(fmt_row("style", song.get("style", "-")))
+        report.append(fmt_row("Boyfriend", song.get("bf", "-")))
+        report.append(fmt_row("Trollge", song.get("trollge", "-")))
         report.append(fmt_row("loudness (RMS)", "%.1f dBFS" % audio["rms_db"]))
         report.append(fmt_row("crest factor", "%.1f dB" % audio["crest_db"], audio["crest_db"], "crest_db"))
         report.append(fmt_row("section dynamics", "%.1f dB" % audio["section_range_db"],
@@ -337,6 +339,13 @@ def main():
             problems.append("songs are too similar: fingerprint distance %.3f (need %.2f)"
                             % (value, lo))
 
+    # The scare ladder itself must rise, one band per song.
+    scares = [s["scare"] for s in L.SONGS]
+    if any(b <= a for a, b in zip(scares, scares[1:])):
+        problems.append("scare tiers must rise strictly: %s" % scares)
+    if len(set(s.get("style") for s in L.SONGS)) != len(L.SONGS):
+        problems.append("every song needs its own instrumental style")
+
     # Style escalation: later songs must be more syncopated and denser.
     if len(charts) == len(L.SONGS) and charts:
         for key in ("offbeat_ratio", "notes_per_s"):
@@ -349,7 +358,8 @@ def main():
             if not rising:
                 problems.append("%s must increase with the scare tier: %s" % (key, values))
 
-    report += ["## Style escalation (2/10 → 4/10 → 7/10)", "",
+    ladder = " → ".join("%d/10" % s["scare"] for s in L.SONGS)
+    report += ["## Style escalation (%s)" % ladder, "",
                "| Metric | Per song | Result |", "| --- | --- | --- |"] + style_rows + [""]
     report += ["## Targets", "", "| Metric | Window |", "| --- | --- |"]
     for key, (lo, hi) in TARGETS.items():

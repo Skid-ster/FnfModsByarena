@@ -1,0 +1,420 @@
+{
+	"events": [
+		{
+			"name": "HScript Call",
+			"time": 8000.0,
+			"params": [
+				"trollgeJumpScare",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 8000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 8000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 14000.0,
+			"params": [
+				"trollgeScreenShake",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 14000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 14000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 20000.0,
+			"params": [
+				"trollgeDistort",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 20000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 20000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 26000.0,
+			"params": [
+				"trollgeInvert",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 26000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 26000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 32000.0,
+			"params": [
+				"trollgeJumpScare",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 32000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 32000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 38000.0,
+			"params": [
+				"trollgeStatic",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 38000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 38000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 44000.0,
+			"params": [
+				"trollgeScreenShake",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 44000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 44000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 50000.0,
+			"params": [
+				"trollgeJumpScare",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 50000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 50000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 56000.0,
+			"params": [
+				"trollgeInvert",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 56000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 56000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 62000.0,
+			"params": [
+				"trollgeDistort",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 62000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 62000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 68000.0,
+			"params": [
+				"trollgeJumpScare",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 68000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 68000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 74000.0,
+			"params": [
+				"trollgeScreenShake",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 74000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 74000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 79000.0,
+			"params": [
+				"trollgeInvert",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 79000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 79000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 84000.0,
+			"params": [
+				"trollgeToSad",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 84000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 84000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 86000.0,
+			"params": [
+				"trollgeJumpScare",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 86000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 86000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 88000.0,
+			"params": [
+				"trollgeStatic",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 88000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 88000.0,
+			"params": [
+				0.06,
+				"camGame"
+			]
+		}
+	]
+}

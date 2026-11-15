@@ -1,8 +1,13 @@
 <!DOCTYPE codename-engine-stage>
-<stage name="trollge" folder="stages/trollge/" zoom="0.95" startCamPosX="900" startCamPosY="470">
+<stage name="trollge" folder="stages/trollge/" zoom="0.95" startCamPosX="610" startCamPosY="470">
 	<sprite name="bg" x="-420" y="-250" scale="1.75" sprite="bg" scroll="1" antialiasing="true"/>
-	<!-- the Trollge atlas is taller than Boyfriend's: this y puts both pairs
-	     of feet on the same ground line (images/characters/*.xml baselines) -->
-	<dad x="169" y="39"/>
-	<boyfriend x="900" y="80"/>
+	<!-- Both characters share one ground line (see tools/make_stage_preview.py):
+	     the Trollge's canvas is 600 px tall with its feet at y+561, Boyfriend's
+	     is 560 px with its feet at y+539, so his y is always the Trollge's + 22.
+	     The gap is 520 px: wide enough that they do not overlap, and tight
+	     enough that the camera (which swings between the two strumlines) keeps
+	     both of them in frame. camyoffset drops the camera so the feet are not
+	     on the bottom edge in the loudest, most zoomed-in songs. -->
+	<dad x="200" y="60" camyoffset="60"/>
+	<boyfriend x="720" y="82" camyoffset="60"/>
 </stage>

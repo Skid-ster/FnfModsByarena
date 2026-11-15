@@ -30,7 +30,7 @@ import os
 import random
 import sys
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD = os.path.join(ROOT, "mods", "TrollgeMod")
@@ -254,6 +254,16 @@ def corrupt(image, seed):
     return Image.merge("RGBA", (r, g, b, ImageChops.multiply(a, original_alpha)))
 
 
+def torn(image, seed):
+    """Song 5 skin: burnt through. Almost black, ember edges, torn open."""
+    grey = image.convert("L")
+    ember = ImageOps.colorize(grey, black=(8, 2, 3), mid=(104, 14, 12), white=(232, 52, 38))
+    out_img = ember.convert("RGBA")
+    # scratch() works on a single-channel mask, so rip the alpha, not the colour.
+    out_img.putalpha(scratch(image.getchannel("A"), seed, count=15, strength=70))
+    return corrupt(out_img, seed + 7)
+
+
 # --------------------------------------------------------------------------- #
 # Splashes
 
@@ -429,6 +439,7 @@ def build_preview():
     tiles.append(arrow_frame(ARROW, LANES[1][2], "hold_placeholder") if False else
                  hold_piece(LANES[0][2], HOLD_PIECE_H).resize((int(ARROW * HOLD_W / HOLD_PIECE_H), ARROW), Image.LANCZOS))
     tiles.append(corrupt(arrow_frame(ARROW, LANES[0][2], "note", rotate=90), 7))
+    tiles.append(torn(arrow_frame(ARROW, LANES[3][2], "note", rotate=270), 11))
 
     cell = ARROW + 12
     strip = Image.new("RGBA", (cell * len(tiles), cell), (18, 14, 18, 255))
@@ -447,6 +458,8 @@ def main():
     build_skin("images/game/notes/shadow", lanes=SHADOW_LANES, transform=drained)
     print("Drawing the corrupted song-3 skin...")
     build_skin("images/game/notes/corrupt", transform=corrupt)
+    print("Drawing the burnt song-5 skin...")
+    build_skin("images/game/notes/torn", transform=torn)
     print("Drawing note splashes...")
     build_splashes()
     print("Writing docs preview...")

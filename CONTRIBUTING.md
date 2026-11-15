@@ -20,8 +20,12 @@ scripts in `tools/`, so most contributions are a code change plus a regeneration
    `tools/make_art.py`, `tools/make_noteskin.py`, `tools/make_hud.py`) and re-run it. CI fails if charts drift.
 2. **Keep it Codename Engine compatible.** We target the Codename chart format (`chartVersion 1.6.0`,
    `codenameChart: true`) and HScript (`data/scripts/*.hx`). Psych Engine formats are not supported.
-3. **Keep the scare tiers honest.** Song 1 ≈ 2/10, song 2 ≈ 4/10, song 3 ≈ 7/10. If you add a jumpscare to
-   song 1, you have changed the design — say so in the PR.
+3. **Keep the scare tiers honest.** The ladder is 2/10 → 4/10 → 6/10 → 8/10 → 10/10, one band per song, and it
+   has to stay strictly rising (`tools/audit_songs.py` fails otherwise). If you add a jumpscare to song 1, you have
+   changed the design — say so in the PR.
+4. **Never hand-place the stage.** Character positions, the gap between them and `camyoffset` are validated by
+   `tools/make_stage_preview.py` against the engine's real framing maths; edit `data/stages/trollge.xml` and re-run
+   it instead of nudging numbers until it looks right in one resolution.
 
 ## Workflow
 
@@ -34,6 +38,7 @@ python3 tools/make_audio.py    # only if you touched song_layout.py / make_audio
 python3 tools/make_noteskin.py # only if you touched make_noteskin.py (arrow skins + splashes)
 python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + countdown)
 python3 tools/make_chart.py    # if you touched song_layout.py (charts)
+python3 tools/make_stage_preview.py  # if you touched the stage xml
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
 python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
@@ -52,13 +57,17 @@ feat(song3): denser final section
 
 * **Arrangement** is by section role, not by hand: `section_roles()` in `tools/make_audio.py` labels every chart
   section (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and note spacing, and
-  `ROLE_GAIN` sets how hard each role pushes. Add a role, or change where one lands, and all three songs follow.
-* **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `industrial`). Each style picks its own kit,
+  `ROLE_GAIN` sets how hard each role pushes. Add a role, or change where one lands, and all five songs follow.
+* **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `glitch`, `industrial`, `finale`). Each style
+  picks its own kit,
   bass and lead voice from `kick_for` / `snare_for` / `hat_for` / `bass_for` / `lead_for` and its own groove in
   `render_song()`. Add a style, not a special case.
 * **Mix balance** lives in the pan table near the end of `render_song()` (stem -> left/right gains), the master EQ
   breakpoints and the loudness target `TARGET_RMS`. Change them and `tools/audit_songs.py` tells you what it did to
   the spectrum, width and dynamics — it is the same script CI runs with `--strict`.
+* **Scare tier = production tier.** `tier_for()` maps the 0-10 scare rating onto a 1-5 production tier, and the tier
+  decides how many horror layers sit under the mix (dread drone → tape hiss → whisper swells → breathing tritone →
+  heartbeat + whispers + choir) and how hard the camera works.
 * **Do not chase loudness by squashing.** The audit enforces a crest factor window (7-20 dB) and 5+ dB of section
   dynamics on purpose: a wall of sound fails the build.
 
@@ -111,8 +120,11 @@ no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float li
 },
 ```
 
-3. `python3 tools/make_bf.py getting_dark` -- it normalises the atlas (feet on y=539, centred on
-   x=229, every frame 460x560), writes the character XMLs, builds the health icon and a preview,
+   Add `"tint": {"hue": -74.0, "sat": 0.72, "contrast": 1.22}` to re-colour an existing upload
+   instead of shipping a new one (`bf_glitched` and `bf_damned` are built this way).
+
+3. `python3 tools/make_characters.py bf_smiler` -- it normalises the atlas (feet on the shared ground line,
+   centred, every frame on the skin's canvas), writes the character XMLs, builds the health icon and a preview,
    and warns you about any animation the atlas is missing.
 4. Point the song at it in `tools/song_layout.py` (`"bf"` or `"trollge"`), then
    `python3 tools/make_chart.py`.

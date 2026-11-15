@@ -58,6 +58,36 @@ function swapTrollge(name:String, icon:String):Character {
 	return newChar;
 }
 
+/** Song 2, 62 s: the clean trollge corrupts where he stands. */
+var glitchDone:Bool = false;
+function trollgeToGlitch(a = null):Void {
+	if (glitchDone) return;
+	glitchDone = true;
+	if (swapTrollge('trollge_glitch', 'trollge_glitch') == null) return;
+
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.85);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.55);
+	PlayState.instance.camGame.flash(FlxColor.fromRGB(90, 0, 0), 0.35);
+	shake(16.0, 0.8);
+}
+
+/** Song 3, 75 s: phase 2 collapses into phase 3. */
+var staticDone:Bool = false;
+function trollgeToStatic(a = null):Void {
+	if (staticDone) return;
+	staticDone = true;
+	if (swapTrollge('trollge_static', 'trollge_static') == null) return;
+
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.9);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.5);
+	shake(20.0, 0.9);
+}
+
+/** Song 5, 84 s: the same ending as song 4, reached from the other side. */
+function trollgeToSad(a = null):Void {
+	trollgeSad(a);
+}
+
 /** 60 s of song 3: the static mess resolves into the red-eyed final form. */
 function trollgeFinalForm(a = null):Void {
 	if (phase2Done) return;
@@ -184,7 +214,8 @@ function update(elapsed) {
 
 	// Idle breathing static: scarier songs never fully settle.
 	var base:Float = 0.0;
-	if (scareTier >= 7) base = 0.055;
+	if (scareTier >= 8) base = 0.055;
+	else if (scareTier >= 6) base = 0.035;
 	else if (scareTier >= 4) base = 0.02;
 	if (staticSpr != null)
 		staticSpr.alpha = Math.max(staticSpr.alpha, base);
