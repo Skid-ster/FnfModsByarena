@@ -44,8 +44,9 @@ function create() {
 }
 
 function beatHit(curBeat) {
-	// Ambient dread per tier.
-	var chance:Int = scareTier >= 7 ? 30 : (scareTier >= 4 ? 12 : 4);
+	// Ambient dread per tier (FlxG.random.bool takes a 0..1 probability).
+	if (staticSpr == null) return;
+	var chance:Float = scareTier >= 7 ? 0.30 : (scareTier >= 4 ? 0.12 : 0.04);
 	if (FlxG.random.bool(chance)) {
 		var peak:Float = scareTier >= 7 ? 0.35 : 0.15;
 		FlxTween.cancelTweensOf(staticSpr);
