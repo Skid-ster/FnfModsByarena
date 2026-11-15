@@ -184,6 +184,8 @@ def analyse_chart(song, difficulty="normal"):
 
     player = sum(1 for _t, _i, _s, p in notes if p == "boyfriend")
     return {
+        "difficulty": difficulty,
+        "min_gap_ms": float(np.min(gaps)) if len(gaps) else 0.0,
         "notes": len(notes),
         "player": player,
         "opponent": len(notes) - player,
@@ -222,8 +224,20 @@ def main():
             problems.append("%s: missing Inst.ogg" % song["id"])
             continue
         audio = analyse_audio(inst, song)
-        chart = analyse_chart(song)
+        chart = analyse_chart(song, "normal")
         charts.append(chart)
+
+        # Easy has to stay easy: half the notes, no sustains, no sudden gaps.
+        easy = analyse_chart(song, "easy")
+        report_easy = "| easy charts | %s | %s |" % (
+            "%d notes, %.1f/s" % (easy["notes"], easy["notes_per_s"]),
+            "ok" if (easy["notes"] * 2 == chart["notes"] and easy["sustains"] == 0
+                     and easy["max_lane_run"] <= 3) else "**out of window**")
+        if not (easy["notes"] * 2 == chart["notes"] and easy["sustains"] == 0
+                and easy["max_lane_run"] <= 3):
+            problems.append("%s: easy chart drifted (%d notes vs %d normal, %d sustains, run %d)"
+                            % (song["id"], easy["notes"], chart["notes"], easy["sustains"],
+                               easy["max_lane_run"]))
 
         print("\n%s  (%s, scare %d/10)" % (song["display"], song["id"], song["scare"]))
         print("  audio  %.2fs  peak %.1f dB  rms %.1f dB  crest %.1f dB  centroid %.0f Hz"
@@ -268,6 +282,7 @@ def main():
         report.append(fmt_row("sustains", "%d" % chart["sustains"]))
         report.append(fmt_row("simultaneous notes", "%d" % chart["simultaneous"]))
         report.append(fmt_row("player / opponent", "%d / %d" % (chart["player"], chart["opponent"])))
+        report.append(report_easy)
         report.append("")
 
         for key, value in (("peak_db", audio["peak_db"]), ("crest_db", audio["crest_db"]),
