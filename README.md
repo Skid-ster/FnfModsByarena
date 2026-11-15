@@ -218,14 +218,21 @@ plus chart style (off-beat ratio, same-lane runs, density curve). The results li
 
 `shaders/trollge_vhs.frag` is a full-screen post filter applied to `camGame` by `data/stages/trollge.hx`:
 
-* banded VHS wobble, radial chromatic aberration, drifting scanlines, film grain, vignette, then a small
-  contrast/saturation lift so the grade sharpens the picture instead of washing it out;
+* banded VHS wobble, radial chromatic aberration, a 5-tap **halation** glow on highlights, drifting scanlines,
+  film grain, vignette, then a small contrast/saturation lift so the grade sharpens the picture instead of washing
+  it out;
 * intensity follows the scare tier (0.35 / 0.62 / 1.0) and every story event in the chart (`trollgeJumpScare`,
   `trollgeInvert`, `trollgePhase2`…) punches `uGlitch` for 1.2 s; song 3 also twitches on every beat;
 * all sampling is **clamped to the texture**, so the offsets never pull from outside the frame — that was causing
   the edges of the screen to smear/clip on the first pass;
 * the stage script resolves `FunkinShader` and `openfl.filters.ShaderFilter` at runtime and silently disables the
   grade if the platform has no GPU path, so the mod still runs without it.
+
+![The grade, raw vs graded at each tier](docs/grade.png)
+
+`tools/make_grade_preview.py` reproduces the shader maths in numpy (same uniforms, same order) and renders
+`docs/grade.png` — raw backdrop on the left, graded on the right, one row per scare tier — so the look can be
+reviewed without launching the engine.
 
 The validator checks the shader file for `#pragma header`, a `main()`, no `switch` statements, no reversed
 `smoothstep` edges, and that every uniform it declares is actually set by the stage script.

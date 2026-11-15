@@ -1,7 +1,7 @@
 {
 	"name": "Super Scary Trollge",
 	"id": "TrollgeMod",
-	"version": "2.6.0",
+	"version": "2.6.1",
 	"engine": "Codename Engine",
 	"apiVersion": "1.0.0",
 	"modpack": "data/config/modpack.ini",

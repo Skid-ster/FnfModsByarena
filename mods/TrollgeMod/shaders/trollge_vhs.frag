@@ -53,6 +53,15 @@ void main() {
 	col.g = sampleClamped(uv).g;
 	col.b = sampleClamped(uv - dir).b;
 
+	// Halation: a cheap 5-tap glow on the bright parts (no extra pass, no blur
+	// texture) so highlights bloom like an over-driven CRT.
+	vec3 glow = vec3(0.0);
+	glow += max(sampleClamped(uv + vec2(0.0028, 0.0)).rgb - 0.62, vec3(0.0));
+	glow += max(sampleClamped(uv - vec2(0.0028, 0.0)).rgb - 0.62, vec3(0.0));
+	glow += max(sampleClamped(uv + vec2(0.0, 0.0028)).rgb - 0.62, vec3(0.0));
+	glow += max(sampleClamped(uv - vec2(0.0, 0.0028)).rgb - 0.62, vec3(0.0));
+	col += glow * (0.22 + 0.30 * uIntensity);
+
 	// Scanlines: fine, slow-drifting, subtly brighter in the middle.
 	float scan = sin(uv.y * 720.0 + uTime * 1.6) * 0.5 + 0.5;
 	col *= mix(1.0, 0.88 + 0.12 * scan, uScanline);
