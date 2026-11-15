@@ -1,0 +1,19 @@
+{
+	"displayName": "Super Scary Trollge",
+	"bpm": 160.0,
+	"beatsPerMeasure": 4,
+	"stepsPerBeat": 4,
+	"icon": "trollge_scary",
+	"color": "#C4101E",
+	"coopAllowed": false,
+	"opponentModeAllowed": true,
+	"needsVoices": false,
+	"difficulties": [
+		"easy",
+		"normal"
+	],
+	"customValues": {
+		"scareTier": 7,
+		"lengthSeconds": 103.5
+	}
+}

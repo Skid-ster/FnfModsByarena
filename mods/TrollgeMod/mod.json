@@ -1,0 +1,16 @@
+{
+	"name": "Super Scary Trollge",
+	"id": "TrollgeMod",
+	"version": "2.0.0",
+	"engine": "Codename Engine",
+	"apiVersion": "1.0.0",
+	"modpack": "data/config/modpack.ini",
+	"description": "Three songs of escalating Trollge horror (2/10, 4/10, 7/10) with a fully code-drawn character and hand-built story events.",
+	"authors": ["Skid-ster"],
+	"links": {
+		"github": "https://github.com/Skid-ster/FnfModsByarena"
+	},
+	"songs": ["trolling", "getting_dark", "super_scary"],
+	"week": "trollge_week",
+	"scareTiers": { "trolling": 2, "getting_dark": 4, "super_scary": 7 }
+}

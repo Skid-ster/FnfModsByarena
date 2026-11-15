@@ -1,0 +1,23 @@
+<!DOCTYPE codename-engine-character>
+<character sprite="Trollge" icon="trollge" color="#6E0D1B" isPlayer="false" flipX="false" holdTime="6">
+	<extension script="trollge_behavior"/>
+	<anim name="idle" anim="Trollge idle" x="0" y="0" fps="6" loop="true"/>
+	<anim name="singUP" anim="Trollge sUP" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singDOWN" anim="Trollge sDOWN" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singLEFT" anim="Trollge sLEFT" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singRIGHT" anim="Trollge sRIGHT" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singUPmiss" anim="Trollge mUP" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singDOWNmiss" anim="Trollge mDOWN" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singLEFTmiss" anim="Trollge mLEFT" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singRIGHTmiss" anim="Trollge mRIGHT" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singUP-alt" anim="Trollge aUP" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singDOWN-alt" anim="Trollge aDOWN" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singLEFT-alt" anim="Trollge aLEFT" x="0" y="0" fps="24" loop="false"/>
+	<anim name="singRIGHT-alt" anim="Trollge aRIGHT" x="0" y="0" fps="24" loop="false"/>
+	<anim name="scared" anim="Trollge scared" x="0" y="0" fps="10" loop="true"/>
+	<anim name="hey" anim="Trollge hey" x="0" y="0" fps="24" loop="false"/>
+	<anim name="laugh" anim="Trollge laugh" x="0" y="0" fps="8" loop="true"/>
+	<anim name="attack" anim="Trollge attack" x="0" y="0" fps="24" loop="false"/>
+	<anim name="hit" anim="Trollge hit" x="0" y="0" fps="24" loop="false"/>
+	<anim name="die" anim="Trollge die" x="0" y="0" fps="24" loop="false"/>
+</character>

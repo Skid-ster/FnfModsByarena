@@ -1,0 +1,23 @@
+# Build output
+dist/
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Codename Engine runtime junk (if you symlink the mod into an engine build)
+logs/
+*.log
