@@ -19,8 +19,10 @@ var flashTimer:Float = 0.0;
 // In-song narrative captions ("trollgeCaption" chart events). They are drawn on
 // the HUD camera so they never drift with the stage, and they never block play.
 var caption:FlxTypeText = null;
+var captionBand:FlxSprite = null;
 var captionIn:FlxTween = null;
 var captionOut:FlxTween = null;
+var captionBandOut:FlxTween = null;
 
 /** Camera shake helper (FlxCamera.shake is the only reliable way to do this). */
 function shake(power:Float, duration:Float):Void {
@@ -120,44 +122,67 @@ function trollgeSad(a = null):Void {
  *  The chart passes it as an "HScript Call" event; the engine splits params[1] on
  *  commas, so anything after the first comma arrives as a second argument and is
  *  joined back here.
+ *
+ *  Two things here are the result of crashes, not taste:
+ *
+ *  1. No borderStyle. `FlxTextBorderStyle` is a real enum in flixel (it has a
+ *     parameterised SHADOW_XY case), and `FlxText.regenGraphic()` switches on it.
+ *     Assigning a raw int from HScript leaves the field holding something that
+ *     is not an enum value, and the switch throws a Null Object Reference the
+ *     first time the text is drawn. v3.3.0 shipped that bug in this function.
+ *     The text gets a dark band behind it instead.
+ *  2. `resetText(line)` before `start(delay)`. `FlxTypeText.start()` only takes a
+ *     delay: it types whatever `_finalText` already holds, and `_finalText` only
+ *     comes from the constructor or `resetText()`.
  */
 function trollgeCaption(a = null, b = null, c = null):Void {
-	var text:String = (a == null ? "" : Std.string(a));
-	if (b != null) text += ", " + Std.string(b);
-	if (c != null) text += ", " + Std.string(c);
-	if (text == "") return;
+	var line:String = (a == null ? "" : Std.string(a));
+	if (b != null) line += ", " + Std.string(b);
+	if (c != null) line += ", " + Std.string(c);
+	if (line == "") return;
 
 	var ps = PlayState.instance;
 	if (ps == null) return;
 
 	if (caption == null) {
-		caption = new FlxTypeText(140, 552, 1000, "", 30);
+		captionBand = new FlxSprite(0, 524);
+		captionBand.makeGraphic(FlxG.width, 84, 0xC0000000);
+		captionBand.scrollFactor.set(0, 0);
+		captionBand.cameras = [ps.camHUD];
+		captionBand.alpha = 0.0;
+		ps.add(captionBand);
+
+		caption = new FlxTypeText(0, 550, FlxG.width, "", 30);
 		caption.font = Paths.font("vcr.ttf");
 		caption.size = 30;
 		caption.color = 0xFFF1F1F5;
+		caption.alignment = "center";
 		caption.antialiasing = true;
-		try {
-			caption.borderStyle = 2;          // FlxTextBorderStyle.OUTLINE
-			caption.borderSize = 2;
-			caption.borderColor = 0xFF05040A;
-		} catch (e:Dynamic) {}
-		caption.cameras = [ps.camHUD];
 		caption.scrollFactor.set(0, 0);
+		caption.cameras = [ps.camHUD];
 		caption.alpha = 0.0;
 		ps.add(caption);
 	}
 
 	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
 	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+	if (captionBandOut != null) { captionBandOut.cancel(); captionBandOut = null; }
 
+	caption.resetText(line);
+	caption.start(0.018);
 	caption.alpha = 0.0;
-	caption.text = "";
-	caption.start(text, 0.018);
+
 	captionIn = FlxTween.tween(caption, {alpha: 1.0}, 0.30, {
 		onComplete: function(_) {
 			captionOut = FlxTween.tween(caption, {alpha: 0.0}, 0.9, {startDelay: 3.4});
 		}
 	});
+
+	if (captionBand != null) {
+		captionBand.alpha = 0.0;
+		FlxTween.tween(captionBand, {alpha: 1.0}, 0.30);
+		captionBandOut = FlxTween.tween(captionBand, {alpha: 0.0}, 0.9, {startDelay: 3.8});
+	}
 }
 
 function trollgeJumpScare(a = null):Void {
@@ -275,7 +300,9 @@ function update(elapsed) {
 function destroy() {
 	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
 	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+	if (captionBandOut != null) { captionBandOut.cancel(); captionBandOut = null; }
 	if (caption != null) { caption.destroy(); caption = null; }
+	if (captionBand != null) { captionBand.destroy(); captionBand = null; }
 	if (staticSpr != null) staticSpr.destroy();
 	if (invertSpr != null) invertSpr.destroy();
 }

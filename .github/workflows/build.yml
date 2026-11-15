@@ -57,11 +57,12 @@ jobs:
         run: |
           python3 tools/make_chart.py
           python3 tools/make_cutscenes.py
+          python3 tools/make_menu.py
 
       - name: Fail if the committed charts or cutscenes drifted
         run: |
-          if ! git diff --exit-code -- mods/TrollgeMod/songs mods/TrollgeMod/images/ui; then
-            echo "::error::Generated files are out of date. Run 'python3 tools/make_chart.py' and 'python3 tools/make_cutscenes.py' and commit the result."
+          if ! git diff --exit-code -- mods/TrollgeMod/songs mods/TrollgeMod/images/ui mods/TrollgeMod/images/menus; then
+            echo "::error::Generated files are out of date. Run 'python3 tools/make_chart.py', 'python3 tools/make_cutscenes.py' and 'python3 tools/make_menu.py' and commit the result."
             exit 1
           fi
 

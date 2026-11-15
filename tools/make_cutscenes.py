@@ -193,15 +193,16 @@ var index:Int = 0;
 var skipped:Bool = false;
 var closing:Bool = false;
 
-/** Look of every label: VCR, softly outlined, antialiased. */
+/** Look of every label: VCR, antialiased, no outline.
+ *
+ *  No `borderStyle` on purpose. FlxTextBorderStyle is a real enum in flixel and
+ *  FlxText.regenGraphic() switches on it -- writing a raw int from HScript makes
+ *  that switch throw a Null Object Reference the first time the text is drawn.
+ *  The labels sit on the dark panel and the letterbox bars, so plain white reads.
+ */
 function crisp(t) {{
 	t.font = Paths.font("vcr.ttf");
 	t.antialiasing = true;
-	try {{
-		t.borderStyle = 2;            // FlxTextBorderStyle.OUTLINE
-		t.borderSize = 2;
-		t.borderColor = 0xFF05040A;
-	}} catch (e:Dynamic) {{}}
 }}
 
 function ui(spr) {{
@@ -254,8 +255,8 @@ function playLine(i:Int) {{
 		FlxG.sound.play(Paths.sound("trollge_distortion"), 0.35);
 	}}
 
-	body.text = "";
-	body.start(LINES[i], 0.018);
+	body.resetText(LINES[i]);
+	body.start(0.018);
 	var hold:Float = 1.15 + 0.032 * LINES[i].length + 0.5 * shake;
 	later(hold, function() playLine(i + 1));
 }}
@@ -360,15 +361,16 @@ var timers:Array<FlxTimer> = [];
 var index:Int = 0;
 var closing:Bool = false;
 
-/** Look of every label: VCR, softly outlined, antialiased. */
+/** Look of every label: VCR, antialiased, no outline.
+ *
+ *  No `borderStyle` on purpose. FlxTextBorderStyle is a real enum in flixel and
+ *  FlxText.regenGraphic() switches on it -- writing a raw int from HScript makes
+ *  that switch throw a Null Object Reference the first time the text is drawn.
+ *  The labels sit on the dark panel and the letterbox bars, so plain white reads.
+ */
 function crisp(t) {{
 	t.font = Paths.font("vcr.ttf");
 	t.antialiasing = true;
-	try {{
-		t.borderStyle = 2;            // FlxTextBorderStyle.OUTLINE
-		t.borderSize = 2;
-		t.borderColor = 0xFF05040A;
-	}} catch (e:Dynamic) {{}}
 }}
 
 function ui(spr) {{
@@ -382,9 +384,6 @@ function typeText(x:Float, y:Float, width:Float, size:Int, colour:Int):FlxTypeTe
 	t.font = Paths.font("vcr.ttf");
 	t.size = size;
 	t.color = colour;
-	t.borderStyle = FlxTextBorderStyle.OUTLINE;
-	t.borderSize = 2;
-	t.borderColor = 0xFF05040A;
 	t.antialiasing = true;
 	return cast ui(t);
 }}
@@ -405,8 +404,8 @@ function playLine(i:Int) {{
 	if (shake > 0.0 && PlayState.instance != null)
 		PlayState.instance.camGame.shake(0.005 * shake, 0.5);
 
-	body.text = "";
-	body.start(LINES[i], 0.05);
+	body.resetText(LINES[i]);
+	body.start(0.05);
 	var hold:Float = 1.5 + 0.04 * LINES[i].length + 0.6 * shake;
 	later(hold, function() playLine(i + 1));
 }}

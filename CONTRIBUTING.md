@@ -40,6 +40,7 @@ python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + c
 python3 tools/make_chart.py    # if you touched song_layout.py (charts)
 python3 tools/make_cutscenes.py # if you touched the cutscene lines or their art
 python3 tools/make_promo.py     # docs/banner.jpg (only after a version bump)
+python3 tools/make_menu.py      # main menu buttons, backdrop, docs/menu_preview.png
 python3 tools/make_stage_preview.py  # if you touched the stage xml
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
@@ -156,6 +157,18 @@ script globals (`Script.hx`: `FlxSprite`, `FlxText`, `FlxTypeText`, `FlxCamera`,
 * **Anything you hide or create must be put back in `destroy()`.** `tools/validate_mod.py`
   checks the cutscene scripts for `camHUD.visible = true` and `FlxG.cameras.remove(cam)`;
   a missing line means the player finishes the cutscene with no HUD or a leaked camera.
+
+Two more traps that shipped a crash in 3.3.0 — both are now enforced by the validator, because
+they are invisible until the text is actually drawn:
+
+* **Never assign `borderStyle` a number.** `FlxTextBorderStyle` is a *real* enum in flixel (it
+  has a parameterised `SHADOW_XY` case) and `FlxText.regenGraphic()` switches on it. Writing
+  `t.borderStyle = 2` from HScript leaves the field holding a non-enum value, and that switch
+  throws **Null Object Reference** the first time the text draws. Put a dark band behind the
+  text instead — that is what the captions and the cutscene panels do now.
+* **`FlxTypeText.start()` takes only a delay.** The string to type comes from the constructor or
+  `resetText()`; whatever `_finalText` already holds is what gets typed. `start("hello", 0.02)`
+  types nothing, forever, and looks like "the dialogue is broken" rather than a bug.
 
 ## Ideas that fit well
 

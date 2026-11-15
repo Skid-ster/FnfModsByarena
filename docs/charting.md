@@ -220,11 +220,14 @@ the function name, and `trollgeCaption()` in `trollge_song_behavior.hx` types th
 `camHUD` with `FlxTypeText` — fade in 0.3 s, hold 3.4 s, fade out 0.9 s, destroyed in
 `destroy()` so a mid-song quit cannot leak the text.
 
-Two constraints come from the engine, both found the hard way. `PlayState.executeEvent`
+Three constraints come from the engine, all found the hard way. `PlayState.executeEvent`
 splits the `HScript Call` parameter string on commas, so caption text has to be rejoined
 from its arguments (and must not contain a comma it wants to keep literal). And a
 `FlxTypeText` on the HUD camera keeps typing through a pause unless it is added to the
-same camera list the subtitles use — this one is, like DialogueBox.
+same camera list the subtitles use — this one is, like DialogueBox. And the line carries no
+outline: `FlxTextBorderStyle` is a real enum, `FlxText.regenGraphic()` switches on it, and an
+int assigned from HScript throws a Null Object Reference on the first draw. A dark band
+behind the text does that job without an enum anywhere.
 
 ### Cutscenes
 

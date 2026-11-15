@@ -153,6 +153,78 @@ REQUIRED_FILES = [
 ]
 
 
+#: The four buttons MainMenuState builds, and the two animations it asks for.
+MENU_OPTIONS = ["story mode", "freeplay", "options", "credits"]
+
+
+def check_menu():
+    """The mod's own main menu: art, music, and the redirect that lands on it."""
+    from PIL import Image
+
+    for option in MENU_OPTIONS:
+        png = os.path.join(MOD, "images", "menus", "mainmenu", option + ".png")
+        xml = os.path.join(MOD, "images", "menus", "mainmenu", option + ".xml")
+        if not ok(os.path.isfile(png) and os.path.isfile(xml),
+                  "menu button atlas missing for %r" % option):
+            continue
+        frames = read_atlas(png, xml) or {}
+        for prefix in ("%s basic" % option, "%s white" % option):
+            names = [n for n in frames if n.startswith(prefix)]
+            ok(bool(names), "menus/mainmenu/%s.xml has no %r frames (engine asks for that "
+                            "animation by prefix)" % (option, prefix))
+        # Every frame has to fit in the sheet, or the button draws as garbage.
+        sheet = Image.open(png).size
+        for name, (w, h) in frames.items():
+            ok(0 < w <= sheet[0] and 0 < h <= sheet[1],
+               "menus/mainmenu/%s: frame %r is %dx%d inside a %dx%d sheet"
+               % (option, name, w, h, sheet[0], sheet[1]))
+        ok(any(frames[n][1] >= 100 for n in frames),
+           "menus/mainmenu/%s: every frame is shorter than 100 px" % option)
+
+    bg = os.path.join(MOD, "images", "menus", "menuBG.png")
+    if ok(os.path.isfile(bg), "images/menus/menuBG.png is missing"):
+        ok(Image.open(bg).size == (1286, 730),
+           "menus/menuBG.png is %s, the engine's slot is 1286x730" % (Image.open(bg).size,))
+
+    menu_music = os.path.join(MOD, "music", "trollgeMenu.ogg")
+    if ok(os.path.isfile(menu_music), "music/trollgeMenu.ogg is missing"):
+        try:
+            import soundfile as sf
+            ok(4.0 <= sf.info(menu_music).duration <= 90.0,
+               "music/trollgeMenu.ogg is %.1fs" % sf.info(menu_music).duration)
+        except ImportError:
+            pass
+
+    ini = os.path.join(MOD, "data", "config", "modpack.ini")
+    text = open(ini, encoding="utf-8").read() if os.path.isfile(ini) else ""
+    ok('DEFAULT_MENU_MUSIC="trollgeMenu"' in text,
+       "modpack.ini does not point DEFAULT_MENU_MUSIC at trollgeMenu")
+    ok("[StateRedirects]" in text, "modpack.ini has no [StateRedirects] section")
+    ok('TitleState="funkin.menus.MainMenuState"' in text,
+       "modpack.ini does not redirect TitleState to funkin.menus.MainMenuState")
+    # A short class name would not resolve, and the engine would then look for a
+    # data/states/<name>/LIB_<mod>.hx script that cannot exist under every install
+    # name (folder vs zip), leaving a black screen.
+    ok('TitleState="MainMenuState"' not in text,
+       "the redirect value must be the full class path, not the short name")
+
+
+def check_script_safety():
+    """Guards for the two HScript traps that crashed a shipped build."""
+    for path in walk(".hx"):
+        source = open(path, encoding="utf-8").read()
+        code = "\n".join(line for line in source.splitlines()
+                         if not line.strip().startswith(("//", "*", "/*")))
+        ok(".borderStyle" not in code,
+           "%s assigns borderStyle; FlxTextBorderStyle is a real enum and "
+           "FlxText.regenGraphic() switches on it, so a raw int is a null deref"
+           % rel(path))
+        if "FlxTypeText" in code:
+            ok("resetText(" in code,
+               "%s builds a FlxTypeText without resetText(); start() only takes a "
+               "delay and types whatever _finalText already holds" % rel(path))
+
+
 def check_package():
     """Everything the engine can load must actually be inside the shipped zip."""
     import package_mod
@@ -938,6 +1010,8 @@ def main():
     check_cutscenes()
     check_game_over()
     check_captions()
+    check_menu()
+    check_script_safety()
     check_package()
     check_noteskin()
     check_hud()

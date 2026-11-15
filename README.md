@@ -48,7 +48,7 @@ scare order) and in story mode (the week plays them back to back).
 ## Install
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
-2. Grab `SuperScaryTrollge-v3.3.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
+2. Grab `SuperScaryTrollge-v3.4.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
 3. Drop the **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **Super Scary Trollge**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
@@ -318,6 +318,29 @@ The validator checks the shader file for `#pragma header`, a `main()`, no `switc
 
 ---
 
+## The menus
+
+Launching the mod does not take you through vanilla FNF. `data/config/modpack.ini` redirects the title screen:
+
+```ini
+[StateRedirects]
+TitleState="funkin.menus.MainMenuState"
+```
+
+`GlobalScript`'s `preStateSwitch` hook resolves that value with `Type.resolveClass`, so it has to be the **full class
+path** — a short name like `MainMenuState` does not resolve, and the engine would then look for a
+`data/states/MainMenuState/LIB_<mod>.hx` script that cannot exist under every install name (folder vs zip), leaving you
+on a black screen. Prefer landing in the song list instead? Point it at `"funkin.menus.FreeplayState"`.
+
+The menu itself is the mod's: `tools/make_menu.py` draws the four buttons the engine builds
+(`menus/mainmenu/<option>` with `<option> basic` / `<option> white` animations, idle ~122 px tall, selected ~172 px,
+items at `60 + i * 160`), the defocused `menus/menuBG` backdrop, and `docs/menu_preview.png` as a preview of the result.
+
+![The main menu](docs/menu_preview.png)
+
+Menu music is the mod's too — `[Flags] DEFAULT_MENU_MUSIC="trollgeMenu"` points `CoolUtil.playMenuSong()` at
+`music/trollgeMenu.ogg`, the same 24 s music-box loop the cutscenes use.
+
 ## Cutscenes and the ending
 
 Codename looks for cutscenes by itself, so all of it is data:
@@ -414,11 +437,12 @@ python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt/torn) + 
 python3 tools/make_hud.py         # health bar frame + READY/SET/GO badges
 python3 tools/make_chart.py       # meta.json, events.json, charts {easy,normal,hard}
 python3 tools/make_cutscenes.py   # cutscene scripts + their frames/letterbox art (~2 s)
+python3 tools/make_menu.py        # main menu buttons + backdrop (~1 s)
 python3 tools/make_promo.py       # docs/banner.jpg from the real stage art (~1 s)
 python3 tools/make_stage_preview.py  # engine framing check -> docs/stage.png + margin report
-python3 tools/validate_mod.py     # ~2180 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
+python3 tools/validate_mod.py     # ~2300 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
-python3 tools/package_mod.py      # dist/SuperScaryTrollge-v3.3.0.zip (161 files, includes shaders/ + music/)
+python3 tools/package_mod.py      # dist/SuperScaryTrollge-v3.4.0.zip (161 files, includes shaders/ + music/)
 ```
 
 Want a different song? Edit `tools/song_layout.py` (phrase blocks, rhythm cells, progression, key, scare tier, event

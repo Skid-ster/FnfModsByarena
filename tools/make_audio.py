@@ -18,6 +18,7 @@ Run with:  python3 tools/make_audio.py
 
 import math
 import os
+import shutil
 import sys
 
 import numpy as np
@@ -1306,6 +1307,13 @@ def main():
         p = os.path.join(SFX_DIR, name + ".ogg")
         write_ogg(p, (buf, buf))
         print("  -> %-44s %6.1f KB" % (os.path.relpath(p, ROOT), os.path.getsize(p) / 1024))
+
+    # The same music box loop, in `music/` this time: `CoolUtil.playMenuSong()`
+    # plays `Paths.music(Flags.DEFAULT_MENU_MUSIC)`, and modpack.ini points that
+    # flag here, so every menu (main, freeplay, story) plays the mod's theme.
+    menu = os.path.join(MUSIC_DIR, "trollgeMenu.ogg")
+    shutil.copyfile(os.path.join(SFX_DIR, "trollge_theme.ogg"), menu)
+    print("  -> %-44s %6.1f KB" % (os.path.relpath(menu, ROOT), os.path.getsize(menu) / 1024))
 
     print("Rendering countdown hits...")
     for name, buf in render_countdown().items():
