@@ -1,11 +1,11 @@
 {
 	"name": "Super Scary Trollge",
 	"id": "TrollgeMod",
-	"version": "2.5.0",
+	"version": "2.6.0",
 	"engine": "Codename Engine",
 	"apiVersion": "1.0.0",
 	"modpack": "data/config/modpack.ini",
-	"description": "Three songs of escalating Trollge horror (2/10, 4/10, 7/10) with hand-drawn Trollge phases that mutate mid-song, a different Boyfriend skin for every song, custom arrow skins that rot as the songs get worse, a custom HUD, and instrumentals arranged and mastered per section.",
+	"description": "Three songs of escalating Trollge horror (2/10, 4/10, 7/10) with hand-drawn Trollge phases that mutate mid-song, a different Boyfriend skin for every song, per-song arrow skins, a VHS screen grade, and three distinct instrumentals (bounce / trap / industrial).",
 	"authors": [
 		"Skid-ster"
 	],

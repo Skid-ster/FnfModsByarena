@@ -53,11 +53,21 @@ feat(song3): denser final section
 * **Arrangement** is by section role, not by hand: `section_roles()` in `tools/make_audio.py` labels every chart
   section (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and note spacing, and
   `ROLE_GAIN` sets how hard each role pushes. Add a role, or change where one lands, and all three songs follow.
+* **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `industrial`). Each style picks its own kit,
+  bass and lead voice from `kick_for` / `snare_for` / `hat_for` / `bass_for` / `lead_for` and its own groove in
+  `render_song()`. Add a style, not a special case.
 * **Mix balance** lives in the pan table near the end of `render_song()` (stem -> left/right gains), the master EQ
   breakpoints and the loudness target `TARGET_RMS`. Change them and `tools/audit_songs.py` tells you what it did to
   the spectrum, width and dynamics — it is the same script CI runs with `--strict`.
 * **Do not chase loudness by squashing.** The audit enforces a crest factor window (7-20 dB) and 5+ dB of section
   dynamics on purpose: a wall of sound fails the build.
+
+## Changing the screen grade
+
+`shaders/trollge_vhs.frag` is the full-screen filter; `data/stages/trollge.hx` loads it, sets its uniforms every
+frame and disables it silently when the platform cannot run shaders. Keep to the engine's shader rules (they are in
+`assets/shaders/engine/CompatabilityGuide.md` upstream, and `tools/validate_mod.py` enforces the important ones):
+no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float literals written as `0.0`.
 
 ## Changing the arrows or the HUD
 

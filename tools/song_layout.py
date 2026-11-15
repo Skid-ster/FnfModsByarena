@@ -36,6 +36,12 @@ ID_TO_DEGREE = {LEFT: 0, DOWN: 2, UP: 4, RIGHT: 6}
 # is `sum(count * spacing for spacing in spacings) / 16` measures long.
 # --------------------------------------------------------------------------- #
 
+#: Instrumental identity per song: same renderer, different kit, bass and lead.
+#:   bounce     -- 8-bit pluck lead, clap backbeat, round sub, bouncy
+#:   trap       -- half-time 808, rolling hats, FM bell lead, haunted
+#:   industrial -- distorted kit, screaming lead, 16th drive, hostile
+STYLES = ("bounce", "trap", "industrial")
+
 NOTESKIN_PLAIN = None        # song 1 uses images/game/notes/default
 NOTESKIN_DARK = "shadow"     # song 2: colour drained out
 NOTESKIN_CORRUPT = "corrupt"  # song 3: glitched arrows
@@ -47,6 +53,7 @@ SONGS = [
         # Character ids come from data/characters/<id>.xml.
         "bf": "bf_blue",         # art_src/bf/new_blue_boyfriend.* -> tools/make_characters.py
         "trollge": "trollge",    # art_src/trollge/trollge.*  (phase 1, clean)
+        "style": STYLES[0],
         "bpm": 140.0,
         "scare": 2,
         "offset": 1.1428571428571428,
@@ -82,6 +89,7 @@ SONGS = [
         "bf": "bf_smiler",       # art_src/bf/Smiler_Boyfriend_3.* -> tools/make_characters.py
         "trollge": "trollge_glitch",   # art_src/trollge/trollgeGlitch.*  (phase 2, corrupted)
         "noteskin": NOTESKIN_DARK,      # images/game/notes/<id> (tools/make_noteskin.py)
+        "style": STYLES[1],
         "bpm": 150.0,
         "scare": 4,
         "offset": 1.2,
@@ -120,6 +128,7 @@ SONGS = [
         "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_characters.py
         "trollge": "trollge_static",   # art_src/trollge/trollgeStatic1.* (phase 3)
         "noteskin": NOTESKIN_CORRUPT,
+        "style": STYLES[2],
         "hands_from": 17,          # last three sections: two-lane chords on the beat
         "bpm": 160.0,
         "scare": 7,

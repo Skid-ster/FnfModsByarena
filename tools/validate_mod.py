@@ -125,6 +125,7 @@ REQUIRED_FILES = [
     "images/game/splashes/default.png",
     "images/game/splashes/default.xml",
     "data/splashes/default.xml",
+    "shaders/trollge_vhs.frag",
     "images/game/healthBar.png",
     "images/game/ready.png",
     "images/game/set.png",
@@ -270,6 +271,39 @@ def check_noteskin():
                 ok(int(anim.get("fps", 0)) > 0, "splash anim %r needs a positive fps" % target)
                 ok(all(atlas[m][0] <= 260 and atlas[m][1] <= 298 for m in matches),
                    "splash anim %r has a frame larger than 260x298" % target)
+
+
+# --------------------------------------------------------------------------- #
+# Shaders
+# --------------------------------------------------------------------------- #
+
+def check_shaders():
+    stage_script = os.path.join(MOD, "data", "stages", "trollge.hx")
+    script = open(stage_script, encoding="utf-8").read() if os.path.isfile(stage_script) else ""
+
+    for path in walk(".frag"):
+        source = open(path, encoding="utf-8").read()
+        ok("#pragma header" in source, "%s is missing #pragma header" % rel(path))
+        ok("void main(" in source, "%s has no main()" % rel(path))
+        ok("getCamPos" in source or "openfl_TextureCoordv" in source,
+           "%s never touches the texture coordinates" % rel(path))
+        # Codename's compat guide: reversed smoothstep edges and switch cases are
+        # undefined on some drivers, so they must not creep in.
+        ok("switch" not in source, "%s uses switch (unsupported on macOS)" % rel(path))
+        for reverse in re.findall(r"smoothstep\(\s*([0-9.]+)\s*,\s*([0-9.]+)", source):
+            ok(float(reverse[0]) < float(reverse[1]),
+               "%s has a reversed smoothstep(%s, %s)" % (rel(path), reverse[0], reverse[1]))
+
+    shader = os.path.join(MOD, "shaders", "trollge_vhs.frag")
+    if os.path.isfile(shader) and script:
+        source = open(shader, encoding="utf-8").read()
+        uniforms = set(re.findall(r"uniform\s+float\s+(\w+)", source))
+        ok(bool(uniforms), "trollge_vhs.frag declares no float uniforms")
+        ok("trollge_vhs" in script, "stage script never loads the trollge_vhs shader")
+        ok("camGame.filters" in script, "stage script never attaches the shader to camGame")
+        for name in sorted(uniforms):
+            ok("'%s'" % name in script or '"%s"' % name in script,
+               "uniform %s is never set by the stage script" % name)
 
 
 # --------------------------------------------------------------------------- #
@@ -619,6 +653,7 @@ def main():
     check_charts()
     check_noteskin()
     check_hud()
+    check_shaders()
     check_atlases()
     check_character_refs()
     check_icons()

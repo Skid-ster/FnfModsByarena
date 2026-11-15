@@ -6,11 +6,11 @@ escalates song by song: **2/10 → 4/10 → 7/10** — and the characters, the a
 
 ![The cast](docs/cast.png)
 
-| Song | Scare | BPM | Length | Notes (normal) | Boyfriend | Trollge | Story beats |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **1. Trolling** | 2/10 | 140 | 104.0 s | 256 | `bf_blue` | `trollge` (phase 1) | 3 |
-| **2. It's Getting Dark** | 4/10 | 150 | 103.6 s | 320 | `bf_smiler` | `trollge_glitch` (phase 2) | 6 |
-| **3. Super Scary Trollge** | 7/10 | 160 | 103.5 s | 658 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
+| Song | Scare | BPM | Sound | Length | Notes (normal) | Boyfriend | Trollge | Story beats |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **1. Trolling** | 2/10 | 140 | 8-bit **bounce** | 104.0 s | 256 | `bf_blue` | `trollge` (phase 1) | 3 |
+| **2. It's Getting Dark** | 4/10 | 150 | half-time **trap** | 103.6 s | 320 | `bf_smiler` | `trollge_glitch` (phase 2) | 6 |
+| **3. Super Scary Trollge** | 7/10 | 160 | **industrial** | 103.5 s | 658 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
 
 Each song also ships its own **arrow skin**, from bright violet/mint to a corrupted glitch atlas:
 
@@ -178,6 +178,18 @@ every chart section and gives it a part, so the songs build, drop and breathe in
 | `break` | mid-song + just before the finale | half-time heartbeat, open hats, most of the mix gone |
 | `finale` | last two sections | drop + octave-doubled lead |
 
+**Three songs, three bands.** The songs do not share instruments — same renderer, different kit, bass voice, lead voice
+and groove (`"style"` in `tools/song_layout.py`, voices in `tools/make_audio.py`):
+
+| Style | Kit | Bass | Lead | Groove |
+| --- | --- | --- | --- | --- |
+| `bounce` (song 1) | punchy kick, layered **clap**, open hats, woodblock answers | plucked saw, 8th-note bounce | pulse-wave **chip** lead | straight backbeat, off-beat bass |
+| `trap` (song 2) | long **808** boom, rim-shot snare, rolling/ triplet hats | sliding 808 sub, long notes | two-operator **FM bell** with a tail | half-time, reversed cymbals |
+| `industrial` (song 3) | distorted metal kick, ghost snares, 16th ride | crushed detuned saw, 16ths | screaming saw + tritone, bitcrushed | four-on-the-floor, noise bursts |
+
+`tools/audit_songs.py` measures that separation too: the minimum pairwise song "fingerprint" distance (band energy +
+centroid + onset rate) has to stay above 0.10, and it currently reads **0.39**.
+
 On top of that: snare fills and a riser + crash into every section that gets bigger, a horror layer per scare tier
 (dread drone → tape hiss → whisper swells), scripted stingers behind every `HScript Call` event, and a **real ending**
 — the instruments stop two beats early so the last chord, crash and sub drop ring out (no lazy fade-out).
@@ -186,7 +198,9 @@ On top of that: snare fills and a riser + crash into every section that gets big
 pads and leads are panned apart, the lead reverb doubles as a snare room with a Haas delay, and the pads and bass are
 sidechained to the kick. The master chain is graphic EQ (sub cut, presence + air lift) → gentle glue compression →
 mid/side widener with mono bass → loudness normalisation to −15.5 dBFS RMS → limiter with 2 dB of headroom, because
-Vorbis overshoots the source peak.
+Vorbis overshoots the source peak — so the encoder **decodes its own output** and re-normalises if the file clips
+(`write_song()`), and the audit reports the 4x-oversampled true peak of the shipped OGG. Nothing in the package
+peaks above −0.9 dBTP.
 
 Every one of those claims is **measured**, not vibes: `tools/audit_songs.py` decodes the shipped `Inst.ogg` files and
 checks loudness, crest factor, section dynamics, spectral balance, stereo width, side/mid ratio, clipping and DC —
@@ -199,6 +213,22 @@ plus chart style (off-beat ratio, same-lane runs, density curve). The results li
 * `sounds/trollge_hit.ogg`, `trollge_miss.ogg` — custom note feedback.
 * `sounds/trollge_theme.ogg`, `trollge_theme_scary.ogg` — 24 s music-box loops, free to use in menus/cutscenes.
 * `sounds/intro3.ogg`, `intro2.ogg`, `intro1.ogg`, `introGo.ogg` — the countdown: three tuned hits and a blast.
+
+### Screen grade (shader)
+
+`shaders/trollge_vhs.frag` is a full-screen post filter applied to `camGame` by `data/stages/trollge.hx`:
+
+* banded VHS wobble, radial chromatic aberration, drifting scanlines, film grain, vignette, then a small
+  contrast/saturation lift so the grade sharpens the picture instead of washing it out;
+* intensity follows the scare tier (0.35 / 0.62 / 1.0) and every story event in the chart (`trollgeJumpScare`,
+  `trollgeInvert`, `trollgePhase2`…) punches `uGlitch` for 1.2 s; song 3 also twitches on every beat;
+* all sampling is **clamped to the texture**, so the offsets never pull from outside the frame — that was causing
+  the edges of the screen to smear/clip on the first pass;
+* the stage script resolves `FunkinShader` and `openfl.filters.ShaderFilter` at runtime and silently disables the
+  grade if the platform has no GPU path, so the mod still runs without it.
+
+The validator checks the shader file for `#pragma header`, a `main()`, no `switch` statements, no reversed
+`smoothstep` edges, and that every uniform it declares is actually set by the stage script.
 
 ---
 

@@ -14,20 +14,20 @@
     <SubTexture name="Trollge1 sLEFT0000" x="750" y="1034" width="326" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
     <SubTexture name="Trollge1 sLEFT0001" x="1076" y="1034" width="326" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
     <SubTexture name="Trollge1 sLEFT0002" x="1402" y="1034" width="317" height="512" frameX="-126" frameY="-68" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 sRIGHT0000" x="1719" y="1034" width="326" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 sRIGHT0001" x="0" y="1546" width="326" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 sRIGHT0002" x="326" y="1546" width="317" height="512" frameX="-101" frameY="-68" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mUP0000" x="643" y="1546" width="507" height="520" frameX="-7" frameY="-60" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mUP0001" x="1150" y="1546" width="507" height="520" frameX="-7" frameY="-60" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mUP0002" x="0" y="2066" width="499" height="520" frameX="-21" frameY="-60" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mDOWN0000" x="499" y="2066" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mDOWN0001" x="871" y="2066" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mDOWN0002" x="1243" y="2066" width="378" height="469" frameX="-68" frameY="-110" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mLEFT0000" x="1621" y="2066" width="326" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mLEFT0001" x="0" y="2586" width="326" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mLEFT0002" x="326" y="2586" width="317" height="512" frameX="-126" frameY="-68" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mRIGHT0000" x="643" y="2586" width="326" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mRIGHT0001" x="969" y="2586" width="326" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 mRIGHT0002" x="1295" y="2586" width="317" height="512" frameX="-101" frameY="-68" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="Trollge1 die0000" x="1612" y="2586" width="345" height="492" frameX="-88" frameY="-89" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 sRIGHT0000" x="0" y="1546" width="485" height="502" frameX="-18" frameY="-80" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 sRIGHT0001" x="485" y="1546" width="485" height="502" frameX="-18" frameY="-80" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 sRIGHT0002" x="970" y="1546" width="472" height="511" frameX="-18" frameY="-71" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mUP0000" x="1442" y="1546" width="507" height="520" frameX="-7" frameY="-60" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mUP0001" x="0" y="2066" width="507" height="520" frameX="-7" frameY="-60" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mUP0002" x="507" y="2066" width="499" height="520" frameX="-21" frameY="-60" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mDOWN0000" x="1006" y="2066" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mDOWN0001" x="1378" y="2066" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mDOWN0002" x="0" y="2586" width="378" height="469" frameX="-68" frameY="-110" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mLEFT0000" x="378" y="2586" width="326" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mLEFT0001" x="704" y="2586" width="326" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mLEFT0002" x="1030" y="2586" width="317" height="512" frameX="-126" frameY="-68" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mRIGHT0000" x="1347" y="2586" width="485" height="502" frameX="-18" frameY="-80" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mRIGHT0001" x="0" y="3098" width="485" height="502" frameX="-18" frameY="-80" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 mRIGHT0002" x="485" y="3098" width="472" height="511" frameX="-18" frameY="-71" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="Trollge1 die0000" x="957" y="3098" width="345" height="492" frameX="-88" frameY="-89" frameWidth="520" frameHeight="600"/>
 </TextureAtlas>

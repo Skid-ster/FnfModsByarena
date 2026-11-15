@@ -277,6 +277,24 @@ def widen(left, right, amount=1.9, crossover=200.0, sr=SR):
     return mid + side + lo_mid, mid - side + lo_mid
 
 
+def true_peak(x):
+    """Inter-sample peak via 4x Catmull-Rom interpolation (mono buffer)."""
+    x = np.asarray(x, dtype=np.float64)
+    if len(x) < 8:
+        return float(np.max(np.abs(x))) if len(x) else 0.0
+    p0 = np.concatenate(([x[0]], x[:-2], [x[-1]]))[: len(x)]
+    p1 = x
+    p2 = np.concatenate((x[1:], [x[-1]]))[: len(x)]
+    p3 = np.concatenate((x[2:], [x[-1], x[-1]]))[: len(x)]
+    peak = float(np.max(np.abs(x)))
+    for t in (0.25, 0.5, 0.75):
+        value = 0.5 * (2.0 * p1 + (-p0 + p2) * t
+                       + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
+                       + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t)
+        peak = max(peak, float(np.max(np.abs(value))))
+    return peak
+
+
 def dc_block(x, cutoff_hz=24.0, sr=SR):
     """Remove DC / sub-rumble that soft clipping introduces."""
     return highpass(x - np.mean(x), cutoff_hz, sr)

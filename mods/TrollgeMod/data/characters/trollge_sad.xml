@@ -4,7 +4,7 @@
     <anim name="singUP" anim="TrollgeSad idle" x="0" y="0" fps="24" loop="false"/>
     <anim name="singDOWN" anim="TrollgeSad idle" x="0" y="0" fps="24" loop="false"/>
     <anim name="singLEFT" anim="TrollgeSad idle" x="0" y="0" fps="24" loop="false"/>
-    <anim name="singRIGHT" anim="TrollgeSad sRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHT" anim="TrollgeSad idle" x="0" y="0" fps="24" loop="false"/>
     <anim name="scared" anim="TrollgeSad idle" x="0" y="0" fps="8" loop="true"/>
     <anim name="laugh" anim="TrollgeSad idle" x="0" y="0" fps="8" loop="true"/>
     <anim name="attack" anim="TrollgeSad idle" x="0" y="0" fps="24" loop="false"/>

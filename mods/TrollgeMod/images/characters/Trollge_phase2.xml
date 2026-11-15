@@ -9,15 +9,15 @@
     <SubTexture name="TrollgeG sDOWN0001" x="372" y="520" width="378" height="469" frameX="-68" frameY="-110" frameWidth="520" frameHeight="600"/>
     <SubTexture name="TrollgeG sLEFT0000" x="750" y="520" width="327" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
     <SubTexture name="TrollgeG sLEFT0001" x="1077" y="520" width="327" height="507" frameX="-100" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG sRIGHT0000" x="1404" y="520" width="327" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG sRIGHT0001" x="0" y="1027" width="327" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG mUP0000" x="327" y="1027" width="507" height="520" frameX="-8" frameY="-60" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG mUP0001" x="834" y="1027" width="504" height="518" frameX="-16" frameY="-62" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG mDOWN0000" x="1338" y="1027" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG sRIGHT0000" x="1404" y="520" width="486" height="502" frameX="-16" frameY="-79" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG sRIGHT0001" x="0" y="1027" width="474" height="508" frameX="-16" frameY="-73" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG mUP0000" x="474" y="1027" width="507" height="520" frameX="-8" frameY="-60" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG mUP0001" x="981" y="1027" width="504" height="518" frameX="-16" frameY="-62" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG mDOWN0000" x="1485" y="1027" width="372" height="453" frameX="-74" frameY="-126" frameWidth="520" frameHeight="600"/>
     <SubTexture name="TrollgeG mDOWN0001" x="0" y="1547" width="378" height="469" frameX="-68" frameY="-110" frameWidth="520" frameHeight="600"/>
     <SubTexture name="TrollgeG mLEFT0000" x="378" y="1547" width="327" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
     <SubTexture name="TrollgeG mLEFT0001" x="705" y="1547" width="327" height="507" frameX="-100" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG mRIGHT0000" x="1032" y="1547" width="327" height="507" frameX="-96" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG mRIGHT0001" x="1359" y="1547" width="327" height="507" frameX="-97" frameY="-73" frameWidth="520" frameHeight="600"/>
-    <SubTexture name="TrollgeG die0000" x="1686" y="1547" width="313" height="504" frameX="-103" frameY="-77" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG mRIGHT0000" x="1032" y="1547" width="486" height="502" frameX="-16" frameY="-79" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG mRIGHT0001" x="1518" y="1547" width="474" height="508" frameX="-16" frameY="-73" frameWidth="520" frameHeight="600"/>
+    <SubTexture name="TrollgeG die0000" x="0" y="2055" width="313" height="504" frameX="-103" frameY="-77" frameWidth="520" frameHeight="600"/>
 </TextureAtlas>

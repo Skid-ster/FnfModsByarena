@@ -182,7 +182,6 @@ SKINS = [
         "source": SRC_TROLLGE,
         "files": ("trollge.png", "trollge.xml"),
         "short": "Trollge1",
-        "mirror": {"singRIGHT": "singLEFT"},
         "sprite": "Trollge_phase1",
         "character": "trollge",
         "icon": "trollge",
@@ -211,7 +210,6 @@ SKINS = [
         "source": SRC_TROLLGE,
         "files": ("trollgeGlitch.png", "trollgeGlitch.xml"),
         "short": "TrollgeG",
-        "mirror": {"singRIGHT": "singLEFT"},
         "sprite": "Trollge_phase2",
         "character": "trollge_glitch",
         "icon": "trollge_glitch",
@@ -239,7 +237,6 @@ SKINS = [
         "source": SRC_TROLLGE,
         "files": ("trollgeStatic1.png", "trollgeStatic1.xml"),
         "short": "TrollgeS",
-        "mirror": {"singRIGHT": "singLEFT"},
         "sprite": "Trollge_phase3",
         "character": "trollge_static",
         "icon": "trollge_static",
@@ -267,7 +264,6 @@ SKINS = [
         "source": SRC_TROLLGE,
         "files": ("TrollgeFinal.png", "TrollgeFinal.xml"),
         "short": "TrollgeF",
-        "mirror": {"singRIGHT": "singLEFT"},
         "sprite": "Trollge_final",
         "character": "trollge_final",
         "icon": "trollge_final",
@@ -296,7 +292,6 @@ SKINS = [
         "source": SRC_TROLLGE,
         "files": ("trollgesad.png", "trollgesad.xml"),
         "short": "TrollgeSad",
-        "mirror": {"singRIGHT": "singLEFT"},
         "sprite": "Trollge_sad",
         "character": "trollge_sad",
         "icon": "trollge_sad",
@@ -349,12 +344,21 @@ def read_atlas(png_path, xml_path):
         d = dict(re.findall(r'(\w+)="([^"]*)"', raw))
         x, y = int(d["x"]), int(d["y"])
         w, h = int(d["width"]), int(d["height"])
+        region = sheet.crop((x, y, x + w, y + h))
+
+        # Adobe Animate packs some cells rotated 90 degrees clockwise and marks
+        # them rotated="true" (BF NOTE UP0001, every TrollgeRight frame...).
+        # Ignoring the flag ships those poses lying on their side.
+        if (d.get("rotated") or "").lower() == "true":
+            region = region.rotate(90, expand=True)
+            w, h = region.width, region.height
+
         fw = int(d.get("frameWidth", w))
         fh = int(d.get("frameHeight", h))
         fx = int(d.get("frameX", 0))
         fy = int(d.get("frameY", 0))
         canvas = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
-        canvas.paste(sheet.crop((x, y, x + w, y + h)), (-fx, -fy))
+        canvas.paste(region, (-fx, -fy))
         frames[d["name"]] = canvas
     return frames
 
@@ -486,7 +490,7 @@ def build_frames(skin, frames, groups):
 
     # --- animations whose uploaded frames are unusable --------------------
     # (the Trollge's right-sing cells contain a sprawled, upside-down figure,
-    # so the left pose is mirrored instead)
+    # if the source has no pose for that direction at all
     for target, source in mirrors.items():
         frames_in = by_engine.get(source) or []
         if not frames_in:
@@ -500,7 +504,7 @@ def build_frames(skin, frames, groups):
         built_map = dict(built)
         by_engine[target] = made
         anim_prefix[target] = new_prefix
-        print("     ! %s rebuilt by mirroring %s (uploaded frames are corrupt)"
+        print("     ! %s rebuilt by mirroring %s (no source frames for it)"
               % (target, source))
 
     # --- miss poses the upload does not have ------------------------------
