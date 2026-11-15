@@ -1,0 +1,15 @@
+<!DOCTYPE codename-engine-character>
+<character sprite="Boyfriend_smiler" icon="bf_smiler" color="#5C6BC0" flipX="true" isPlayer="true" gameOverChar="bf_smiler_dead">
+    <anim name="idle" anim="BFsmiler idle" x="0" y="0" fps="24" loop="true"/>
+    <anim name="singUP" anim="BFsmiler sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWN" anim="BFsmiler sDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFT" anim="BFsmiler sLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHT" anim="BFsmiler sRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singUPmiss" anim="BFsmiler mUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWNmiss" anim="BFsmiler mDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFTmiss" anim="BFsmiler mLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHTmiss" anim="BFsmiler mRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="hey" anim="BFsmiler sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="scared" anim="BFsmiler mUP" x="0" y="0" fps="12" loop="true"/>
+    <anim name="hit" anim="BFsmiler sDOWN" x="0" y="0" fps="24" loop="false"/>
+</character>

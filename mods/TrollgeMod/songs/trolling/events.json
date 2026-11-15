@@ -2,10 +2,18 @@
 	"events": [
 		{
 			"name": "HScript Call",
+			"time": 14000.0,
+			"params": [
+				"trollgeCaption",
+				"he isn't even trying"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
 			"time": 22000.0,
 			"params": [
-				"trollgeDistort",
-				"1"
+				0.044,
+				"camGame"
 			]
 		},
 		{
@@ -19,10 +27,36 @@
 			]
 		},
 		{
-			"name": "Add Camera Zoom",
+			"name": "HScript Call",
 			"time": 22000.0,
 			"params": [
+				"trollgeDistort",
+				"1"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 46000.0,
+			"params": [
+				"trollgeCaption",
+				"that is the scary part"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 58000.0,
+			"params": [
 				0.044,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 58000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
 				"camGame"
 			]
 		},
@@ -35,20 +69,28 @@
 			]
 		},
 		{
-			"name": "Camera Flash",
-			"time": 58000.0,
+			"name": "HScript Call",
+			"time": 74000.0,
 			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
-				"camGame"
+				"trollgeCaption",
+				"don't get comfortable"
 			]
 		},
 		{
 			"name": "Add Camera Zoom",
-			"time": 58000.0,
+			"time": 92000.0,
 			"params": [
 				0.044,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 92000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
 				"camGame"
 			]
 		},
@@ -58,24 +100,6 @@
 			"params": [
 				"trollgeDistort",
 				"1"
-			]
-		},
-		{
-			"name": "Camera Flash",
-			"time": 92000.0,
-			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
-				"camGame"
-			]
-		},
-		{
-			"name": "Add Camera Zoom",
-			"time": 92000.0,
-			"params": [
-				0.044,
-				"camGame"
 			]
 		}
 	]

@@ -1,0 +1,13 @@
+<!DOCTYPE codename-engine-character>
+<character sprite="Trollge_phase3" icon="trollge_static" color="#C4101E" flipX="false" isPlayer="false" holdTime="6">
+    <anim name="idle" anim="TrollgeS idle" x="0" y="0" fps="10" loop="true"/>
+    <anim name="singUP" anim="TrollgeS sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singDOWN" anim="TrollgeS sDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singLEFT" anim="TrollgeS sLEFT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="singRIGHT" anim="TrollgeS sRIGHT" x="0" y="0" fps="24" loop="false"/>
+    <anim name="scared" anim="TrollgeS idle" x="0" y="0" fps="10" loop="true"/>
+    <anim name="laugh" anim="TrollgeS idle" x="0" y="0" fps="16" loop="true"/>
+    <anim name="attack" anim="TrollgeS sUP" x="0" y="0" fps="24" loop="false"/>
+    <anim name="hit" anim="TrollgeS sDOWN" x="0" y="0" fps="24" loop="false"/>
+    <anim name="die" anim="TrollgeS sDOWN" x="0" y="0" fps="12" loop="false"/>
+</character>

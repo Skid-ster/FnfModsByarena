@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="story mode.png">
+	<SubTexture name="story mode basic0000" x="2" y="2" width="829" height="122"/>
+	<SubTexture name="story mode basic0001" x="2" y="128" width="829" height="122"/>
+	<SubTexture name="story mode white0000" x="2" y="254" width="1176" height="172"/>
+	<SubTexture name="story mode white0001" x="2" y="430" width="1176" height="172"/>
+</TextureAtlas>

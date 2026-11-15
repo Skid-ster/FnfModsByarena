@@ -1,0 +1,6 @@
+<!DOCTYPE codename-engine-character>
+<character sprite="Boyfriend_damned" icon="bf_damned" color="#7C0A12" flipX="true" isPlayer="true">
+    <anim name="firstDeath" anim="BFdamned die" x="0" y="0" fps="24" loop="false"/>
+    <anim name="deathLoop" anim="BFdamned die" x="0" y="0" fps="24" loop="true"/>
+    <anim name="deathConfirm" anim="BFdamned die" x="0" y="0" fps="24" loop="false"/>
+</character>

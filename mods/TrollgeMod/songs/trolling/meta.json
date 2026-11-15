@@ -7,13 +7,20 @@
 	"color": "#3F7BD1",
 	"coopAllowed": false,
 	"opponentModeAllowed": true,
-	"needsVoices": false,
+	"needsVoices": true,
 	"difficulties": [
 		"easy",
-		"normal"
+		"normal",
+		"hard"
 	],
 	"customValues": {
 		"scareTier": 2,
-		"lengthSeconds": 104.0
+		"songKey": "D minor",
+		"lengthSeconds": 104.0,
+		"noteCounts": {
+			"easy": 92,
+			"normal": 110,
+			"hard": 152
+		}
 	}
 }

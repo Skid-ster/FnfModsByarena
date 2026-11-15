@@ -16,6 +16,14 @@ var invertSpr:FlxSprite = null;
 
 var flashTimer:Float = 0.0;
 
+// In-song narrative captions ("trollgeCaption" chart events). They are drawn on
+// the HUD camera so they never drift with the stage, and they never block play.
+var caption:FlxTypeText = null;
+var captionBand:FlxSprite = null;
+var captionIn:FlxTween = null;
+var captionOut:FlxTween = null;
+var captionBandOut:FlxTween = null;
+
 /** Camera shake helper (FlxCamera.shake is the only reliable way to do this). */
 function shake(power:Float, duration:Float):Void {
 	var ps = PlayState.instance;
@@ -24,17 +32,15 @@ function shake(power:Float, duration:Float):Void {
 }
 
 var phase2Done:Bool = false;
+var sadDone:Bool = false;
 
-/** Swaps the trollge character in front of the player. */
-function trollgePhase2(a = null):Void {
-	if (phase2Done) return;
-	phase2Done = true;
-
+/** Replaces the opponent with another character, keeping its position. */
+function swapTrollge(name:String, icon:String):Character {
 	var ps = PlayState.instance;
 	var old = ps.dad;
-	if (old == null) return;
+	if (old == null) return null;
 
-	var newChar:Character = new Character(old.x, old.y, 'trollge_scary', false);
+	var newChar:Character = new Character(old.x, old.y, name, false);
 	newChar.x = old.x;
 	newChar.y = old.y;
 	newChar.scrollFactor.set(old.scrollFactor.x, old.scrollFactor.y);
@@ -44,12 +50,139 @@ function trollgePhase2(a = null):Void {
 	if (ps.strumLines.members[0] != null)
 		ps.strumLines.members[0].characters[0] = newChar;
 
-	if (ps.iconP2 != null) ps.iconP2.setIcon('trollge_scary');
-	if (ps.healthBar != null) ps.healthBar.updateBar();
+	if (ps.iconP2 != null) ps.iconP2.setIcon(icon);
+
+	// The health bar takes its colours from the characters, so a swap has to
+	// repaint it or the bar keeps the previous form's colour (PlayState.hx:920).
+	if (ps.healthBar != null) {
+		if (Options.colorHealthBar) {
+			var left:Int = newChar.iconColor != null ? newChar.iconColor : 0xFFFF0000;
+			var right:Int = ps.boyfriend != null && ps.boyfriend.iconColor != null ? ps.boyfriend.iconColor : 0xFF66FF33;
+			ps.healthBar.createFilledBar(left, right);
+		}
+		ps.healthBar.updateBar();
+	}
+
+	return newChar;
+}
+
+/** Song 2, 62 s: the clean trollge corrupts where he stands. */
+var glitchDone:Bool = false;
+function trollgeToGlitch(a = null):Void {
+	if (glitchDone) return;
+	glitchDone = true;
+	if (swapTrollge('trollge_glitch', 'trollge_glitch') == null) return;
+
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.85);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.55);
+	PlayState.instance.camGame.flash(FlxColor.fromRGB(90, 0, 0), 0.35);
+	shake(16.0, 0.8);
+}
+
+/** Song 3, 75 s: phase 2 collapses into phase 3. */
+var staticDone:Bool = false;
+function trollgeToStatic(a = null):Void {
+	if (staticDone) return;
+	staticDone = true;
+	if (swapTrollge('trollge_static', 'trollge_static') == null) return;
+
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.9);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.5);
+	shake(20.0, 0.9);
+}
+
+/** Song 5, 84 s: the same ending as song 4, reached from the other side. */
+function trollgeToSad(a = null):Void {
+	trollgeSad(a);
+}
+
+/** 60 s of song 3: the static mess resolves into the red-eyed final form. */
+function trollgeFinalForm(a = null):Void {
+	if (phase2Done) return;
+	phase2Done = true;
+	if (swapTrollge('trollge_final', 'trollge_final') == null) return;
 
 	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.85);
 	FlxG.sound.play(Paths.sound('trollge_invert'), 0.6);
 	shake(22.0, 0.9);
+}
+
+/** 96 s of song 3: he stops fighting and just stands there. One pose. */
+function trollgeSad(a = null):Void {
+	if (sadDone) return;
+	sadDone = true;
+	if (swapTrollge('trollge_sad', 'trollge_sad') == null) return;
+
+	FlxG.sound.play(Paths.sound('trollge_invert'), 0.45);
+	shake(6.0, 0.6);
+}
+
+/** One line of story, typed over the bottom of the screen while you play.
+ *
+ *  The chart passes it as an "HScript Call" event; the engine splits params[1] on
+ *  commas, so anything after the first comma arrives as a second argument and is
+ *  joined back here.
+ *
+ *  Two things here are the result of crashes, not taste:
+ *
+ *  1. No borderStyle. `FlxTextBorderStyle` is a real enum in flixel (it has a
+ *     parameterised SHADOW_XY case), and `FlxText.regenGraphic()` switches on it.
+ *     Assigning a raw int from HScript leaves the field holding something that
+ *     is not an enum value, and the switch throws a Null Object Reference the
+ *     first time the text is drawn. v3.3.0 shipped that bug in this function.
+ *     The text gets a dark band behind it instead.
+ *  2. `resetText(line)` before `start(delay)`. `FlxTypeText.start()` only takes a
+ *     delay: it types whatever `_finalText` already holds, and `_finalText` only
+ *     comes from the constructor or `resetText()`.
+ */
+function trollgeCaption(a = null, b = null, c = null):Void {
+	var line:String = (a == null ? "" : Std.string(a));
+	if (b != null) line += ", " + Std.string(b);
+	if (c != null) line += ", " + Std.string(c);
+	if (line == "") return;
+
+	var ps = PlayState.instance;
+	if (ps == null) return;
+
+	if (caption == null) {
+		captionBand = new FlxSprite(0, 524);
+		captionBand.makeGraphic(FlxG.width, 84, 0xC0000000);
+		captionBand.scrollFactor.set(0, 0);
+		captionBand.cameras = [ps.camHUD];
+		captionBand.alpha = 0.0;
+		ps.add(captionBand);
+
+		caption = new FlxTypeText(0, 550, FlxG.width, "", 30);
+		caption.font = Paths.font("vcr.ttf");
+		caption.size = 30;
+		caption.color = 0xFFF1F1F5;
+		caption.alignment = "center";
+		caption.antialiasing = true;
+		caption.scrollFactor.set(0, 0);
+		caption.cameras = [ps.camHUD];
+		caption.alpha = 0.0;
+		ps.add(caption);
+	}
+
+	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
+	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+	if (captionBandOut != null) { captionBandOut.cancel(); captionBandOut = null; }
+
+	caption.resetText(line);
+	caption.start(0.018);
+	caption.alpha = 0.0;
+
+	captionIn = FlxTween.tween(caption, {alpha: 1.0}, 0.30, {
+		onComplete: function(_) {
+			captionOut = FlxTween.tween(caption, {alpha: 0.0}, 0.9, {startDelay: 3.4});
+		}
+	});
+
+	if (captionBand != null) {
+		captionBand.alpha = 0.0;
+		FlxTween.tween(captionBand, {alpha: 1.0}, 0.30);
+		captionBandOut = FlxTween.tween(captionBand, {alpha: 0.0}, 0.9, {startDelay: 3.8});
+	}
 }
 
 function trollgeJumpScare(a = null):Void {
@@ -157,13 +290,19 @@ function update(elapsed) {
 
 	// Idle breathing static: scarier songs never fully settle.
 	var base:Float = 0.0;
-	if (scareTier >= 7) base = 0.055;
+	if (scareTier >= 8) base = 0.055;
+	else if (scareTier >= 6) base = 0.035;
 	else if (scareTier >= 4) base = 0.02;
 	if (staticSpr != null)
 		staticSpr.alpha = Math.max(staticSpr.alpha, base);
 }
 
 function destroy() {
+	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
+	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+	if (captionBandOut != null) { captionBandOut.cancel(); captionBandOut = null; }
+	if (caption != null) { caption.destroy(); caption = null; }
+	if (captionBand != null) { captionBand.destroy(); captionBand = null; }
 	if (staticSpr != null) staticSpr.destroy();
 	if (invertSpr != null) invertSpr.destroy();
 }

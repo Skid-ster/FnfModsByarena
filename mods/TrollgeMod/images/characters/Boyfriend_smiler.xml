@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<TextureAtlas imagePath="Boyfriend_smiler.png">
+    <SubTexture name="BFsmiler idle0000" x="0" y="0" width="388" height="395" frameX="-35" frameY="-144" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler idle0001" x="388" y="0" width="389" height="402" frameX="-36" frameY="-137" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler idle0002" x="777" y="0" width="395" height="405" frameX="-31" frameY="-134" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler idle0003" x="1172" y="0" width="396" height="411" frameX="-31" frameY="-128" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler idle0004" x="1568" y="0" width="397" height="413" frameX="-31" frameY="-126" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sUP0000" x="0" y="413" width="378" height="439" frameX="-40" frameY="-100" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sUP0001" x="378" y="413" width="387" height="443" frameX="-40" frameY="-96" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sDOWN0000" x="765" y="413" width="344" height="357" frameX="-57" frameY="-182" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sDOWN0001" x="1109" y="413" width="342" height="368" frameX="-61" frameY="-172" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sLEFT0000" x="1451" y="413" width="370" height="410" frameX="-44" frameY="-129" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sLEFT0001" x="0" y="856" width="380" height="415" frameX="-33" frameY="-124" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sRIGHT0000" x="380" y="856" width="401" height="414" frameX="-28" frameY="-125" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler sRIGHT0001" x="781" y="856" width="408" height="413" frameX="-29" frameY="-126" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mUP0000" x="1189" y="856" width="378" height="438" frameX="-40" frameY="-101" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mUP0001" x="1567" y="856" width="378" height="438" frameX="-40" frameY="-101" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mUP0002" x="0" y="1294" width="373" height="436" frameX="-38" frameY="-103" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mDOWN0000" x="373" y="1294" width="344" height="357" frameX="-57" frameY="-182" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mDOWN0001" x="717" y="1294" width="342" height="368" frameX="-61" frameY="-172" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mDOWN0002" x="1059" y="1294" width="344" height="357" frameX="-57" frameY="-182" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mLEFT0000" x="1403" y="1294" width="370" height="410" frameX="-44" frameY="-129" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mLEFT0001" x="0" y="1730" width="380" height="415" frameX="-33" frameY="-124" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mLEFT0002" x="380" y="1730" width="370" height="410" frameX="-44" frameY="-129" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mRIGHT0000" x="750" y="1730" width="401" height="414" frameX="-28" frameY="-125" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mRIGHT0001" x="1151" y="1730" width="408" height="413" frameX="-29" frameY="-126" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler mRIGHT0002" x="1559" y="1730" width="401" height="414" frameX="-28" frameY="-125" frameWidth="460" frameHeight="560"/>
+    <SubTexture name="BFsmiler die0000" x="0" y="2145" width="388" height="395" frameX="-35" frameY="-144" frameWidth="460" frameHeight="560"/>
+</TextureAtlas>

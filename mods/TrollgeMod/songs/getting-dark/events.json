@@ -1,0 +1,210 @@
+{
+	"events": [
+		{
+			"name": "HScript Call",
+			"time": 18000.0,
+			"params": [
+				"trollgeCaption",
+				"the lights are going out"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 26000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 26000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 26000.0,
+			"params": [
+				"trollgeStatic",
+				"1"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 36000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 36000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 36000.0,
+			"params": [
+				"trollgeJumpScare",
+				"1"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 52000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 52000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 52000.0,
+			"params": [
+				"trollgeCaption",
+				"eyes on the arrows"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 52000.0,
+			"params": [
+				"trollgeDistort",
+				"1"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 62000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 62000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 62000.0,
+			"params": [
+				"trollgeToGlitch",
+				"1"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 66000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 66000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 66000.0,
+			"params": [
+				"trollgeScreenShake",
+				"1"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 80000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 80000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 80000.0,
+			"params": [
+				"trollgeStatic",
+				"1"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 86000.0,
+			"params": [
+				"trollgeCaption",
+				"he is closer than he was"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 92000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 92000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 92000.0,
+			"params": [
+				"trollgeJumpScare",
+				"1"
+			]
+		}
+	]
+}

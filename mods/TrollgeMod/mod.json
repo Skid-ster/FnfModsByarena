@@ -1,16 +1,66 @@
 {
 	"name": "Super Scary Trollge",
 	"id": "TrollgeMod",
-	"version": "2.0.0",
+	"version": "3.5.0",
 	"engine": "Codename Engine",
 	"apiVersion": "1.0.0",
 	"modpack": "data/config/modpack.ini",
-	"description": "Three songs of escalating Trollge horror (2/10, 4/10, 7/10) with a fully code-drawn character and hand-built story events.",
-	"authors": ["Skid-ster"],
+	"description": "Five songs of escalating Trollge horror (2/10 to 10/10) with hand-written cutscenes and a real ending, hand-drawn Trollge phases that mutate mid-song, a different Boyfriend for every song, per-song arrow skins, a VHS screen grade, camera shake and zoom that scale with the scare tier, per-character note-hit voices, singable vocal tracks (Voices.ogg) and five distinct instrumentals (bounce / trap / glitch / industrial / finale) built from the charts themselves.",
+	"authors": [
+		"Skid-ster"
+	],
 	"links": {
 		"github": "https://github.com/Skid-ster/FnfModsByarena"
 	},
-	"songs": ["trolling", "getting_dark", "super_scary"],
+	"songs": [
+		"trolling",
+		"getting-dark",
+		"dont-look-back",
+		"super-scary",
+		"the-incident"
+	],
 	"week": "trollge_week",
-	"scareTiers": { "trolling": 2, "getting_dark": 4, "super_scary": 7 }
+	"scareTiers": {
+		"trolling": 2,
+		"getting-dark": 4,
+		"dont-look-back": 6,
+		"super-scary": 8,
+		"the-incident": 10
+	},
+	"playerCharacters": {
+		"trolling": "bf_blue",
+		"getting-dark": "bf_smiler",
+		"dont-look-back": "bf_glitched",
+		"super-scary": "bf_super_scary",
+		"the-incident": "bf_damned"
+	},
+	"opponentCharacters": {
+		"trolling": "trollge",
+		"getting-dark": "trollge",
+		"dont-look-back": "trollge_glitch",
+		"super-scary": "trollge_static",
+		"the-incident": "trollge_final"
+	},
+	"opponentPhases": {
+		"getting-dark": {
+			"at62s": "trollge_glitch"
+		},
+		"dont-look-back": {
+			"at75s": "trollge_static"
+		},
+		"super-scary": {
+			"at60s": "trollge_final",
+			"at96s": "trollge_sad"
+		},
+		"the-incident": {
+			"at84s": "trollge_sad"
+		}
+	},
+	"noteSkins": {
+		"trolling": "default",
+		"getting-dark": "shadow",
+		"dont-look-back": "corrupt",
+		"super-scary": "corrupt",
+		"the-incident": "torn"
+	}
 }
