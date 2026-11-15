@@ -134,7 +134,7 @@
 			"name": "HScript Call",
 			"time": 60000.0,
 			"params": [
-				"trollgePhase2",
+				"trollgeFinalForm",
 				"1"
 			]
 		},
@@ -151,6 +151,32 @@
 		{
 			"name": "Add Camera Zoom",
 			"time": 60000.0,
+			"params": [
+				0.054,
+				"camGame"
+			]
+		},
+		{
+			"name": "HScript Call",
+			"time": 96000.0,
+			"params": [
+				"trollgeSad",
+				"1"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 96000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
+				"camGame"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 96000.0,
 			"params": [
 				0.054,
 				"camGame"

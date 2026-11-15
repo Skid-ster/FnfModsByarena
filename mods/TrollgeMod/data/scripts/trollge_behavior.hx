@@ -1,8 +1,9 @@
 // ===========================================================================
 //  trollge_behavior.hx -- character behaviour for Trollge / Trollge (phase 2)
 //
-//  Loaded automatically by data/characters/trollge.xml and
-//  data/characters/trollge_scary.xml through:
+//  Loaded automatically by every phase of the character
+//  (data/characters/trollge.xml, trollge_glitch.xml, trollge_static.xml,
+//  trollge_final.xml, trollge_sad.xml) through:
 //      <extension script="trollge_behavior"/>
 //
 //  `this` is the Character that loaded the script (base-game convention, see

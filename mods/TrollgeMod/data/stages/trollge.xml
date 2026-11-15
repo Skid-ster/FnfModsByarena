@@ -1,6 +1,8 @@
 <!DOCTYPE codename-engine-stage>
 <stage name="trollge" folder="stages/trollge/" zoom="0.95" startCamPosX="900" startCamPosY="470">
 	<sprite name="bg" x="-420" y="-250" scale="1.75" sprite="bg" scroll="1" antialiasing="true"/>
-	<dad x="200" y="80"/>
+	<!-- the Trollge atlas is taller than Boyfriend's: this y puts both pairs
+	     of feet on the same ground line (images/characters/*.xml baselines) -->
+	<dad x="169" y="39"/>
 	<boyfriend x="900" y="80"/>
 </stage>

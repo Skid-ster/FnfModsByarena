@@ -41,8 +41,8 @@ SONGS = [
         "id": "trolling",
         "display": "Trolling",
         # Character ids come from data/characters/<id>.xml.
-        "bf": "bf_blue",         # art_src/bf/new_blue_boyfriend.* -> tools/make_bf.py
-        "trollge": "trollge",
+        "bf": "bf_blue",         # art_src/bf/new_blue_boyfriend.* -> tools/make_characters.py
+        "trollge": "trollge",    # art_src/trollge/trollge.*  (phase 1, clean)
         "bpm": 140.0,
         "scare": 2,
         "offset": 1.1428571428571428,
@@ -75,8 +75,8 @@ SONGS = [
     {
         "id": "getting_dark",
         "display": "It's Getting Dark",
-        "bf": "bf_smiler",       # art_src/bf/Smiler_Boyfriend_3.* -> tools/make_bf.py
-        "trollge": "trollge",
+        "bf": "bf_smiler",       # art_src/bf/Smiler_Boyfriend_3.* -> tools/make_characters.py
+        "trollge": "trollge_glitch",   # art_src/trollge/trollgeGlitch.*  (phase 2, corrupted)
         "bpm": 150.0,
         "scare": 4,
         "offset": 1.2,
@@ -112,8 +112,8 @@ SONGS = [
     {
         "id": "super_scary",
         "display": "Super Scary Trollge",
-        "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_bf.py
-        "trollge": "trollge",
+        "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_characters.py
+        "trollge": "trollge_static",   # art_src/trollge/trollgeStatic1.* (phase 3)
         "bpm": 160.0,
         "scare": 7,
         "offset": 1.5,
@@ -143,7 +143,8 @@ SONGS = [
             (33.0, "trollgeDistort"),
             (42.0, "trollgeJumpScare"),
             (52.0, "trollgeStatic"),
-            (60.0, "trollgePhase2"),
+            (60.0, "trollgeFinalForm"),   # static -> red-eyed final form
+            (96.0, "trollgeSad"),         # ...and then he just stands there
             (66.0, "trollgeJumpScare"),
             (74.0, "trollgeScreenShake"),
             (82.0, "trollgeDistort"),

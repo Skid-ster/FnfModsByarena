@@ -1,5 +1,5 @@
 <!DOCTYPE codename-engine-character>
-<character sprite="Boyfriend_blue" flipX="true" isPlayer="true" icon="bf_blue" color="#31B0D1" gameOverChar="bf_blue_dead">
+<character sprite="Boyfriend_blue" icon="bf_blue" color="#31B0D1" flipX="true" isPlayer="true" gameOverChar="bf_blue_dead">
     <anim name="idle" anim="BFblue idle" x="0" y="0" fps="24" loop="true"/>
     <anim name="singUP" anim="BFblue sUP" x="0" y="0" fps="24" loop="false"/>
     <anim name="singDOWN" anim="BFblue sDOWN" x="0" y="0" fps="24" loop="false"/>

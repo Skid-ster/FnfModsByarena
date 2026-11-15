@@ -61,19 +61,31 @@ REQUIRED_FILES = [
     "mod.json",
     "data/config/modpack.ini",
     "data/characters/trollge.xml",
-    "data/characters/trollge_scary.xml",
+    "data/characters/trollge_glitch.xml",
+    "data/characters/trollge_static.xml",
+    "data/characters/trollge_final.xml",
+    "data/characters/trollge_sad.xml",
+    "images/characters/Trollge_phase1.png",
+    "images/characters/Trollge_phase1.xml",
+    "images/characters/Trollge_phase2.png",
+    "images/characters/Trollge_phase2.xml",
+    "images/characters/Trollge_phase3.png",
+    "images/characters/Trollge_phase3.xml",
+    "images/characters/Trollge_final.png",
+    "images/characters/Trollge_final.xml",
+    "images/characters/Trollge_sad.png",
+    "images/characters/Trollge_sad.xml",
+    "images/icons/trollge_glitch/icon.png",
+    "images/icons/trollge_static/icon.png",
+    "images/icons/trollge_final/icon.png",
+    "images/icons/trollge_sad/icon.png",
     "data/scripts/trollge_behavior.hx",
     "data/scripts/trollge_song_behavior.hx",
     "data/stages/trollge.xml",
     "data/stages/trollge.hx",
     "data/weeks/weeks/trollge_week.xml",
     "data/weeks/characters/trollge.xml",
-    "images/characters/Trollge.png",
-    "images/characters/Trollge.xml",
-    "images/characters/TrollgeScary.png",
-    "images/characters/TrollgeScary.xml",
     "images/icons/trollge/icon.png",
-    "images/icons/trollge_scary/icon.png",
     "data/characters/bf_blue.xml",
     "data/characters/bf_blue_dead.xml",
     "data/characters/bf_smiler.xml",
@@ -94,9 +106,6 @@ REQUIRED_FILES = [
     "images/stages/trollge/bg_nightmare.png",
     "images/menus/storymenu/weeks/trollge_week.png",
     "images/menus/storymenu/characters/trollge.png",
-    "images/trollge_idle.png",
-    "images/trollge_sing.png",
-    "images/trollge_scary_bg.png",
     "images/trollge_jump_scare.png",
     "images/trollge_distortion.png",
     "images/trollge_invert.png",
@@ -349,7 +358,8 @@ def check_icons():
         from PIL import Image
     except ImportError:
         return
-    for icon in ("trollge", "trollge_scary", "bf_blue", "bf_smiler", "bf_super_scary"):
+    for icon in ("trollge", "trollge_glitch", "trollge_static", "trollge_final",
+                 "trollge_sad", "bf_blue", "bf_smiler", "bf_super_scary"):
         path = os.path.join(MOD, "images", "icons", icon, "icon.png")
         if not os.path.isfile(path):
             continue

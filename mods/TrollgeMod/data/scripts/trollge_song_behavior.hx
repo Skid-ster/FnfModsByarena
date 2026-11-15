@@ -24,17 +24,15 @@ function shake(power:Float, duration:Float):Void {
 }
 
 var phase2Done:Bool = false;
+var sadDone:Bool = false;
 
-/** Swaps the trollge character in front of the player. */
-function trollgePhase2(a = null):Void {
-	if (phase2Done) return;
-	phase2Done = true;
-
+/** Replaces the opponent with another character, keeping its position. */
+function swapTrollge(name:String, icon:String):Character {
 	var ps = PlayState.instance;
 	var old = ps.dad;
-	if (old == null) return;
+	if (old == null) return null;
 
-	var newChar:Character = new Character(old.x, old.y, 'trollge_scary', false);
+	var newChar:Character = new Character(old.x, old.y, name, false);
 	newChar.x = old.x;
 	newChar.y = old.y;
 	newChar.scrollFactor.set(old.scrollFactor.x, old.scrollFactor.y);
@@ -44,12 +42,31 @@ function trollgePhase2(a = null):Void {
 	if (ps.strumLines.members[0] != null)
 		ps.strumLines.members[0].characters[0] = newChar;
 
-	if (ps.iconP2 != null) ps.iconP2.setIcon('trollge_scary');
+	if (ps.iconP2 != null) ps.iconP2.setIcon(icon);
 	if (ps.healthBar != null) ps.healthBar.updateBar();
+
+	return newChar;
+}
+
+/** 60 s of song 3: the static mess resolves into the red-eyed final form. */
+function trollgeFinalForm(a = null):Void {
+	if (phase2Done) return;
+	phase2Done = true;
+	if (swapTrollge('trollge_final', 'trollge_final') == null) return;
 
 	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.85);
 	FlxG.sound.play(Paths.sound('trollge_invert'), 0.6);
 	shake(22.0, 0.9);
+}
+
+/** 96 s of song 3: he stops fighting and just stands there. One pose. */
+function trollgeSad(a = null):Void {
+	if (sadDone) return;
+	sadDone = true;
+	if (swapTrollge('trollge_sad', 'trollge_sad') == null) return;
+
+	FlxG.sound.play(Paths.sound('trollge_invert'), 0.45);
+	shake(6.0, 0.6);
 }
 
 function trollgeJumpScare(a = null):Void {
