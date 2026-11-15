@@ -8,12 +8,17 @@
 
 var scareTier:Int = 1;
 var staticSpr:FlxSprite = null;
+var noteSkin:String = null;
 
 function create() {
 	var meta = PlayState.SONG != null ? PlayState.SONG.meta : null;
 	var cv = meta != null ? meta.customValues : null;
 	if (cv != null && cv.scareTier != null)
 		scareTier = Std.int(cv.scareTier);
+
+	// Arrow skin: notes get theirs from the chart's noteTypes, but strums always
+	// default to game/notes/default, so mirror the song's skin onto them here.
+	noteSkin = scareTier >= 7 ? 'corrupt' : (scareTier >= 4 ? 'shadow' : null);
 
 	// Swap in the nastier backdrop once the song earns it.
 	if (scareTier >= 4 && bg != null) {
@@ -41,6 +46,13 @@ function create() {
 	staticSpr.blend = BlendMode.ADD;
 	staticSpr.antialiasing = false;
 	PlayState.instance.add(staticSpr);
+}
+
+function onStrumCreation(event) {
+	if (noteSkin == null) return;
+	var path:String = 'game/notes/' + noteSkin;
+	if (Assets.exists(Paths.image(path)))
+		event.sprite = path;
 }
 
 function beatHit(curBeat) {

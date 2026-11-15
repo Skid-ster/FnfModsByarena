@@ -116,6 +116,23 @@ REQUIRED_FILES = [
     "sounds/trollge_invert.ogg",
     "sounds/trollge_hit.ogg",
     "sounds/trollge_miss.ogg",
+    "images/game/notes/default.png",
+    "images/game/notes/default.xml",
+    "images/game/notes/shadow.png",
+    "images/game/notes/shadow.xml",
+    "images/game/notes/corrupt.png",
+    "images/game/notes/corrupt.xml",
+    "images/game/splashes/default.png",
+    "images/game/splashes/default.xml",
+    "data/splashes/default.xml",
+    "images/game/healthBar.png",
+    "images/game/ready.png",
+    "images/game/set.png",
+    "images/game/go.png",
+    "sounds/intro3.ogg",
+    "sounds/intro2.ogg",
+    "sounds/intro1.ogg",
+    "sounds/introGo.ogg",
 ]
 
 
@@ -157,6 +174,136 @@ def check_mod_json():
 
 
 # --------------------------------------------------------------------------- #
+# Note skin + splashes
+# --------------------------------------------------------------------------- #
+
+SKIN_SIZES = {
+    "arrow": (160, 160),
+    "press": (200, 200),
+    "confirm": (200, 200),
+    "note": (160, 160),
+    "hold piece": (52, 88),
+    "hold end": (52, 64),
+}
+SKIN_NAMES = ["purple", "blue", "green", "red"]
+STRUM_DIRS = ["left", "down", "up", "right"]
+
+
+def skin_required_frames():
+    frames = {}
+    for direction in STRUM_DIRS:
+        frames["arrow%s0000" % direction.upper()] = "arrow"
+        for name in ("press", "confirm"):
+            for i in range(4):
+                frames["%s %s%04d" % (direction, name, i)] = name
+    for colour in SKIN_NAMES:
+        frames["%s0000" % colour] = "note"
+        frames["%s hold piece0000" % colour] = "hold piece"
+        frames["%s hold end0000" % colour] = "hold end"
+    frames["pruple end hold0000"] = "hold end"   # FNF typo, checked first by the engine
+    return frames
+
+
+def read_atlas(png, xml):
+    """-> {frame name: (width, height)} without decoding the PNG."""
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.parse(xml).getroot()
+    except Exception as error:                                  # noqa: BLE001
+        ERRORS.append("cannot parse %s: %s" % (rel(xml), error))
+        return None
+    frames = {}
+    for node in root.iter():
+        if node.tag.lower() != "subtexture":
+            continue
+        frames[node.get("name")] = (int(node.get("width")), int(node.get("height")))
+    ok(os.path.isfile(png), "%s is missing" % rel(png))
+    return frames
+
+
+def check_noteskin():
+    required = skin_required_frames()
+    reference = None
+
+    for skin in ("default", "shadow", "corrupt"):
+        png = os.path.join(MOD, "images", "game", "notes", skin + ".png")
+        xml = os.path.join(MOD, "images", "game", "notes", skin + ".xml")
+        frames = read_atlas(png, xml)
+        if frames is None:
+            continue
+        for name, group in required.items():
+            if not ok(name in frames, "%s skin is missing frame %r" % (skin, name)):
+                continue
+            width, height = frames[name]
+            limit_w, limit_h = SKIN_SIZES[group]
+            ok(width <= limit_w and height <= limit_h and width > 0 and height > 0,
+               "%s skin frame %r is %dx%d, larger than %dx%d"
+               % (skin, name, width, height, limit_w, limit_h))
+        if reference is None:
+            reference = sorted(frames)
+        else:
+            ok(sorted(frames) == reference,
+               "%s skin has a different frame set than default (layouts must match)" % skin)
+
+    splash_png = os.path.join(MOD, "images", "game", "splashes", "default.png")
+    splash_xml = os.path.join(MOD, "images", "game", "splashes", "default.xml")
+    atlas = read_atlas(splash_png, splash_xml)
+    config_path = os.path.join(MOD, "data", "splashes", "default.xml")
+    if atlas and os.path.isfile(config_path):
+        import xml.etree.ElementTree as ET
+        root = ET.parse(config_path).getroot()
+        ok(root.tag.lower() == "splashes", "data/splashes/default.xml must use <splashes>")
+        ok(root.get("sprite") == "game/splashes/default",
+           "splash config must point at game/splashes/default")
+        strums = root.findall("strum")
+        ok(len(strums) == 4, "splash config needs 4 strums, found %d" % len(strums))
+        for strum in strums:
+            sid = int(strum.get("id", -1))
+            ok(0 <= sid <= 3, "splash config has a bad strum id %r" % strum.get("id"))
+            anims = strum.findall("anim")
+            ok(len(anims) == 2, "splash strum %d needs impact 1 + 2, found %d" % (sid, len(anims)))
+            for anim in anims:
+                target = anim.get("anim")
+                matches = [n for n in atlas if n.startswith(target)]
+                ok(len(matches) == 4, "splash anim %r has %d frames in the atlas (want 4)"
+                   % (target, len(matches)))
+                ok(int(anim.get("fps", 0)) > 0, "splash anim %r needs a positive fps" % target)
+                ok(all(atlas[m][0] <= 260 and atlas[m][1] <= 298 for m in matches),
+                   "splash anim %r has a frame larger than 260x298" % target)
+
+
+# --------------------------------------------------------------------------- #
+# HUD
+# --------------------------------------------------------------------------- #
+
+def check_hud():
+    from PIL import Image
+
+    bar_path = os.path.join(MOD, "images", "game", "healthBar.png")
+    if ok(os.path.isfile(bar_path), "images/game/healthBar.png is missing"):
+        bar = Image.open(bar_path).convert("RGBA")
+        ok(400 <= bar.width <= 1600, "healthBar.png is %d px wide (want 400-1600)" % bar.width)
+        ok(8 <= bar.height <= 80, "healthBar.png is %d px tall (want 8-80)" % bar.height)
+        # The FlxBar is drawn 4 px inside, so the middle must be the dark "empty" area.
+        mid = bar.getpixel((bar.width // 2, bar.height // 2))
+        ok(max(mid[:3]) < 70, "healthBar.png centre is too bright for a health bar (%r)" % (mid,))
+        ok(min(mid[:3]) >= 0 and mid[3] == 255, "healthBar.png centre must be opaque")
+
+    for name in ("ready", "set", "go"):
+        path = os.path.join(MOD, "images", "game", "%s.png" % name)
+        if not ok(os.path.isfile(path), "images/game/%s.png is missing" % name):
+            continue
+        image = Image.open(path).convert("RGBA")
+        ok(image.width <= 900 and image.height <= 400,
+           "%s.png is %dx%d, too large for the countdown" % (name, image.width, image.height))
+        bbox = image.getchannel("A").getbbox()
+        ok(bbox is not None, "%s.png is fully transparent" % name)
+        if bbox:
+            ok((bbox[2] - bbox[0]) > image.width * 0.25 and (bbox[3] - bbox[1]) > image.height * 0.25,
+               "%s.png has almost no visible pixels" % name)
+
+
+# --------------------------------------------------------------------------- #
 # Charts
 # --------------------------------------------------------------------------- #
 
@@ -191,6 +338,8 @@ def check_charts():
             ok(chart.get("codenameChart") is True, "%s/%s: codenameChart must be true" % (song["id"], difficulty))
             ok(chart.get("chartVersion") == "1.6.0", "%s/%s: chartVersion must be 1.6.0" % (song["id"], difficulty))
             ok(chart.get("stage") == "trollge", "%s/%s: stage must be trollge" % (song["id"], difficulty))
+            ok(chart.get("noteTypes") == L.note_types(song),
+               "%s/%s: noteTypes must be %r" % (song["id"], difficulty, L.note_types(song)))
             ok(1 <= float(chart.get("scrollSpeed", 0)) <= 3, "%s/%s: odd scrollSpeed" % (song["id"], difficulty))
 
             lines = chart.get("strumLines", [])
@@ -408,6 +557,17 @@ def check_scripts():
             ok(stripped.count(open_ch) == stripped.count(close_ch),
                "%s: unbalanced %r / %r" % (rel(path), open_ch, close_ch))
 
+    # Strum skinning lives in the stage script (strums do not read noteTypes).
+    stage_script = os.path.join(MOD, "data", "stages", "trollge.hx")
+    if os.path.isfile(stage_script):
+        code = open(stage_script, encoding="utf-8").read()
+        ok("function onStrumCreation" in code, "stage script is missing the onStrumCreation hook")
+        for skin in ("shadow", "corrupt"):
+            ok("'%s'" % skin in code or '"%s"' % skin in code,
+               "stage script never references the %r skin" % skin)
+            ok(os.path.isfile(os.path.join(MOD, "images", "game", "notes", skin + ".png")),
+               "stage script uses the %r skin but its atlas is missing" % skin)
+
     # Character XML extensions must point at a real script.
     for char in ("trollge", "trollge_scary"):
         path = os.path.join(MOD, "data", "characters", char + ".xml")
@@ -419,6 +579,12 @@ def check_scripts():
 
 
 def check_audio():
+    import soundfile as sf
+    for name in ("intro1", "intro2", "intro3", "introGo"):
+        path = os.path.join(MOD, "sounds", name + ".ogg")
+        if ok(os.path.isfile(path), "sounds/%s.ogg is missing" % name):
+            duration = sf.info(path).duration
+            ok(0.2 <= duration <= 2.0, "sounds/%s.ogg is %.2fs (want 0.2-2.0s)" % (name, duration))
     try:
         import soundfile as sf
     except ImportError:
@@ -451,6 +617,8 @@ def main():
     check_xml()
     check_mod_json()
     check_charts()
+    check_noteskin()
+    check_hud()
     check_atlases()
     check_character_refs()
     check_icons()

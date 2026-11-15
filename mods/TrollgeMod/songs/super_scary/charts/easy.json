@@ -3,7 +3,9 @@
 	"scrollSpeed": 1.0,
 	"chartVersion": "1.6.0",
 	"codenameChart": true,
-	"noteTypes": [],
+	"noteTypes": [
+		"corrupt"
+	],
 	"bookmarks": [
 		{
 			"time": 1500.0,

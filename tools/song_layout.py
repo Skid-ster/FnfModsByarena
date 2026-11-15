@@ -36,6 +36,10 @@ ID_TO_DEGREE = {LEFT: 0, DOWN: 2, UP: 4, RIGHT: 6}
 # is `sum(count * spacing for spacing in spacings) / 16` measures long.
 # --------------------------------------------------------------------------- #
 
+NOTESKIN_PLAIN = None        # song 1 uses images/game/notes/default
+NOTESKIN_DARK = "shadow"     # song 2: colour drained out
+NOTESKIN_CORRUPT = "corrupt"  # song 3: glitched arrows
+
 SONGS = [
     {
         "id": "trolling",
@@ -77,6 +81,7 @@ SONGS = [
         "display": "It's Getting Dark",
         "bf": "bf_smiler",       # art_src/bf/Smiler_Boyfriend_3.* -> tools/make_characters.py
         "trollge": "trollge_glitch",   # art_src/trollge/trollgeGlitch.*  (phase 2, corrupted)
+        "noteskin": NOTESKIN_DARK,      # images/game/notes/<id> (tools/make_noteskin.py)
         "bpm": 150.0,
         "scare": 4,
         "offset": 1.2,
@@ -114,6 +119,7 @@ SONGS = [
         "display": "Super Scary Trollge",
         "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_characters.py
         "trollge": "trollge_static",   # art_src/trollge/trollgeStatic1.* (phase 3)
+        "noteskin": NOTESKIN_CORRUPT,
         "bpm": 160.0,
         "scare": 7,
         "offset": 1.5,
@@ -156,6 +162,13 @@ SONGS = [
 ]
 
 SONGS_BY_ID = {s["id"]: s for s in SONGS}
+
+
+def note_types(song):
+    """Chart `noteTypes` list: the engine maps note type 0 onto it, so a single
+    entry re-skins every arrow of that song (Note.hx -> game/notes/<name>)."""
+    skin = song.get("noteskin")
+    return [skin] if skin else []
 
 
 def characters(song, side="player"):

@@ -10,11 +10,14 @@ scripts in `tools/`, so most contributions are a code change plus a regeneration
    * `mods/TrollgeMod/songs/*/meta.json`, `events.json`
    * `mods/TrollgeMod/images/**` (including `images/characters/*.png/.xml`,
      `data/characters/*.xml` and the `images/icons/*` -- those come from `tools/make_characters.py`)
+   * `mods/TrollgeMod/images/game/**` -- arrow skins, splashes, health bar, countdown
+     (`tools/make_noteskin.py`, `tools/make_hud.py`)
+   * `mods/TrollgeMod/data/splashes/default.xml` (`tools/make_noteskin.py`)
    * `mods/TrollgeMod/songs/*/song/Inst.ogg`, `mods/TrollgeMod/sounds/*.ogg`
-   * `docs/preview.png`, `docs/stages.png`, `docs/jumpscare.png`
+   * `docs/*.png` previews
 
    Edit the generator instead (`tools/song_layout.py`, `tools/trollge_art.py`, `tools/make_audio.py`,
-   `tools/make_art.py`) and re-run it. CI fails if charts drift.
+   `tools/make_art.py`, `tools/make_noteskin.py`, `tools/make_hud.py`) and re-run it. CI fails if charts drift.
 2. **Keep it Codename Engine compatible.** We target the Codename chart format (`chartVersion 1.6.0`,
    `codenameChart: true`) and HScript (`data/scripts/*.hx`). Psych Engine formats are not supported.
 3. **Keep the scare tiers honest.** Song 1 ≈ 2/10, song 2 ≈ 4/10, song 3 ≈ 7/10. If you add a jumpscare to
@@ -28,6 +31,8 @@ pip install pillow numpy soundfile
 # make your change, then rebuild whatever you touched
 python3 tools/make_art.py      # only if you touched trollge_art.py / make_art.py
 python3 tools/make_audio.py    # only if you touched song_layout.py / make_audio.py
+python3 tools/make_noteskin.py # only if you touched make_noteskin.py (arrow skins + splashes)
+python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + countdown)
 python3 tools/make_chart.py    # if you touched song_layout.py (charts)
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
@@ -41,6 +46,21 @@ feat(song3): denser final section
 - song_layout: +2 spacing-1 sections in the last act
 - regenerated charts + instrumental
 ```
+
+## Changing the arrows or the HUD
+
+* **Arrow colours** live in `LANES` / `SHADOW_LANES` in `tools/make_noteskin.py`; each skin is drawn from that
+  palette, so changing one RGB triple re-skins a whole lane. Re-run the script, then
+  `python3 tools/make_chart.py` if you renamed a skin.
+* **Which song uses which skin** is `song_layout.py` -> `"noteskin"` (`None`, `"shadow"`, `"corrupt"`). The
+  chart's `noteTypes` carries it to the notes; `data/stages/trollge.hx` mirrors it onto the strums through
+  `onStrumCreation`, because the engine always builds strums from `game/notes/default`.
+* **Frame names are fixed by the engine** -- `arrowLEFT`, `left press`, `left confirm`, `purple`, `purple hold
+  piece`, `purple hold end`. Every skin must have the same frame set and no frame larger than the sizes in
+  `SKIN_SIZES` (`tools/validate_mod.py` enforces both).
+* **HUD** is pure filename theming: `images/game/healthBar.png`, `ready.png`, `set.png`, `go.png` and
+  `sounds/intro{1,2,3,Go}.ogg`. Keep the health bar's centre dark and opaque -- the `FlxBar` is drawn 4 px
+  inside it.
 
 ## Adding a character (skin or phase)
 

@@ -2,7 +2,7 @@
 
 **Three songs. One trollge. It gets worse every time.**
 A complete, playable [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) mod where the horror
-escalates song by song: **2/10 → 4/10 → 7/10** — and both Boyfriend and the Trollge mutate with it.
+escalates song by song: **2/10 → 4/10 → 7/10** — and the characters, the arrows and the HUD mutate with it.
 
 ![The cast](docs/cast.png)
 
@@ -11,6 +11,16 @@ escalates song by song: **2/10 → 4/10 → 7/10** — and both Boyfriend and th
 | **1. Trolling** | 2/10 | 140 | 104.0 s | 256 | `bf_blue` | `trollge` (phase 1) | 3 |
 | **2. It's Getting Dark** | 4/10 | 150 | 103.6 s | 320 | `bf_smiler` | `trollge_glitch` (phase 2) | 6 |
 | **3. Super Scary Trollge** | 7/10 | 160 | 103.5 s | 640 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
+
+Each song also ships its own **arrow skin**, from bright violet/mint to a corrupted glitch atlas:
+
+| Song | Arrow skin | Look |
+| --- | --- | --- |
+| Trolling | `game/notes/default` | violet, blue, mint and crimson arrows with soft glow |
+| It's Getting Dark | `game/notes/shadow` | the same arrows with the colour drained out |
+| Super Scary Trollge | `game/notes/corrupt` | sliced, RGB-split, static-speckled arrows |
+
+![Arrow skins](docs/noteskin.png)
 
 Both **easy** and **normal** difficulties are charted for all three songs (easy = half density, no sustains).
 
@@ -21,7 +31,7 @@ Both **easy** and **normal** difficulties are charted for all three songs (easy 
 ## Install
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
-2. Grab `SuperScaryTrollge-v2.3.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
+2. Grab `SuperScaryTrollge-v2.4.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
 3. Drop the **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **Super Scary Trollge**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all three songs are in freeplay.
@@ -36,11 +46,14 @@ mods/
     │   │                 bf_blue.xml, bf_smiler.xml, bf_super_scary.xml (+ _dead variants)
     │   ├── config/       modpack.ini
     │   ├── scripts/      trollge_behavior.hx, trollge_song_behavior.hx
+    │   ├── splashes/     default.xml (note splash config)
     │   ├── stages/       trollge.xml, trollge.hx
     │   └── weeks/        weeks/trollge_week.xml, characters/trollge.xml
-    ├── images/           characters/, icons/, stages/, menus/, event overlays
+    ├── images/           characters/, icons/, stages/, menus/, event overlays,
+    │                     game/notes/{default,shadow,corrupt}, game/splashes,
+    │                     game/healthBar.png, game/{ready,set,go}.png
     ├── songs/            trolling/, getting_dark/, super_scary/
-    └── sounds/           stingers, themes, custom hit/miss
+    └── sounds/           stingers, themes, countdown hits, custom hit/miss
 ```
 
 > **Codename Engine only.** Psych Engine / YoshiCrafter mods use a different format; this mod uses the
@@ -118,6 +131,35 @@ three backdrops, plus how much ambient static to flicker:
 | 4/10 | `bg_scary.png` — red bleed, scanlines, grain |
 | 7/10 | `bg_nightmare.png` — RGB-split, corrupted |
 
+### Arrows, splashes and the HUD
+
+The note skin is drawn in code by `tools/make_noteskin.py` (no borrowed FNF art) and follows the engine's
+87-frame naming so it drops straight in:
+
+* `images/game/notes/default.png/.xml` — 49 frames: idle strums (`arrowLEFT`…), `left press` and
+  `left confirm` (4 frames each), the four scrolling notes (`purple`…`red`), hold bodies and hold caps.
+* `images/game/notes/shadow.png/.xml` — same layout, colour drained (song 2).
+* `images/game/notes/corrupt.png/.xml` — same layout, glitched (song 3).
+* `images/game/splashes/default.png/.xml` + `data/splashes/default.xml` — the burst that fires when a note is
+  hit, per lane, 4 frames each.
+
+How each song gets its skin:
+
+1. The chart's `noteTypes` list names the atlas (`["shadow"]`, `["corrupt"]`, `[]` = default). The engine maps
+   note type `0` onto that name and loads `game/notes/<name>` — see `Note.hx`.
+2. Strums always load `game/notes/default`, so `data/stages/trollge.hx` implements `onStrumCreation` and swaps
+   `event.sprite` to the same atlas, keyed off the song's `customValues.scareTier`.
+
+The HUD is themeable by filename alone, so `tools/make_hud.py` ships:
+
+* `images/game/healthBar.png` — a bolted steel frame with a red inner shadow (the `FlxBar` is drawn 4 px
+  inside it, and it repaints to the new form's `iconColor` when the Trollge swaps at 60 s / 96 s).
+* `images/game/ready.png`, `set.png`, `go.png` — glitched READY / SET / GO badges.
+* `sounds/intro3.ogg`, `intro2.ogg`, `intro1.ogg`, `introGo.ogg` — matching countdown hits, rising in pitch
+  and ending in a distorted blast.
+
+![HUD](docs/hud.png)
+
 ### Audio
 
 All audio is synthesised with numpy (`tools/make_audio.py`) at 44.1 kHz stereo, exported as OGG/Vorbis:
@@ -128,6 +170,7 @@ All audio is synthesised with numpy (`tools/make_audio.py`) at 44.1 kHz stereo, 
 * `sounds/trollge_jump_scare.ogg`, `trollge_distortion.ogg`, `trollge_invert.ogg` — event stingers.
 * `sounds/trollge_hit.ogg`, `trollge_miss.ogg` — custom note feedback.
 * `sounds/trollge_theme.ogg`, `trollge_theme_scary.ogg` — 24 s music-box loops, free to use in menus/cutscenes.
+* `sounds/intro3.ogg`, `intro2.ogg`, `intro1.ogg`, `introGo.ogg` — the countdown: three tuned hits and a blast.
 
 ---
 
@@ -167,10 +210,12 @@ pip install pillow numpy soundfile
 
 python3 tools/make_characters.py  # imported atlases -> normalised atlases, icons, character XML (~25 s)
 python3 tools/make_art.py         # backdrops, VHS overlays, week banner, previews (~10 s)
-python3 tools/make_audio.py       # 3 instrumentals + stingers + themes (~40 s)
+python3 tools/make_audio.py       # 3 instrumentals + stingers + themes + countdown (~40 s)
+python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt) + splashes (~10 s)
+python3 tools/make_hud.py         # health bar frame + READY/SET/GO badges
 python3 tools/make_chart.py       # meta.json, events.json, charts for all difficulties
-python3 tools/validate_mod.py     # 789 checks: schemas, atlas bounds, note times, audio length...
-python3 tools/package_mod.py      # dist/SuperScaryTrollge-v2.3.0.zip
+python3 tools/validate_mod.py     # 1182 checks: schemas, atlas bounds, skins, HUD, note times, audio length...
+python3 tools/package_mod.py      # dist/SuperScaryTrollge-v2.4.0.zip
 ```
 
 Want a different song? Edit `tools/song_layout.py` (spacings, progression, scare tier, event times) and re-run
@@ -184,7 +229,8 @@ the three generators — the chart, the instrumental and the stingers all follow
 
 1. **Validate** — JSON/XML schemas, atlas frame bounds, animation-prefix collisions, note/time sanity,
    `HScript Call` targets actually exist, every chart character + animation resolves, `Inst.ogg` duration
-   matches the chart length.
+   matches the chart length, note-skin frame sets match across skins, splash anims resolve in their atlas,
+   HUD art is sane.
 2. **Charts in sync** — regenerates the charts and fails if the committed files drifted.
 3. **Release** — pushing a `v*` tag builds the zip and publishes it.
 

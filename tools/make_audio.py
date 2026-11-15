@@ -392,6 +392,28 @@ def render_sfx():
     return out
 
 
+def render_countdown():
+    """READY / SET / GO hits. The engine asks for intro3, intro2, intro1, introGo."""
+    out = {}
+    for index, (name, freq) in enumerate((("intro3", 104.0), ("intro2", 124.0), ("intro1", 150.0))):
+        n = int(0.42 * SR)
+        t = np.arange(n) / SR
+        f = freq * (1.0 + 0.18 * np.exp(-t * 26.0))
+        body = sine(f, n) * np.exp(-t * 7.5)
+        body += saw(f * 0.5, n) * np.exp(-t * 11.0) * 0.35
+        click = bandpass(noise(n, seed=70 + index), 900.0, 7000.0) * np.exp(-t * 60.0) * 0.5
+        out[name] = normalize(fade(soft_clip(body * 0.9 + click, 1.5), 0.001, 0.12), 0.82)
+
+    n = int(1.1 * SR)
+    t = np.arange(n) / SR
+    blast = sub_drop(n / SR, 210.0, 32.0) * 1.0
+    blast[:n] += crash(n / SR, seed=95)[:n] * 0.55
+    blast[:n] += screech(n / SR, seed=96)[:n] * 0.35
+    blast[:n] += bandpass(noise(n, seed=97), 1500.0, 11000.0) * exp_decay(n, 0.3) * 0.5
+    out["introGo"] = normalize(fade(soft_clip(blast, 2.4), 0.002, 0.35), 0.93)
+    return out
+
+
 def main():
     os.makedirs(SFX_DIR, exist_ok=True)
 
@@ -410,6 +432,12 @@ def main():
         buf = render_theme(scary=scary)
         p = os.path.join(SFX_DIR, name + ".ogg")
         write_ogg(p, (buf, buf))
+        print("  -> %-44s %6.1f KB" % (os.path.relpath(p, ROOT), os.path.getsize(p) / 1024))
+
+    print("Rendering countdown hits...")
+    for name, buf in render_countdown().items():
+        p = os.path.join(SFX_DIR, name + ".ogg")
+        write_ogg(p, (np.clip(buf * 0.8, -1.0, 1.0), np.clip(buf * 0.8, -1.0, 1.0)))
         print("  -> %-44s %6.1f KB" % (os.path.relpath(p, ROOT), os.path.getsize(p) / 1024))
 
     print("Rendering SFX...")

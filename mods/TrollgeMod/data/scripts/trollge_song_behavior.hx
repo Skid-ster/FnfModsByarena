@@ -43,7 +43,17 @@ function swapTrollge(name:String, icon:String):Character {
 		ps.strumLines.members[0].characters[0] = newChar;
 
 	if (ps.iconP2 != null) ps.iconP2.setIcon(icon);
-	if (ps.healthBar != null) ps.healthBar.updateBar();
+
+	// The health bar takes its colours from the characters, so a swap has to
+	// repaint it or the bar keeps the previous form's colour (PlayState.hx:920).
+	if (ps.healthBar != null) {
+		if (Options.colorHealthBar) {
+			var left:Int = newChar.iconColor != null ? newChar.iconColor : 0xFFFF0000;
+			var right:Int = ps.boyfriend != null && ps.boyfriend.iconColor != null ? ps.boyfriend.iconColor : 0xFF66FF33;
+			ps.healthBar.createFilledBar(left, right);
+		}
+		ps.healthBar.updateBar();
+	}
 
 	return newChar;
 }

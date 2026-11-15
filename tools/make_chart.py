@@ -77,7 +77,7 @@ def build_chart(song, notes, with_camera=True):
         "scrollSpeed": SCROLL_SPEED,
         "chartVersion": CHART_VERSION,
         "codenameChart": True,
-        "noteTypes": [],
+        "noteTypes": L.note_types(song),
         "bookmarks": bookmarks,
         "events": L.camera_events(song) if with_camera else [],
         "strumLines": [

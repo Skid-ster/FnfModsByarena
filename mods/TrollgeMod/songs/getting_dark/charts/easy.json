@@ -3,7 +3,9 @@
 	"scrollSpeed": 1.0,
 	"chartVersion": "1.6.0",
 	"codenameChart": true,
-	"noteTypes": [],
+	"noteTypes": [
+		"shadow"
+	],
 	"bookmarks": [
 		{
 			"time": 1200.0,
