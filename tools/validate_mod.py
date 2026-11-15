@@ -1049,6 +1049,79 @@ def check_audio():
             ok(info.duration > 0.05, "%s.ogg is suspiciously short" % sfx)
 
 
+# --------------------------------------------------------------------------- #
+# README (the repo front page)
+# --------------------------------------------------------------------------- #
+
+MD_LINK = re.compile(r"(?P<image>!?)\[[^\]]*\]\((?P<target>[^)\s]+)\)")
+
+
+def _github_anchor(heading):
+    text = heading.strip().lower()
+    text = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE)
+    return text.replace(" ", "-")
+
+
+def check_readme():
+    """The front page is a claim about the repo, so treat it like one."""
+    path = os.path.join(ROOT, "README.md")
+    if not ok(os.path.isfile(path), "README.md is missing"):
+        return
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+
+    headings = [_github_anchor(line.lstrip("#"))
+                for line in text.splitlines() if line.startswith("#")]
+
+    broken = []
+    bad_fragment = []
+    for match in MD_LINK.finditer(text):
+        target = match.group("target")
+        if target.startswith(("http://", "https://", "mailto:")):
+            continue
+        if target.startswith("#"):
+            if target[1:] not in headings:
+                bad_fragment.append(target)
+            continue
+        if target.startswith(".."):
+            continue
+        file_part = target.split("#", 1)[0]
+        if not os.path.exists(os.path.join(ROOT, file_part)):
+            broken.append(target)
+    ok(not broken, "README links to missing file(s): %s" % ", ".join(sorted(set(broken))))
+    ok(not bad_fragment,
+       "README links to dead anchor(s): %s" % ", ".join(sorted(set(bad_fragment))))
+
+    with open(os.path.join(MOD, "mod.json"), encoding="utf-8") as fh:
+        version = json.load(fh)["version"]
+    ok(("SuperScaryTrollge-v%s.zip" % version) in text,
+       "README does not name the current zip (SuperScaryTrollge-v%s.zip)" % version)
+    stale = sorted({v for v in re.findall(r"SuperScaryTrollge-v(\d+\.\d+\.\d+)\.zip", text)
+                    if v != version})
+    ok(not stale, "README names an old zip version: %s" % ", ".join(stale))
+
+    for name in ("trollge_vhs.frag", "crt.frag"):
+        ok(name in text, "README never mentions shaders/%s" % name)
+    for preview in ("menu_preview.png", "noteskin.png"):
+        ok(preview in text, "README never shows docs/%s" % preview)
+
+    # Last, because it counts itself: the README quotes the validator's own tally,
+    # so a check added anywhere else must be reflected on the front page.
+    claim = re.search(r"\*\*(\d+) checks, (\d+) errors, (\d+) warnings\*\*", text)
+    if claim is None:
+        ok(False, "README does not state the validator's check count")
+        return
+    total = CHECKS + 1
+    problems = []
+    if int(claim.group(1)) != total:
+        problems.append("README claims %s checks, validator runs %d"
+                        % (claim.group(1), total))
+    if not (ERRORS or WARNINGS) and (int(claim.group(2)) or int(claim.group(3))):
+        problems.append("README claims %s errors / %s warnings on a clean run"
+                        % (claim.group(2), claim.group(3)))
+    ok(not problems, "; ".join(problems))
+
+
 def main():
     quiet = "--quiet" in sys.argv
 
@@ -1074,6 +1147,7 @@ def main():
     check_scripts()
     check_stage_positioning()
     check_audio()
+    check_readme()
 
     for warning in WARNINGS:
         print("  WARN  %s" % warning)
