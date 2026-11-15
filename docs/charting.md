@@ -211,7 +211,22 @@ script), `FlxTypeText` with `font = Paths.font("vcr.ttf")` (DialogueBox.hx) and
 globals (`Script.hx` default imports), not from `import` statements, which in
 HScript try to load a `.hx` *file* instead.
 
-## 4. How it is enforced
+### In-song captions
+
+Cutscenes only run before and after a song, so anything that has to land *during*
+play has to be a chart event. `song_layout.py` carries `"captions": [(seconds, text)]`
+per song; `story_events()` emits them as `HScript Call` events whose first argument is
+the function name, and `trollgeCaption()` in `trollge_song_behavior.hx` types them onto
+`camHUD` with `FlxTypeText` — fade in 0.3 s, hold 3.4 s, fade out 0.9 s, destroyed in
+`destroy()` so a mid-song quit cannot leak the text.
+
+Two constraints come from the engine, both found the hard way. `PlayState.executeEvent`
+splits the `HScript Call` parameter string on commas, so caption text has to be rejoined
+from its arguments (and must not contain a comma it wants to keep literal). And a
+`FlxTypeText` on the HUD camera keeps typing through a pause unless it is added to the
+same camera list the subtitles use — this one is, like DialogueBox.
+
+### Cutscenes
 
 `tools/validate_mod.py` (structural, runs on every push):
 
@@ -221,7 +236,17 @@ HScript try to load a `.hx` *file* instead.
 * `song/Voices.ogg` and `song/Inst.ogg` exist, share a sample rate and a length
   (within 150 ms);
 * every chart has the note count the layout says, no bar mixes the two characters,
-  and every bar of the song has notes.
+  and every bar of the song has notes;
+* every `HScript Call` in every chart resolves to a function that exists in the
+  song/pack scripts, and every caption in the layout appears in the matching
+  `events.json` with the same time. The death theme is checked too: `music/gameOver.ogg`
+  + `gameOver.ini` + both game-over sounds must exist at sane lengths, because a
+  missing file silently falls back to the base game's;
+* **and the shipped zip is checked, not assumed** — `package_mod.py`'s include list
+  has to cover every top-level folder in `mods/TrollgeMod`. That check exists because
+  the include list was missing `shaders/` and `music/`: the release zip shipped
+  without the VHS grade and would have shipped without the death theme, and nothing
+  in the game says a word when a shader file is absent.
 
 `tools/audit_songs.py --strict` (measured, runs on every push):
 

@@ -153,6 +153,27 @@ REQUIRED_FILES = [
 ]
 
 
+def check_package():
+    """Everything the engine can load must actually be inside the shipped zip."""
+    import package_mod
+
+    root_entries = sorted(
+        e for e in os.listdir(MOD) if not e.startswith(".") and e not in package_mod.EXCLUDE
+    )
+    ok(set(root_entries) <= set(package_mod.INCLUDE),
+       "mod root has entries the packager skips: %s"
+       % sorted(set(root_entries) - set(package_mod.INCLUDE)))
+    for entry in package_mod.INCLUDE:
+        full = os.path.join(MOD, entry)
+        ok(os.path.exists(full), "packaged entry missing: %s" % entry)
+    # music/ only exists for the game-over overrides -- make sure it is really in.
+    for rel_path in ("music/gameOver.ogg", "music/gameOver.ini",
+                     "sounds/gameOverSFX.ogg", "sounds/gameOverEnd.ogg"):
+        ok(os.path.isfile(os.path.join(MOD, rel_path)), "missing %s" % rel_path)
+        ok(rel_path.split("/")[0] in package_mod.INCLUDE,
+           "%s would not be packaged" % rel_path)
+
+
 def check_required():
     for f in REQUIRED_FILES:
         path = os.path.join(MOD, f)
@@ -350,6 +371,15 @@ def check_shaders():
         uniforms = set(re.findall(r"uniform\s+float\s+(\w+)", source))
         ok(bool(uniforms), "trollge_vhs.frag declares no float uniforms")
         ok("trollge_vhs" in script, "stage script never loads the trollge_vhs shader")
+        # The shader has to be inside the zip to ever compile, and the lookup is
+        # Paths.fragShader("trollge_vhs") -> shaders/trollge_vhs.frag.
+        ok("shaders" in __import__("package_mod").INCLUDE,
+           "package_mod.py would ship without shaders/ (the grade would vanish)")
+        ok("#pragma header" in source and "void main()" in source,
+           "trollge_vhs.frag is missing its pragma header or main()")
+        ok(source.count("{") == source.count("}"), "trollge_vhs.frag has unbalanced braces")
+        ok("gl_FragColor" in source or "FragColor" in source,
+           "trollge_vhs.frag never writes a colour")
         ok("camGame.filters" in script, "stage script never attaches the shader to camGame")
         for name in sorted(uniforms):
             ok("'%s'" % name in script or '"%s"' % name in script,
@@ -467,6 +497,73 @@ def hx_quote(text):
     return '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def check_game_over():
+    """The death screen is three files and one ini -- Codename reads exactly these.
+
+    GameOverSubstate: CoolUtil.playMusic(Paths.music("gameOver")) with the BPM from
+    music/gameOver.ini, Paths.sound("gameOverSFX") for the mic drop and
+    Paths.sound("gameOverEnd") for the retry. Miss one and the base game's asset
+    plays instead, which is the most obvious "this mod is unfinished" moment there is.
+    """
+    music = os.path.join(MOD, "music", "gameOver.ogg")
+    ini = os.path.join(MOD, "music", "gameOver.ini")
+    ok(os.path.isfile(music), "music/gameOver.ogg is missing (deaths use the base theme)")
+    ok(os.path.isfile(ini), "music/gameOver.ini is missing (the game-over BPM)")
+    if os.path.isfile(ini):
+        text = open(ini, encoding="utf-8").read()
+        ok("BPM" in text, "music/gameOver.ini has no BPM line")
+        ok(not text.strip().startswith(";") or "BPM =" in text,
+           "music/gameOver.ini only contains comments")
+
+    try:
+        import soundfile as sf
+    except ImportError:
+        return
+    if os.path.isfile(music):
+        info = sf.info(music)
+        ok(8.0 <= info.duration <= 64.0,
+           "music/gameOver.ogg is %.1fs (want a 8-64s loop)" % info.duration)
+        ok(info.samplerate >= 44100 // 2, "music/gameOver.ogg: odd sample rate")
+    for name, lo, hi in (("gameOverSFX", 0.6, 2.5), ("gameOverEnd", 0.4, 1.6)):
+        path = os.path.join(MOD, "sounds", name + ".ogg")
+        if ok(os.path.isfile(path), "sounds/%s.ogg is missing" % name):
+            info = sf.info(path)
+            ok(lo <= info.duration <= hi,
+               "sounds/%s.ogg is %.2fs, want %.1f-%.1fs" % (name, info.duration, lo, hi))
+
+
+def check_captions():
+    """In-song captions: real text, inside the song, and a function to draw them."""
+    behaviour = open(os.path.join(MOD, "data", "scripts", "trollge_song_behavior.hx"),
+                     encoding="utf-8").read()
+    ok("function trollgeCaption(" in behaviour,
+       "trollge_song_behavior.hx does not define trollgeCaption()")
+    ok("caption.cameras = [ps.camHUD]" in behaviour,
+       "captions must be drawn on the HUD camera")
+
+    for song in L.SONGS:
+        captions = song.get("captions", [])
+        ok(len(captions) >= 3, "%s needs at least three in-song captions" % song["id"])
+        length = L.length(song)
+        for seconds, text in captions:
+            ok(0.0 < seconds < length,
+               "%s: caption at %.1fs is outside the song" % (song["id"], seconds))
+            ok(bool(text.strip()), "%s has an empty caption" % song["id"])
+            ok(len(text) <= 60, "%s: caption %r is too long to read" % (song["id"], text))
+            # PlayState splits an "HScript Call" param on commas before calling the
+            # function, so a comma inside a caption would silently eat a word.
+            ok("," not in text, "%s: caption %r contains a comma (engine splits on it)"
+               % (song["id"], text))
+        events = json.load(open(os.path.join(MOD, "songs", song["id"], "events.json"),
+                                encoding="utf-8"))["events"]
+        times = [e["time"] for e in events]
+        ok(times == sorted(times), "%s/events.json is not in chronological order" % song["id"])
+        shipped = [event for event in events if event["params"][0] == "trollgeCaption"]
+        ok(len(shipped) == len(captions),
+           "%s: %d captions in the events file, %d in song_layout "
+           "(run tools/make_chart.py)" % (song["id"], len(shipped), len(captions)))
+
+
 def check_charts():
     for song in L.SONGS:
         base = os.path.join(MOD, "songs", song["id"])
@@ -564,8 +661,11 @@ def check_charts():
 
         events = json.load(open(os.path.join(base, "events.json"), encoding="utf-8"))["events"]
         expected = [e for e in events if e["name"] == "HScript Call"]
-        ok(len(expected) == len(song["events"]),
-           "%s: expected %d scripted story events" % (song["id"], len(song["events"])))
+        # Story beats + in-song captions are both HScript Calls.
+        wanted = len(song["events"]) + len(song.get("captions", []))
+        ok(len(expected) == wanted,
+           "%s: expected %d scripted story events, found %d"
+           % (song["id"], wanted, len(expected)))
         ok(all(0 <= e["time"] <= expected_length for e in events),
            "%s: event outside of the song" % song["id"])
 
@@ -836,6 +936,9 @@ def main():
     check_week_and_freeplay()
     check_charts()
     check_cutscenes()
+    check_game_over()
+    check_captions()
+    check_package()
     check_noteskin()
     check_hud()
     check_shaders()

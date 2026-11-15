@@ -35,6 +35,7 @@ from lib_dsp import (  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD = os.path.join(ROOT, "mods", "TrollgeMod")
 SFX_DIR = os.path.join(MOD, "sounds")
+MUSIC_DIR = os.path.join(MOD, "music")
 
 #: Loudness the instrumentals are mastered to (RMS, linear). -15.5 dBFS is loud
 #: enough for a game mix without squashing the quiet sections.
@@ -1037,6 +1038,79 @@ def render_vocals(song):
     return left, right
 
 
+def render_game_over():
+    """The death screen: `music/gameOver.ogg` + its two stingers.
+
+    Codename's GameOverSubstate does exactly this much --
+    `CoolUtil.playMusic(Paths.music("gameOver"))`, `Paths.sound("gameOverSFX")` on
+    the mic-drop, `Paths.sound("gameOverEnd")` on retry -- so shipping these three
+    files reskins every death in the mod. `music/gameOver.ini` carries the BPM the
+    engine uses to drive `beatHit` on the game-over state.
+    """
+    bpm = 76.0
+    beat = 60.0 / bpm
+    total = 16.0
+    n_total = int(total * SR)
+    mono = np.zeros(n_total)
+
+    # A held D minor drone with a tritone floating on top: the same "nothing
+    # resolves" harmony as The Incident, slowed to a crawl.
+    mono += pad_chord([38, 45, 50, 53], total, gain=0.30, cutoff=900.0)[:n_total]
+    tritone = sine(38.0 * 1.4142, n_total) * 0.05
+    tritone *= 0.55 + 0.45 * np.sin(2 * np.pi * 0.11 * np.arange(n_total) / SR)
+    mono += lowpass(tritone, 300.0)
+
+    # Heartbeat, one pair per bar.
+    hb_n = int(0.18 * SR)
+    hbt = np.arange(hb_n) / SR
+    thump = np.sin(2 * np.pi * np.cumsum(58.0 + 44.0 * np.exp(-hbt * 26.0)) / SR)
+    thump *= np.exp(-hbt * 15.0)
+    t = 0.0
+    while t < total - 0.4:
+        add_at(mono, thump, t, 0.30)
+        add_at(mono, thump * 0.65, t + 0.30, 0.30)
+        t += 4 * beat
+
+    # A music box picking out the Trollge motif, wrong on purpose (minor 2nd).
+    for index, at in enumerate((0.6, 2.4, 4.2, 6.6, 9.0, 11.4, 13.8)):
+        midi = (62, 61, 57, 50, 56, 49, 45)[index]
+        add_at(mono, music_box(midi, 2.2), at, 0.34)
+
+    # Tape hiss and a breath, so silence never feels digital.
+    mono += highpass(noise(n_total, seed=311), 2600.0) * 0.012
+    breath = bandpass(noise(n_total, seed=313), 300.0, 1500.0)
+    mono += breath * (0.5 + 0.5 * np.sin(2 * np.pi * 0.13 * np.arange(n_total) / SR)) * 0.02
+
+    mono = reverb(mono, wet=0.42, size=1.0)
+    mono = mono[:n_total]
+    mono = eq_curve(mono, [(60.0, 2.0), (200.0, 1.0), (900.0, 1.5), (3000.0, -1.0),
+                           (9000.0, 1.0), (16000.0, 2.5)])
+    mono = normalize(mono, 0.86)
+    left, right = widen(mono, mono, amount=1.4)
+
+    # Death sting: the mic drop, a sub hit and a burst of static.
+    n = int(1.5 * SR)
+    st = np.arange(n) / SR
+    drop = sub_drop(1.4, 190.0, 28.0)
+    static = highpass(noise(n, seed=315), 1800.0) * np.exp(-st * 5.0)
+    ring = np.sin(2 * np.pi * 210.0 * st) * np.exp(-st * 3.4) * 0.4
+    sting = np.zeros(n)
+    for piece in (drop, static, ring):
+        m = min(len(piece), n)
+        sting[:m] += piece[:m] * 0.8
+    sting = soft_clip(sting, 1.7)
+    sting = eq_curve(sting, [(40.0, 3.0), (200.0, 1.5), (2500.0, 1.0), (12000.0, 2.0)])
+    sting = normalize(fade(sting, 0.002, 0.4), 0.93)
+
+    # Retry whoosh: a reverse swell that cuts out.
+    n = int(0.9 * SR)
+    rt = np.arange(n) / SR
+    whoosh = bandpass(noise(n, seed=317), 500.0, 11000.0) * (rt / rt[-1]) ** 3
+    whoosh += sine(520.0 * np.exp(-rt * 2.2), n) * 0.25 * (rt / rt[-1]) ** 2
+    whoosh = normalize(fade(whoosh, 0.01, 0.18), 0.82)
+    return (left, right), sting, whoosh
+
+
 def write_song(path, left, right, ceiling=0.95, attempts=4):
     """Encode, then decode and re-check: Vorbis overshoots, so clipping is only
     proven gone when the *decoded* file measures clean."""
@@ -1212,6 +1286,19 @@ def main():
         vpath = os.path.join(song_dir, "Voices.ogg")
         write_song(vpath, vleft, vright)
         print("  -> %-44s %6.1f KB" % (os.path.relpath(vpath, ROOT), os.path.getsize(vpath) / 1024))
+
+    print("Rendering the game-over theme...")
+    os.makedirs(MUSIC_DIR, exist_ok=True)
+    (go_l, go_r), sting, whoosh = render_game_over()
+    go_path = os.path.join(MUSIC_DIR, "gameOver.ogg")
+    write_song(go_path, go_l, go_r)
+    print("  -> %-44s %6.1f KB" % (os.path.relpath(go_path, ROOT), os.path.getsize(go_path) / 1024))
+    with open(os.path.join(MUSIC_DIR, "gameOver.ini"), "w", encoding="utf-8") as handle:
+        handle.write("; SONG INFO such as BPM, etc...\nBPM = 76\n")
+    for name, buf in (("gameOverSFX", sting), ("gameOverEnd", whoosh)):
+        p = os.path.join(SFX_DIR, name + ".ogg")
+        write_ogg(p, (np.clip(buf * 0.9, -1.0, 1.0), np.clip(buf * 0.9, -1.0, 1.0)))
+        print("  -> %-44s %6.1f KB" % (os.path.relpath(p, ROOT), os.path.getsize(p) / 1024))
 
     print("Rendering ambient themes...")
     for name, scary in (("trollge_theme", False), ("trollge_theme_scary", True)):

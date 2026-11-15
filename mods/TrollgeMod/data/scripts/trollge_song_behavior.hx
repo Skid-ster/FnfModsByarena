@@ -16,6 +16,12 @@ var invertSpr:FlxSprite = null;
 
 var flashTimer:Float = 0.0;
 
+// In-song narrative captions ("trollgeCaption" chart events). They are drawn on
+// the HUD camera so they never drift with the stage, and they never block play.
+var caption:FlxTypeText = null;
+var captionIn:FlxTween = null;
+var captionOut:FlxTween = null;
+
 /** Camera shake helper (FlxCamera.shake is the only reliable way to do this). */
 function shake(power:Float, duration:Float):Void {
 	var ps = PlayState.instance;
@@ -107,6 +113,51 @@ function trollgeSad(a = null):Void {
 
 	FlxG.sound.play(Paths.sound('trollge_invert'), 0.45);
 	shake(6.0, 0.6);
+}
+
+/** One line of story, typed over the bottom of the screen while you play.
+ *
+ *  The chart passes it as an "HScript Call" event; the engine splits params[1] on
+ *  commas, so anything after the first comma arrives as a second argument and is
+ *  joined back here.
+ */
+function trollgeCaption(a = null, b = null, c = null):Void {
+	var text:String = (a == null ? "" : Std.string(a));
+	if (b != null) text += ", " + Std.string(b);
+	if (c != null) text += ", " + Std.string(c);
+	if (text == "") return;
+
+	var ps = PlayState.instance;
+	if (ps == null) return;
+
+	if (caption == null) {
+		caption = new FlxTypeText(140, 552, 1000, "", 30);
+		caption.font = Paths.font("vcr.ttf");
+		caption.size = 30;
+		caption.color = 0xFFF1F1F5;
+		caption.antialiasing = true;
+		try {
+			caption.borderStyle = 2;          // FlxTextBorderStyle.OUTLINE
+			caption.borderSize = 2;
+			caption.borderColor = 0xFF05040A;
+		} catch (e:Dynamic) {}
+		caption.cameras = [ps.camHUD];
+		caption.scrollFactor.set(0, 0);
+		caption.alpha = 0.0;
+		ps.add(caption);
+	}
+
+	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
+	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+
+	caption.alpha = 0.0;
+	caption.text = "";
+	caption.start(text, 0.018);
+	captionIn = FlxTween.tween(caption, {alpha: 1.0}, 0.30, {
+		onComplete: function(_) {
+			captionOut = FlxTween.tween(caption, {alpha: 0.0}, 0.9, {startDelay: 3.4});
+		}
+	});
 }
 
 function trollgeJumpScare(a = null):Void {
@@ -222,6 +273,9 @@ function update(elapsed) {
 }
 
 function destroy() {
+	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
+	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+	if (caption != null) { caption.destroy(); caption = null; }
 	if (staticSpr != null) staticSpr.destroy();
 	if (invertSpr != null) invertSpr.destroy();
 }

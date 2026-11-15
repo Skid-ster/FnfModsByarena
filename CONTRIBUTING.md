@@ -39,6 +39,7 @@ python3 tools/make_noteskin.py # only if you touched make_noteskin.py (arrow ski
 python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + countdown)
 python3 tools/make_chart.py    # if you touched song_layout.py (charts)
 python3 tools/make_cutscenes.py # if you touched the cutscene lines or their art
+python3 tools/make_promo.py     # docs/banner.jpg (only after a version bump)
 python3 tools/make_stage_preview.py  # if you touched the stage xml
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
@@ -63,6 +64,9 @@ feat(song3): denser final section
 * **Chart shape** is `section_measures` (bars per phrase block, 2-4 like the base game) plus `cells` (one rhythm cell
   per block, cycled). Blocks alternate `opponent → player`, so every bar is owned by exactly one character; keep it
   that way, or `tools/validate_mod.py` fails with "a bar mixes player and opponent notes".
+* **In-song captions** are `"captions": [(seconds, "text")]` in `song_layout.py`; `story_events()` turns them into
+  chart events, and `trollgeCaption()` in `trollge_song_behavior.hx` types them on the HUD camera. Keep them under 60
+  characters — the validator fails anything longer, because it cannot be read in three seconds of scrolling arrows.
 * **Cutscene copy** lives in `song_layout.py` too (`"cutscene": {"tag", "lines", "outro"}`). Edit the words there and
   run `tools/make_cutscenes.py`: it rewrites `songs/<song>/cutscene.hx`, `songs/<song>/cutscene-end.hx` and the frames
   in `images/ui/`. Never hand-edit the `.hx` files, CI diffs them.
@@ -161,6 +165,8 @@ script globals (`Script.hx`: `FlxSprite`, `FlxText`, `FlxTypeText`, `FlxCamera`,
 * Better backdrops/horror grading in `tools/make_art.py`.
 * A fourth difficulty (e.g. `erect`) — add it to `L.DIFFICULTIES` and `DIFFICULTY_STRIDE` in `tools/song_layout.py`;
   `tools/make_chart.py` writes a chart per entry and `meta.json` follows.
+* A second death variant per song — `GameOverSubstate.script` accepts a cutscene script; the four
+  `music/gameOver*` / `sounds/gameOver*` files are already themed.
 * A mid-song cutscene — `PlayState.startCutscene("midsong-", ...)` picks up
   `songs/<song>/midsong-cutscene.hx` if you want to interrupt a song.
 * More rhythm cells — add one to `CELLS` in `tools/song_layout.py` and reference it from a song's `cells` list.

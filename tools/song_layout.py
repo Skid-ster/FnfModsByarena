@@ -88,6 +88,12 @@ SONGS = [
         # the hook: the four-lane figure this song is built on. The audio
         # renders these lanes as pitches, so the chart follows the melody.
         "hooks": [[0, 2, 1, 3], [3, 1, 2, 0]],
+        # In-song captions: the story keeps happening while you play.
+        "captions": [
+            (14.0, "he isn't even trying"),
+            (46.0, "that is the scary part"),
+            (74.0, "don't get comfortable"),
+        ],
         "cutscene": {
             "frame": "ui/cutscene_frame",
             "tag": "TROLLGE WEEK  //  1 OF 5",
@@ -141,6 +147,11 @@ SONGS = [
         # the hook: the four-lane figure this song is built on. The audio
         # renders these lanes as pitches, so the chart follows the melody.
         "hooks": [[0, 1, 0, 2], [3, 2, 1, 2]],
+        "captions": [
+            (18.0, "the lights are going out"),
+            (52.0, "eyes on the arrows"),
+            (86.0, "he is closer than he was"),
+        ],
         "cutscene": {
             "frame": "ui/cutscene_frame",
             "tag": "TROLLGE WEEK  //  2 OF 5",
@@ -197,6 +208,12 @@ SONGS = [
         # the hook: the four-lane figure this song is built on. The audio
         # renders these lanes as pitches, so the chart follows the melody.
         "hooks": [[0, 3, 1, 3], [2, 3, 0, 2]],
+        "captions": [
+            (16.0, "don't look back"),
+            (48.0, "you looked"),
+            (78.0, "it doesn't matter now"),
+            (100.0, "he was always behind you"),
+        ],
         "cutscene": {
             "frame": "ui/cutscene_frame_dark",
             "tag": "TROLLGE WEEK  //  3 OF 5",
@@ -257,6 +274,11 @@ SONGS = [
         # the hook: the four-lane figure this song is built on. The audio
         # renders these lanes as pitches, so the chart follows the melody.
         "hooks": [[0, 2, 3, 1], [3, 1, 0, 2]],
+        "captions": [
+            (20.0, "this is what he really looks like"),
+            (56.0, "it stopped being a mask"),
+            (88.0, "keep going. please."),
+        ],
         "cutscene": {
             "frame": "ui/cutscene_frame_dark",
             "tag": "TROLLGE WEEK  //  4 OF 5",
@@ -320,6 +342,13 @@ SONGS = [
         # the hook: the four-lane figure this song is built on. The audio
         # renders these lanes as pitches, so the chart follows the melody.
         "hooks": [[0, 1, 3, 2], [2, 0, 1, 3]],
+        "captions": [
+            (12.0, "this is where it started"),
+            (40.0, "nobody came"),
+            (70.0, "the first scream"),
+            (96.0, "don't remember"),
+            (104.0, "goodbye"),
+        ],
         "cutscene": {
             "frame": "ui/cutscene_frame_dark",
             "tag": "TROLLGE WEEK  //  5 OF 5",
@@ -707,6 +736,12 @@ def note_pitch(song, measure_index, strum_id, octave_shift=0):
 def story_events(song):
     """Scripted story beats (handled by trollge_song_behavior.hx)."""
     events = []
+    # Narrative captions during gameplay. "HScript Call" splits params[1] on
+    # commas, so a caption with a comma simply arrives as two arguments and the
+    # script joins them back together.
+    for seconds, text in song.get("captions", []):
+        events.append({"name": "HScript Call", "time": round(seconds * 1000.0, 3),
+                       "params": ["trollgeCaption", text]})
     for seconds, func in song["events"]:
         events.append(
             {"name": "HScript Call", "time": round(seconds * 1000.0, 3), "params": [func, "1"]}
@@ -720,6 +755,9 @@ def story_events(song):
             {"name": "Add Camera Zoom", "time": round(seconds * 1000.0, 3),
              "params": [0.04 + 0.02 * (song["scare"] / 10.0), "camGame"]}
         )
+    # Chronological: the engine sorts anyway, but a sorted file diffs cleanly and
+    # makes the event list readable next to the chart.
+    events.sort(key=lambda e: (e["time"], e["name"], e["params"][0]))
     return events
 
 

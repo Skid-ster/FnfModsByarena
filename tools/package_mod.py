@@ -3,7 +3,7 @@
 Packages the mod the way Codename Engine expects zip mods to look:
 
     SuperScaryTrollge-v<version>.zip
-        data/  images/  songs/  sounds/  mod.json
+        data/  images/  music/  shaders/  songs/  sounds/  mod.json
 
 (drag the zip -- or the extracted folder -- straight into `mods/`).
 
@@ -20,7 +20,10 @@ MOD = os.path.join(ROOT, "mods", "TrollgeMod")
 DIST = os.path.join(ROOT, "dist")
 
 #: Folders that belong in the shipped archive.
-INCLUDE = ["data", "images", "songs", "sounds", "mod.json"]
+INCLUDE = ["data", "images", "music", "shaders", "songs", "sounds", "mod.json"]
+
+#: Top-level entries that stay out of the archive on purpose.
+EXCLUDE = {"README.md", "LICENSE", "preview.png"}
 
 
 def main():

@@ -2,10 +2,18 @@
 	"events": [
 		{
 			"name": "HScript Call",
+			"time": 18000.0,
+			"params": [
+				"trollgeCaption",
+				"the lights are going out"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
 			"time": 26000.0,
 			"params": [
-				"trollgeStatic",
-				"1"
+				0.048,
+				"camGame"
 			]
 		},
 		{
@@ -19,10 +27,28 @@
 			]
 		},
 		{
-			"name": "Add Camera Zoom",
+			"name": "HScript Call",
 			"time": 26000.0,
 			"params": [
+				"trollgeStatic",
+				"1"
+			]
+		},
+		{
+			"name": "Add Camera Zoom",
+			"time": 36000.0,
+			"params": [
 				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 36000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
 				"camGame"
 			]
 		},
@@ -35,8 +61,16 @@
 			]
 		},
 		{
+			"name": "Add Camera Zoom",
+			"time": 52000.0,
+			"params": [
+				0.048,
+				"camGame"
+			]
+		},
+		{
 			"name": "Camera Flash",
-			"time": 36000.0,
+			"time": 52000.0,
 			"params": [
 				false,
 				"0xFFFFFFFF",
@@ -45,11 +79,11 @@
 			]
 		},
 		{
-			"name": "Add Camera Zoom",
-			"time": 36000.0,
+			"name": "HScript Call",
+			"time": 52000.0,
 			"params": [
-				0.048,
-				"camGame"
+				"trollgeCaption",
+				"eyes on the arrows"
 			]
 		},
 		{
@@ -61,20 +95,20 @@
 			]
 		},
 		{
-			"name": "Camera Flash",
-			"time": 52000.0,
+			"name": "Add Camera Zoom",
+			"time": 62000.0,
 			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
+				0.048,
 				"camGame"
 			]
 		},
 		{
-			"name": "Add Camera Zoom",
-			"time": 52000.0,
+			"name": "Camera Flash",
+			"time": 62000.0,
 			"params": [
-				0.048,
+				false,
+				"0xFFFFFFFF",
+				2,
 				"camGame"
 			]
 		},
@@ -87,20 +121,20 @@
 			]
 		},
 		{
-			"name": "Camera Flash",
-			"time": 62000.0,
+			"name": "Add Camera Zoom",
+			"time": 66000.0,
 			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
+				0.048,
 				"camGame"
 			]
 		},
 		{
-			"name": "Add Camera Zoom",
-			"time": 62000.0,
+			"name": "Camera Flash",
+			"time": 66000.0,
 			"params": [
-				0.048,
+				false,
+				"0xFFFFFFFF",
+				2,
 				"camGame"
 			]
 		},
@@ -113,20 +147,20 @@
 			]
 		},
 		{
-			"name": "Camera Flash",
-			"time": 66000.0,
+			"name": "Add Camera Zoom",
+			"time": 80000.0,
 			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
+				0.048,
 				"camGame"
 			]
 		},
 		{
-			"name": "Add Camera Zoom",
-			"time": 66000.0,
+			"name": "Camera Flash",
+			"time": 80000.0,
 			"params": [
-				0.048,
+				false,
+				"0xFFFFFFFF",
+				2,
 				"camGame"
 			]
 		},
@@ -139,20 +173,28 @@
 			]
 		},
 		{
-			"name": "Camera Flash",
-			"time": 80000.0,
+			"name": "HScript Call",
+			"time": 86000.0,
 			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
-				"camGame"
+				"trollgeCaption",
+				"he is closer than he was"
 			]
 		},
 		{
 			"name": "Add Camera Zoom",
-			"time": 80000.0,
+			"time": 92000.0,
 			"params": [
 				0.048,
+				"camGame"
+			]
+		},
+		{
+			"name": "Camera Flash",
+			"time": 92000.0,
+			"params": [
+				false,
+				"0xFFFFFFFF",
+				2,
 				"camGame"
 			]
 		},
@@ -162,24 +204,6 @@
 			"params": [
 				"trollgeJumpScare",
 				"1"
-			]
-		},
-		{
-			"name": "Camera Flash",
-			"time": 92000.0,
-			"params": [
-				false,
-				"0xFFFFFFFF",
-				2,
-				"camGame"
-			]
-		},
-		{
-			"name": "Add Camera Zoom",
-			"time": 92000.0,
-			"params": [
-				0.048,
-				"camGame"
 			]
 		}
 	]
