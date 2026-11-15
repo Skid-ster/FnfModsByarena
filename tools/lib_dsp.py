@@ -74,6 +74,8 @@ def _fft_shape(x, magnitude_fn, sr=SR):
         return x
     spec = np.fft.rfft(x)
     freqs = np.fft.rfftfreq(n, 1.0 / sr)
+    # In place: `spec *= mag` rebinds when `mag` is a float, which silently
+    # skipped the whole filter (this is why the first formant bank did nothing).
     spec *= magnitude_fn(np.maximum(freqs, 1e-9))
     return np.fft.irfft(spec, n)
 
@@ -95,6 +97,52 @@ def highpass(x, cutoff_hz, sr=SR, order=2):
 
 def bandpass(x, low_hz, high_hz, sr=SR):
     return lowpass(highpass(x, low_hz, sr), high_hz, sr)
+
+
+def resonator(x, centre_hz, bandwidth_hz, gain=1.0, sr=SR):
+    """One vocal-tract resonance, as a 2-pole filter's magnitude response.
+
+    ``|H(f)| = gain / sqrt((1 - (f/f0)^2)^2 + (f / (Q f0))^2)`` with
+    ``Q = f0 / bandwidth``. Unlike a band-limited bump this is what a real
+    formant does: it is roughly unity well below the centre (so the fundamental
+    of the voice survives), peaks at ``f0`` with a gain of about ``Q``, and falls
+    at 12 dB/octave above it. Summing a few of these is a vowel.
+    """
+    n = len(x)
+    if n == 0:
+        return x
+    freqs = np.maximum(np.fft.rfftfreq(n, 1.0 / sr), 1e-9)
+    ratio = freqs / max(centre_hz, 1.0)
+    q = max(centre_hz, 1.0) / max(bandwidth_hz, 1.0)
+    mag = gain / np.sqrt((1.0 - ratio ** 2) ** 2 + (ratio / q) ** 2)
+    return np.fft.irfft(np.fft.rfft(x) * mag, n)
+
+
+def formant_bank(x, formants, sr=SR):
+    """A parallel formant bank -- one vowel.
+
+    Each formant is a resonant peak that passes the source near its centre and
+    rolls everything else off, then the peaks are summed with their gains. The
+    sum is the vowel's spectral envelope, so the output sounds like a sung
+    syllable rather than a source with echoes bolted on (which is what the
+    previous version of this mod shipped, and why its voices buzzed).
+    """
+    out = np.zeros_like(x)
+    for centre, bandwidth, gain in formants:
+        out += resonator(x, centre, bandwidth, gain, sr)
+    return out / max(1e-9, float(np.max(np.abs(out))))
+
+
+def smooth_lowpass(x, cutoff_hz, sr=SR, order=2, resonance=0.0):
+    """Butterworth lowpass with an optional gentle peak at the cutoff.
+
+    Synths sound "warm" when the filter is not a brick wall and the cutoff
+    moves; this is the static half of that (the movement is per note).
+    """
+    out = lowpass(x, cutoff_hz, sr, order)
+    if resonance > 0.0:
+        out = out + resonator(x, cutoff_hz, cutoff_hz * 0.9, 1.0 + resonance, sr) * resonance
+    return out
 
 
 def soft_clip(x, drive=1.0):

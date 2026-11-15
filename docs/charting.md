@@ -179,19 +179,34 @@ an octave above with a bright vowel, and the two are panned apart. The result is
 `song/Voices.ogg`, exactly the length of `Inst.ogg` and mastered ~6 dB under it.
 
 
-### The hook: why the chart is the melody
+### Phrases, not hooks: why the chart is the melody
 
-The base game's charts follow the vocals, and the vocals are a hook — four notes you
-can hum. `tools/song_layout.py` models that directly: every song defines `hooks`,
-two four-lane figures. The opponent sings the call, the player answers with the
-other figure, and every fourth exchange the answer comes back inverted. Because
-`note_pitch()` turns the lane into a scale degree and the chord changes every bar,
-the same four lanes never sound twice the same way. The chart and both audio files
-are generated from those lanes, so the hook the player hears is the hook the player
-hits, and every phrase cadences on the root.
+The base game's charts follow the vocals, and the vocals are phrases you can hum.
+Earlier versions of this mod modelled that with two four-note hooks per song, tiled
+for two minutes — which is exactly why they sounded like a scale exercise.
+`tools/phrases.py` now holds real material: per song, an `intro`, an A section
+(`verse_a` antecedent, `verse_b` consequent), a B section (`verse_c`/`verse_d`), an
+8-bar chorus (`chorus_a`/`chorus_b`), a `build`, a two-note `break` and a `finale`,
+written as notation with one line per bar.
 
-That is also why the difficulty filters can be mechanical: easy/normal/hard are
-subsets of the same melody, not three different songs.
+`tools/song_layout.py` parses that notation and lays it out over the song's phrase
+blocks through `song["form"]`. The opponent sings antecedents, the player consequent
+phrases, and every fourth exchange the player's phrase is inverted — call and
+response rather than one loop transposed. Two details make it chartable:
+
+* **the lane is a degree class, the pitch is the phrase's own semitone.** A note
+  carries `lane` (tonic / flat third / fifth / flat seventh, i.e. the four arrows)
+  and `semi` (what the singer sings). `note_pitch()` sings `semi` through the bar's
+  chord, so the melody can step by semitone while the chart stays four arrows;
+* **a phrase may not reuse a lane within two 16ths**, so the chart cannot produce a
+  jack out of an octave leap — the note takes the nearest free lane and keeps its
+  register.
+
+Measured on the shipped hard charts: 27–48% of melodic moves are steps of one or two
+semitones, each song spans 30+ semitones (about two and a half octaves) and every
+phrase cadences on the tonic. Density climbs 2.15 → 4.53 notes/second across the
+five songs, and each difficulty is a strided subset of the same melody — easy and
+normal can never disagree with hard about timing.
 
 ### Cutscenes
 

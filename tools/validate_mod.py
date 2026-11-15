@@ -326,7 +326,16 @@ def check_xml():
 
 
 def check_week_and_freeplay():
-    """Both menus have to offer all five songs, in scare order."""
+    """Both menus have to offer all five songs, in scare order -- and freeplay
+    has to offer *only* those five.
+
+    Codename's freeplay list is `data/config/freeplaySonglist/LIB_<modName>.txt`
+    (source: funkin/menus/FreeplayState.hx, class FreeplaySonglist). Current
+    engines never read a `freeplaySonglist.txt` without the `LIB_` prefix -- the
+    lookup is literally `Paths.txt('config/freeplaySonglist/LIB_$modName')` --
+    so the mod ships the LIB_ form, and this check is written around that fact
+    rather than around the older engine builds that did read the plain file.
+    """
     ids = [s["id"] for s in L.SONGS]
     week = os.path.join(MOD, "data", "weeks", "weeks", "trollge_week.xml")
     if os.path.isfile(week):
@@ -339,15 +348,56 @@ def check_week_and_freeplay():
         listed = [node.text.strip() for node in root.iter("song") if node.text]
         ok(listed == ids, "week song list is %s, expected %s" % (listed, ids))
 
-    path = os.path.join(MOD, "data", "config", "freeplaySonglist", "LIB_TrollgeMod.txt")
-    if os.path.isfile(path):
+    config = os.path.join(MOD, "data", "config")
+    list_dir = os.path.join(config, "freeplaySonglist")
+
+    # 1. The replacement list has to exist, and it has to be the LIB_ form the
+    #    engine actually opens.
+    path = os.path.join(list_dir, "LIB_TrollgeMod.txt")
+    if ok(os.path.isfile(path), "the freeplay replacement list is missing: "
+          "data/config/freeplaySonglist/LIB_TrollgeMod.txt"):
         with open(path, encoding="utf-8") as handle:
-            listed = [line.strip() for line in handle if line.strip()]
-        ok(listed == ids, "freeplay songlist is %s, expected %s" % (listed, ids))
+            raw = handle.read()
+        listed = [line.strip() for line in raw.splitlines() if line.strip()]
+        # 2. All five songs, exactly, in scare order: freeplay is a replacement,
+        #    so anything else in here is either a missing song or a leak.
+        ok(listed == ids, "freeplay songlist is %s, expected the five songs in "
+                          "scare order %s" % (listed, ids))
+        ok(len(listed) == len(set(listed)), "freeplay songlist lists a song twice")
+        # 3. No base-game / sixth id: this list *replaces* the vanilla list, so a
+        #    base song in it would show a song this mod does not ship.
+        base = {"bopeebo", "fresh", "dadbattle", "spookeez", "south", "monster",
+                "pico", "philly-nice", "blammed", "satin-panties", "high", "milf",
+                "cocoa", "eggnog", "winter-horrorland", "senpai", "roses", "thorns",
+                "ugh", "guns", "stress", "tutorial", "test"}
+        strangers = [s for s in listed if s not in ids]
+        ok(not strangers, "freeplay songlist contains ids that are not this mod's "
+                          "songs (freeplay would show an entry that cannot play): %s"
+           % ", ".join(strangers))
+        ok(not (set(listed) & base), "freeplay songlist still contains base-game ids")
         for song_id in listed:
             ok(os.path.isfile(os.path.join(MOD, "songs", song_id, "meta.json")),
                "freeplay songlist lists %r but songs/%s/meta.json is missing"
                % (song_id, song_id))
+
+    # 4. Nothing else may sit in that folder: a second list (a plain
+    #    freeplaySonglist.txt, or a stale LIB_ file for an old mod folder name)
+    #    is either dead weight or a second, disagreeing source of truth.
+    if os.path.isdir(list_dir):
+        others = sorted(f for f in os.listdir(list_dir) if f != "LIB_TrollgeMod.txt")
+        ok(not others, "data/config/freeplaySonglist/ has files that are not the "
+                       "shipped list: %s" % ", ".join(others))
+    stray = os.path.join(config, "freeplaySonglist.txt")
+    ok(not os.path.isfile(stray),
+       "data/config/freeplaySonglist.txt is dead weight: the engine only reads "
+       "freeplaySonglist/LIB_<mod>.txt, so a plain list here would be ignored")
+
+    # 5. The flag that makes it a replacement, not an append, has to be pinned.
+    ini = os.path.join(config, "modpack.ini")
+    ini_text = open(ini, encoding="utf-8").read() if os.path.isfile(ini) else ""
+    ok('SONGS_LIST_MOD_MODE="override"' in ini_text,
+       "modpack.ini must pin SONGS_LIST_MOD_MODE=\"override\": freeplay replaces "
+       "the base list instead of appending to it")
 
 
 def check_mod_json():

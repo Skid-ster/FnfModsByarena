@@ -18,9 +18,9 @@
 		"songKey": "C minor",
 		"lengthSeconds": 103.6,
 		"noteCounts": {
-			"easy": 108,
-			"normal": 128,
-			"hard": 176
+			"easy": 138,
+			"normal": 197,
+			"hard": 253
 		}
 	}
 }
