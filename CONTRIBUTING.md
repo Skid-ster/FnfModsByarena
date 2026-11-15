@@ -41,6 +41,8 @@ python3 tools/make_chart.py    # if you touched song_layout.py (charts)
 python3 tools/make_cutscenes.py # if you touched the cutscene lines or their art
 python3 tools/make_promo.py     # docs/banner.jpg (only after a version bump)
 python3 tools/make_menu.py      # main menu buttons, backdrop, docs/menu_preview.png
+                                # (committed, not diffed in CI: the atlas sizes come
+                                #  from font metrics, which drift between Pillow builds)
 python3 tools/make_stage_preview.py  # if you touched the stage xml
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
