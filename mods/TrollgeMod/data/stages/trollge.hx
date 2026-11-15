@@ -6,9 +6,11 @@
 //  ("Trolling" 2/10, "It's Getting Dark" 4/10, "Don't Look Back" 6/10,
 //  "Super Scary Trollge" 8/10, "The Incident" 10/10).
 //
-//  It also owns the full-screen shader (shaders/trollge_vhs.frag): a VHS grade
-//  applied to camGame, cranked up per scare tier and punched by the story events,
-//  plus the camera work (zoom, shake) and the per-character note-hit voices.
+//  It also owns both full-screen shaders: the VHS grade (shaders/trollge_vhs.frag)
+//  on camGame, and the CRT pass (shaders/crt.frag) on camGame *and* camHUD at a
+//  weaker strength. Both are cranked up per scare tier and punched by the story
+//  events. Alongside them: the camera work (zoom, shake) and the per-character
+//  note-hit voices.
 // ===========================================================================
 
 var scareTier:Int = 1;
@@ -18,6 +20,14 @@ var noteSkin:String = null;
 var vhs = null;              // FunkinShader (Dynamic: HScript resolves it at runtime)
 var vhsFilter = null;
 var vhsIntensity:Float = 0.35;
+
+// CRT pass (shaders/crt.frag). Two copies: the game camera sits under the VHS
+// grade as well, the HUD gets a weaker one of its own so score, captions and the
+// health bar stay readable. Both are optional -- see setupShaders().
+var crt = null;
+var crtHud = null;
+var crtFilter = null;
+var crtHudFilter = null;
 var camZoomBase:Float = 0.95;   // stage xml zoom, raised per scare tier
 var camZoomApplied:Bool = false;
 var glitch:Float = 0.0;
@@ -37,7 +47,7 @@ function create() {
 
 	// Screen grade: 2/10 is a light tape look, 10/10 is a deck that has given up.
 	vhsIntensity = Math.min(1.0, 0.35 + (scareTier - 2) * 0.08);
-	setupVhs();
+	setupShaders();
 
 	// Camera zoom is applied on the first update, not here: the stage script is
 	// created before the stage xml attributes are parsed, so defaultCamZoom still
@@ -88,26 +98,84 @@ function create() {
 	PlayState.instance.add(staticSpr);
 }
 
-function setupVhs() {
+function setupShaders() {
 	var shaderClass = Type.resolveClass('funkin.backend.shaders.FunkinShader');
 	var filterClass = Type.resolveClass('openfl.filters.ShaderFilter');
 	if (shaderClass == null || filterClass == null) return;
+
+	// 1. VHS grade (shaders/trollge_vhs.frag).
 	try {
 		vhs = shaderClass.fromFile('trollge_vhs');
 	} catch (e) {
 		vhs = null;
-		return;
 	}
-	if (vhs == null) return;
-	vhsFilter = Type.createInstance(filterClass, [vhs]);
-	if (PlayState.instance != null && PlayState.instance.camGame != null)
-		PlayState.instance.camGame.filters = [vhsFilter];
+	if (vhs != null) {
+		try {
+			vhsFilter = Type.createInstance(filterClass, [vhs]);
+		} catch (e) {
+			vhsFilter = null;
+		}
+	}
+
+	// 2. CRT pass (shaders/crt.frag), game camera.
+	try {
+		crt = shaderClass.fromFile('crt');
+	} catch (e) {
+		crt = null;
+	}
+	if (crt != null) {
+		try {
+			crtFilter = Type.createInstance(filterClass, [crt]);
+		} catch (e) {
+			crtFilter = null;
+		}
+	}
+
+	// 3. CRT pass, HUD camera (its own instance so the two can differ).
+	try {
+		crtHud = shaderClass.fromFile('crt');
+	} catch (e) {
+		crtHud = null;
+	}
+	if (crtHud != null) {
+		try {
+			crtHudFilter = Type.createInstance(filterClass, [crtHud]);
+		} catch (e) {
+			crtHudFilter = null;
+		}
+	}
+
+	var ps = PlayState.instance;
+	if (ps == null) return;
+
+	// Filters are attached last, and only if at least one survived: a chip that
+	// cannot compile the shader should cost the effect, never the song.
+	if (ps.camGame != null) {
+		var gameFilters = [];
+		if (vhsFilter != null) gameFilters.push(vhsFilter);
+		if (crtFilter != null) gameFilters.push(crtFilter);
+		if (gameFilters.length > 0) {
+			try {
+				ps.camGame.filters = gameFilters;
+			} catch (e) {}
+		}
+	}
+	if (ps.camHUD != null && crtHudFilter != null) {
+		try {
+			ps.camHUD.filters = [crtHudFilter];
+		} catch (e) {}
+	}
 }
 
 function shaderFloat(name:String, value:Float) {
-	if (vhs == null) return;
+	setFloatOn(vhs, name, value);
+}
+
+/** Write one uniform, on a shader that may be null and may not exist at all. */
+function setFloatOn(shader, name:String, value:Float) {
+	if (shader == null) return;
 	try {
-		vhs.setFloat(name, value);
+		shader.setFloat(name, value);
 	} catch (e) {}
 }
 
@@ -140,14 +208,47 @@ function update(elapsed:Float) {
 	}
 	glitch = target;
 
-	if (vhs == null) return;
-	shaderFloat('uTime', songClock);
-	shaderFloat('uIntensity', vhsIntensity);
-	shaderFloat('uAberration', 0.7 + 1.3 * vhsIntensity + 3.0 * glitch);
-	shaderFloat('uScanline', 0.25 + 0.45 * vhsIntensity);
-	shaderFloat('uGrain', 0.2 + 0.5 * vhsIntensity + 0.3 * glitch);
-	shaderFloat('uVignette', 0.35 + 0.45 * vhsIntensity);
-	shaderFloat('uGlitch', glitch);
+	if (vhs == null && crt == null && crtHud == null) return;
+
+	if (vhs != null) {
+		shaderFloat('uTime', songClock);
+		shaderFloat('uIntensity', vhsIntensity);
+		shaderFloat('uAberration', 0.7 + 1.3 * vhsIntensity + 3.0 * glitch);
+		shaderFloat('uScanline', 0.25 + 0.45 * vhsIntensity);
+		shaderFloat('uGrain', 0.2 + 0.5 * vhsIntensity + 0.3 * glitch);
+		shaderFloat('uVignette', 0.35 + 0.45 * vhsIntensity);
+		shaderFloat('uGlitch', glitch);
+	}
+
+	// CRT ladder over the five songs: 2/10 (base 0) is a barely-there tube,
+	// 4/10 (0.25) shows the scanlines, 6/10 (0.5) starts splitting channels,
+	// 10/10 (1.0) is a broken set -- plus the event spikes on top.
+	var base:Float = Math.min(1.0, (scareTier - 2) / 8.0);
+	var aber:Float = 0.35 + 1.15 * base + 2.6 * glitch;
+	var scan:Float = 0.12 + 0.12 * base;
+	var grain:Float = 0.02 + 0.06 * base + 0.20 * glitch;
+	var curve:Float = 0.018 + 0.022 * base;
+	var vig:Float = 0.34 + 0.26 * base;
+
+	setFloatOn(crt, 'uTime', songClock);
+	setFloatOn(crt, 'iTime', songClock);
+	setFloatOn(crt, 'uAberration', aber);
+	setFloatOn(crt, 'uScanline', scan);
+	setFloatOn(crt, 'uStatic', grain);
+	setFloatOn(crt, 'uCurvature', curve);
+	setFloatOn(crt, 'uVignette', vig);
+	setFloatOn(crt, 'uGlitch', glitch);
+
+	// HUD: about 60% of it, and a much smaller channel split, so a combobreak
+	// message never becomes the hard part of reading the screen.
+	setFloatOn(crtHud, 'uTime', songClock);
+	setFloatOn(crtHud, 'iTime', songClock);
+	setFloatOn(crtHud, 'uAberration', aber * 0.45);
+	setFloatOn(crtHud, 'uScanline', scan * 0.6);
+	setFloatOn(crtHud, 'uStatic', grain * 0.5);
+	setFloatOn(crtHud, 'uCurvature', curve * 0.5);
+	setFloatOn(crtHud, 'uVignette', vig * 0.55);
+	setFloatOn(crtHud, 'uGlitch', glitch * 0.5);
 }
 
 function onStrumCreation(event) {

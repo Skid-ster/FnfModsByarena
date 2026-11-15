@@ -225,6 +225,57 @@ def check_script_safety():
                "delay and types whatever _finalText already holds" % rel(path))
 
 
+#: Uniforms the CRT shader must declare, and the ones HScript is expected to drive.
+CRT_UNIFORMS = ["uTime", "iTime", "uAberration", "uScanline", "uStatic",
+                "uCurvature", "uVignette", "uGlitch"]
+
+
+def check_crt():
+    """shaders/crt.frag: an OpenFL fragment shader, wired in without crashing."""
+    shader = os.path.join(MOD, "shaders", "crt.frag")
+    if not ok(os.path.isfile(shader), "shaders/crt.frag is missing"):
+        return
+    source = open(shader, encoding="utf-8").read()
+    stage_path = os.path.join(MOD, "data", "stages", "trollge.hx")
+    stage = open(stage_path, encoding="utf-8").read() if os.path.isfile(stage_path) else ""
+
+    # OpenFL/Flixel conventions -- without these the shader will not compile.
+    ok("#pragma header" in source, "crt.frag is missing #pragma header")
+    ok("void main()" in source, "crt.frag has no main()")
+    ok("openfl_TextureCoordv" in source, "crt.frag never samples openfl_TextureCoordv")
+    ok("openfl_TextureSize" in source, "crt.frag never uses openfl_TextureSize")
+    ok("openfl_Alphav" in source, "crt.frag must multiply by openfl_Alphav for sprite alpha")
+    ok("flixel_texture2D(bitmap" in source, "crt.frag does not fetch with flixel_texture2D(bitmap, ...)")
+    ok(source.count("{") == source.count("}"), "crt.frag has unbalanced braces")
+    ok(source.count("(") == source.count(")"), "crt.frag has unbalanced parentheses")
+    ok("gl_FragColor" in source, "crt.frag never writes gl_FragColor")
+
+    declared = set(re.findall(r"uniform\s+float\s+(\w+)", source))
+    for name in CRT_UNIFORMS:
+        ok(name in declared, "crt.frag does not declare uniform %s" % name)
+
+    # Wiring: loaded by name, attached to both cameras, updated through a guard.
+    ok("fromFile('crt')" in stage, "stage script never loads shaders/crt.frag")
+    ok(stage.count("fromFile('crt')") >= 2,
+       "stage script should load crt twice (game camera + HUD camera)")
+    for camera in ("camGame.filters", "camHUD.filters"):
+        ok(camera in stage, "stage script never attaches the CRT to %s" % camera)
+    ok("setFloatOn(" in stage, "stage script has no guarded shader uniform setter")
+    ok(stage.count("try {") >= 6, "shader setup/updates are not wrapped in try/catch guards")
+
+    # Every uniform the script drives has to exist, or setFloat silently no-ops.
+    driven = set(re.findall(r"setFloatOn\(crt\w*, '([\w]+)'", stage))
+    ok(bool(driven), "stage script never updates the CRT uniforms")
+    for name in sorted(driven):
+        ok(name in declared, "stage script sets %s but crt.frag does not declare it" % name)
+
+    # The uniform update has to live in update(elapsed), not only in create().
+    ok(re.search(r"function update\(elapsed:Float\)", stage) is not None,
+       "stage script has no update(elapsed) for per-frame shader uniforms")
+    ok("'uTime'" in stage and "'iTime'" in stage,
+       "stage script should drive both uTime and iTime")
+
+
 def check_package():
     """Everything the engine can load must actually be inside the shipped zip."""
     import package_mod
@@ -1011,6 +1062,7 @@ def main():
     check_game_over()
     check_captions()
     check_menu()
+    check_crt()
     check_script_safety()
     check_package()
     check_noteskin()

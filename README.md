@@ -48,7 +48,7 @@ scare order) and in story mode (the week plays them back to back).
 ## Install
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
-2. Grab `SuperScaryTrollge-v3.4.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
+2. Grab `SuperScaryTrollge-v3.5.0.zip` from the [releases page](../../releases) (or build it yourself, see below).
 3. Drop the **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **Super Scary Trollge**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
@@ -175,6 +175,31 @@ The note skin is drawn in code by `tools/make_noteskin.py` (no borrowed FNF art)
 * `images/game/notes/torn.png/.xml` — same layout, burnt to ember and ripped (song 5).
 * `images/game/splashes/default.png/.xml` + `data/splashes/default.xml` — the burst that fires when a note is
   hit, per lane, 4 frames each.
+
+Every frame went through the same legibility pass, because the old bodies went almost black at the tip and
+disappeared on the darker stages:
+
+* **notes** carry a bright interior core (the lane colour lifted towards white, blurred into the fill) and a hotter
+  keyline — measured on the shipped atlas, mean interior luminance roughly doubled:
+
+  | lane | interior luminance (v3.4.0 → v3.5.0) |
+  | --- | --- |
+  | purple / left | 58.8 → 122.0 |
+  | blue / down | 71.7 → 132.7 |
+  | green / up | 94.6 → 153.9 |
+  | red / right | 53.2 → 116.5 |
+
+* **receptors** (`arrowLEFT`…) keep their dark body — a note has to read as brighter than the thing it lands on — but
+  gained a glowing inner core, a broken static rim and a white keyline, lifting them from 50.6 to 72.1 without
+  competing with the notes.
+* **confirm** frames were clipping their expanding ring, because the ring was drawn straight into a 200 px canvas at
+  1.55× scale and lost its wings. The ring now renders on a 1.7× canvas and is resized down, and every confirm frame
+  gets a white-hot inner flash that decays across the four frames.
+* **the shadow skin** gets a cold metallic rim, a specular streak and a little static instead of being a flat desaturate.
+* **the torn skin** lost the fine speckle that read as unreadable micro-text inside the arrow; it now uses bold marks
+  only — a heavy red/cyan fringe, CRT rows, ink runs and a burnt edge.
+* **holds** get the same treatment (a brighter centre rail plus the shared fringe/scanline/ink pass) so a sustained note
+  reads at a glance too.
 
 How each song gets its skin:
 
@@ -313,8 +338,24 @@ plus chart style (off-beat ratio, same-lane runs, density curve). The results li
 `docs/grade.png` — raw backdrop on the left, graded on the right, one row per scare tier — so the look can be
 reviewed without launching the engine.
 
-The validator checks the shader file for `#pragma header`, a `main()`, no `switch` statements, no reversed
-`smoothstep` edges, and that every uniform it declares is actually set by the stage script.
+`shaders/crt.frag` is a second, independent pass on top of it — a real CRT rather than a tape wobble:
+
+* barrel curvature (the picture bulges, and anything pushed outside the tube is written black), red/blue chromatic
+  aberration sampled per channel, horizontal tear bands while a glitch is up, scanlines, animated static grain and a
+  corner vignette, in that order;
+* it is applied **twice**: `camGame` gets `[trollge_vhs, crt]`, `camHUD` gets its own copy at roughly 60 % strength so
+  score, captions and the health bar stay readable;
+* the ladder is `base = (scareTier - 2) / 8`, so 2/10 is a barely-there tube, 4/10 shows the scanlines, 6/10 starts
+  splitting channels and 10/10 is a broken set — and `trollgeDistort` / `trollgeStatic` punch `uGlitch` on top;
+* uniforms are written per frame from `update(elapsed)` through one guarded setter, and every load, filter creation and
+  uniform write sits inside its own `try/catch`: a machine that cannot compile the shader loses the effect, not the song.
+  Both `uTime` and `iTime` are driven, so the shader works whichever name a port expects. (Psych mods call this
+  `CustomShader("crt")`; in Codename the same thing is `FunkinShader.fromFile('crt')` + `openfl.filters.ShaderFilter`.)
+
+The validator checks both shader files for `#pragma header`, a `main()`, no `switch` statements, no reversed
+`smoothstep` edges, and that every uniform they declare is actually set by the stage script; for `crt.frag` it also
+requires the OpenFL conventions (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`,
+`flixel_texture2D(bitmap, …)`) and that it is attached to both cameras.
 
 ---
 
@@ -334,7 +375,13 @@ on a black screen. Prefer landing in the song list instead? Point it at `"funkin
 
 The menu itself is the mod's: `tools/make_menu.py` draws the four buttons the engine builds
 (`menus/mainmenu/<option>` with `<option> basic` / `<option> white` animations, idle ~122 px tall, selected ~172 px,
-items at `60 + i * 160`), the defocused `menus/menuBG` backdrop, and `docs/menu_preview.png` as a preview of the result.
+items at `60 + i * 160`), the backdrop, and `docs/menu_preview.png` as a preview of the result.
+
+The backdrop is the scary stage defocused, with the Trollge standing in the dark on the right — only the pixels it
+actually emits survive as a dim red glow, so it reads as something watching rather than as a sprite parked in a corner —
+under a deep vignette, CRT rows and two passes of film grain. The type is damaged the same way the rest of the mod is:
+red/cyan misregistration, edges chewed in horizontal tears, blood running off the descenders, and a jagged crimson
+slash instead of a flat bar under the selected option.
 
 ![The main menu](docs/menu_preview.png)
 
@@ -440,9 +487,9 @@ python3 tools/make_cutscenes.py   # cutscene scripts + their frames/letterbox ar
 python3 tools/make_menu.py        # main menu buttons + backdrop (~1 s)
 python3 tools/make_promo.py       # docs/banner.jpg from the real stage art (~1 s)
 python3 tools/make_stage_preview.py  # engine framing check -> docs/stage.png + margin report
-python3 tools/validate_mod.py     # ~2300 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
+python3 tools/validate_mod.py     # ~2340 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
-python3 tools/package_mod.py      # dist/SuperScaryTrollge-v3.4.0.zip (161 files, includes shaders/ + music/)
+python3 tools/package_mod.py      # dist/SuperScaryTrollge-v3.5.0.zip (161 files, includes shaders/ + music/)
 ```
 
 Want a different song? Edit `tools/song_layout.py` (phrase blocks, rhythm cells, progression, key, scare tier, event

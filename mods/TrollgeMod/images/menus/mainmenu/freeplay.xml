@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TextureAtlas imagePath="freeplay.png">
-	<SubTexture name="freeplay basic0000" x="2" y="2" width="635" height="122"/>
-	<SubTexture name="freeplay basic0001" x="2" y="128" width="635" height="122"/>
-	<SubTexture name="freeplay white0000" x="2" y="254" width="907" height="172"/>
-	<SubTexture name="freeplay white0001" x="2" y="430" width="907" height="172"/>
+	<SubTexture name="freeplay basic0000" x="2" y="2" width="639" height="122"/>
+	<SubTexture name="freeplay basic0001" x="2" y="128" width="639" height="122"/>
+	<SubTexture name="freeplay white0000" x="2" y="254" width="911" height="172"/>
+	<SubTexture name="freeplay white0001" x="2" y="430" width="911" height="172"/>
 </TextureAtlas>

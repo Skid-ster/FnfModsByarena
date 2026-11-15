@@ -124,6 +124,98 @@ def scratch(mask, seed, count=9, strength=40):
     return ImageChops.multiply(mask, marks.point(lambda v: 255 - v))
 
 
+def erode(mask, amount):
+    """Shrink a mask by `amount` pixels (odd MinFilter kernel)."""
+    k = max(3, int(amount) * 2 + 1)
+    return mask.filter(ImageFilter.MinFilter(k))
+
+
+def mix(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def hot_core(mask, rgb, size, scale=0.42, alpha=200, blur=0.05):
+    """Bright interior for a note: the colour, lifted towards white in the middle.
+
+    Dark stages used to swallow the arrow bodies, because the old fill went almost
+    black at the tip. This keeps the silhouette identical and only changes what is
+    inside it, so note timing is unaffected.
+    """
+    inner = erode(mask, max(2.0, size * 0.055 * scale))
+    inner = inner.filter(ImageFilter.GaussianBlur(size * blur))
+    hot = mix(rgb, (255, 255, 255), 0.62)
+    layer = Image.new("RGBA", mask.size, hot + (0,))
+    layer.putalpha(inner.point(lambda v: int(v * alpha / 255.0)))
+    return layer
+
+
+def chroma_edge(canvas, dx=2, amount=0.6):
+    """Red/cyan misregistration around whatever is already drawn."""
+    r, g, b, a = canvas.split()
+    red = Image.merge("RGBA", (r.point(lambda v: int(v * amount)), g.point(lambda v: 0),
+                               b.point(lambda v: 0), a.point(lambda v: int(v * 0.75))))
+    cyan = Image.merge("RGBA", (r.point(lambda v: 0), g, b.point(lambda v: int(v * 0.9)),
+                                a.point(lambda v: int(v * 0.75))))
+    out = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    out.alpha_composite(cyan, (dx, 0))
+    out.alpha_composite(red, (-dx, 0))
+    out.alpha_composite(canvas)
+    return out
+
+
+def scanlines(canvas, mask, step=3, strength=64):
+    """CRT rows, clipped to the sprite so the atlas stays tight."""
+    dark = Image.new("L", canvas.size, 0)
+    d = ImageDraw.Draw(dark)
+    for y in range(1, canvas.size[1], step):
+        d.line((0, y, canvas.size[0], y), fill=strength)
+    dark = ImageChops.multiply(dark, mask)
+    shade = Image.new("RGBA", canvas.size, (0, 0, 0, 255))
+    shade.putalpha(dark)
+    return Image.alpha_composite(canvas, shade)
+
+
+def ink_drips(canvas, mask, colour, seed, count=3, size=1.0):
+    """Thin runs of ink hanging inside the shape, never past its own alpha."""
+    rng = random.Random(seed)
+    w, h = canvas.size
+    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    seedable = [(x, y) for y in range(0, h, max(1, int(h / 14)))
+                for x in range(int(w * 0.2), int(w * 0.8), max(1, int(w / 12)))
+                if mask.getpixel((x, y)) > 180]
+    if not seedable:
+        return canvas
+    for _ in range(count):
+        x, y = rng.choice(seedable)
+        length = rng.randint(int(size * 6), int(size * 20))
+        d.line([(x, y), (x + rng.randint(-1, 1), y + length)],
+               fill=colour + (rng.randint(90, 150),), width=rng.choice([1, 2]))
+    layer = ImageChops.multiply(layer, coloured(mask, (255, 255, 255), 255))
+    out = canvas.copy()
+    out.alpha_composite(layer)
+    return out
+
+
+def jagged_edge(mask, width, seed, density=0.55):
+    """A broken, static-eaten rim instead of a clean vector outline."""
+    ring = edge_of(mask, width)
+    noise = Image.effect_noise(mask.size, 110).convert("L")
+    cut = noise.point(lambda v: 255 if v > int(255 * (1.0 - density)) else 0)
+    out = ImageChops.multiply(ring, cut)
+    # keep the ring continuous enough to still read as an arrow
+    return ImageChops.lighter(out, ring.point(lambda v: int(v * 0.45)))
+
+
+def dress(image, seed, drips=2):
+    """The shared horror pass: chroma fringe, CRT rows, ink runs. Any sprite."""
+    mask = image.getchannel("A")
+    out = chroma_edge(image, dx=2, amount=0.45)
+    out = scanlines(out, mask, step=3, strength=54)
+    out = ink_drips(out, mask, (11, 5, 13), seed=seed, count=drips, size=1.0)
+    return out
+
+
 def body_fill(mask, rgb, dark, top_light=70, tint=0.78):
     """Vertical gradient body: dark at the tip, saturated colour towards the tail."""
     size = mask.size[0]
@@ -157,13 +249,24 @@ def arrow_frame(size, rgb, mode, rotate=0, scale=1.0, frame_index=0):
         canvas.alpha_composite(glow(mask, rgb, size * 0.14, 80))
 
     if mode == "strum":
-        canvas.alpha_composite(coloured(mask, (8, 8, 12), 235))
-        canvas.alpha_composite(coloured(edge_of(mask, max(2, size // 44)), rgb, 210))
-        canvas.alpha_composite(coloured(edge_of(mask, max(1, size // 90)), (255, 255, 255), 70))
+        # Receptor. It used to be near-black with a hairline of colour, which
+        # vanished on the dark stages -- so: dark body, hot inner core, a broken
+        # static rim and a thin white keyline. Read as "the lane", never as a note.
+        canvas.alpha_composite(coloured(mask, (10, 8, 14), 240))
+        canvas.alpha_composite(glow(erode(mask, size * 0.05), rgb, size * 0.05, 120))
+        inner = erode(mask, size * 0.035)
+        canvas.alpha_composite(coloured(inner.filter(ImageFilter.GaussianBlur(size * 0.03)),
+                                        mix(rgb, (255, 255, 255), 0.35), 150))
+        canvas.alpha_composite(coloured(edge_of(mask, max(2, size // 34)), rgb, 235))
+        canvas.alpha_composite(coloured(jagged_edge(mask, max(1, size // 60), seed=7), (255, 90, 90), 120))
+        canvas.alpha_composite(coloured(edge_of(mask, max(1, size // 90)), (255, 255, 255), 95))
     elif mode == "note":
-        canvas.alpha_composite(body_fill(mask, rgb, dark, top_light=40, tint=0.9))
-        canvas.alpha_composite(coloured(edge_of(mask, max(2, size // 40)), rgb, 255))
-        canvas.alpha_composite(coloured(edge_of(mask, max(1, size // 80)), (255, 255, 255), 120))
+        canvas.alpha_composite(body_fill(mask, rgb, dark, top_light=60, tint=1.0))
+        # Bright interior core: the whole point of this pass is that a note is
+        # readable at 2.4 scroll speed on a black background.
+        canvas.alpha_composite(hot_core(mask, rgb, size))
+        canvas.alpha_composite(coloured(edge_of(mask, max(2, size // 40)), mix(rgb, (255, 255, 255), 0.25), 255))
+        canvas.alpha_composite(coloured(edge_of(mask, max(1, size // 80)), (255, 255, 255), 150))
         # bright spine down the shaft so the note reads at speed
         spine = Image.new("L", mask.size, 0)
         sd = ImageDraw.Draw(spine)
@@ -175,15 +278,35 @@ def arrow_frame(size, rgb, mode, rotate=0, scale=1.0, frame_index=0):
         canvas.alpha_composite(body_fill(mask, rgb, (26, 26, 34), top_light=90, tint=0.55))
         canvas.alpha_composite(coloured(edge_of(mask, max(3, size // 30)), (255, 255, 255), 190))
     elif mode == "confirm":
+        # Confirm flash: a white-hot flood inside the arrow plus a ring that
+        # expands past the frame. The ring is drawn on a larger canvas and then
+        # centred -- drawing it straight into a `size` canvas clipped its wings,
+        # which is the "misaligned edge" the purple confirm frame had.
         t = frame_index / 3.0
-        ring = mask_from_polygon(ARROW_UP, size, scale=1.0 + t * 0.55)
-        canvas.alpha_composite(coloured(edge_of(ring, max(3, size // 26)), (255, 255, 255),
-                                       int(230 * (1.0 - t))))
-        canvas.alpha_composite(body_fill(mask, rgb, (40, 40, 50), top_light=120, tint=0.35))
-        canvas.alpha_composite(coloured(edge_of(mask, max(3, size // 26)), rgb, int(255 * (1 - t * 0.6))))
+        ring_size = int(size * 1.7)
+        ring = mask_from_polygon(ARROW_UP, ring_size, scale=(1.0 + t * 0.55) / 1.7)
+        ring = ring.resize((size, size), Image.LANCZOS)
+        canvas.alpha_composite(coloured(edge_of(ring, max(2, size // 40)), (255, 255, 255),
+                                        int(210 * (1.0 - t))))
+        canvas.alpha_composite(body_fill(mask, rgb, (54, 54, 66), top_light=140, tint=0.5))
+        # white-hot inner flash, decaying over the four frames
+        flash = erode(mask, size * (0.10 + 0.06 * t))
+        flash = flash.filter(ImageFilter.GaussianBlur(size * (0.01 + 0.02 * t)))
+        canvas.alpha_composite(coloured(flash, (255, 255, 255), int(235 * (1.0 - t * 0.8))))
+        canvas.alpha_composite(coloured(edge_of(mask, max(2, size // 34)),
+                                        mix(rgb, (255, 255, 255), 0.35), int(255 * (1 - t * 0.4))))
+
+    # Unified horror details: every note direction and every hold trail gets the
+    # same treatment now -- red/cyan fringe, CRT rows and a couple of ink runs --
+    # instead of only the two "special" skins at the end of the atlas.
+    if mode in ("note", "press"):
+        canvas = chroma_edge(canvas, dx=max(1, size // 80), amount=0.5)
+        canvas = scanlines(canvas, mask, step=4, strength=36)
+        canvas = ink_drips(canvas, mask, (12, 6, 14), seed=size + int(scale * 100) + frame_index,
+                           count=3, size=size / 90.0)
 
     canvas.alpha_composite(coloured(scratch(mask, seed=size + int(scale * 100) + frame_index),
-                                    (0, 0, 0), 55))
+                                    (0, 0, 0), 45))
     if rotate:
         canvas = canvas.rotate(rotate, resample=Image.BICUBIC, center=(size / 2, size / 2))
     return canvas
@@ -205,7 +328,10 @@ def hold_piece(rgb, height):
     for i in range(height // 22):
         cy = 14 + i * 22
         draw.line([(10, cy), (HOLD_W // 2, cy + 7), (HOLD_W - 10, cy)], fill=(255, 255, 255, 90), width=2)
-    return image
+    # brighter rail than before, so a held note still glows on a black stage
+    draw.line([(HOLD_W // 2, 3), (HOLD_W // 2, height - 3)],
+              fill=mix(rgb, (255, 255, 255), 0.45) + (110,), width=3)
+    return dress(image, seed=int(sum(rgb)) + height, drips=1)
 
 
 def hold_end(rgb):
@@ -215,7 +341,9 @@ def hold_end(rgb):
                            fill=(16, 16, 24, 255), outline=rgb + (255,), width=3)
     draw.rounded_rectangle([6, HOLD_END_H - 22, HOLD_W - 7, HOLD_END_H - 5], radius=9,
                            fill=rgb + (230,))
-    return image
+    draw.line([(HOLD_W // 2, 10), (HOLD_W // 2, HOLD_END_H - 26)],
+              fill=mix(rgb, (255, 255, 255), 0.5) + (120,), width=2)
+    return dress(image, seed=int(sum(rgb)) + 41, drips=1)
 
 
 # --------------------------------------------------------------------------- #
@@ -255,13 +383,27 @@ def corrupt(image, seed):
 
 
 def torn(image, seed):
-    """Song 5 skin: burnt through. Almost black, ember edges, torn open."""
+    """Song 5 skin: burnt through. Ember body, chewed edge, CRT damage.
+
+    The old version ran the corrupt() pass over it, whose fine speckle at this
+    size looked like unreadable micro-text inside the arrow. This one uses bold
+    marks only: a heavy red/cyan fringe, scanlines, ink runs and a burnt edge.
+    """
     grey = image.convert("L")
-    ember = ImageOps.colorize(grey, black=(8, 2, 3), mid=(104, 14, 12), white=(232, 52, 38))
+    ember = ImageOps.colorize(grey, black=(10, 2, 3), mid=(126, 18, 12), white=(240, 64, 42))
     out_img = ember.convert("RGBA")
-    # scratch() works on a single-channel mask, so rip the alpha, not the colour.
-    out_img.putalpha(scratch(image.getchannel("A"), seed, count=15, strength=70))
-    return corrupt(out_img, seed + 7)
+    mask = image.getchannel("A")
+    out_img.putalpha(mask)
+
+    out_img = chroma_edge(out_img, dx=max(2, image.size[0] // 54), amount=0.8)
+    out_img = scanlines(out_img, mask, step=5, strength=72)
+    out_img = ink_drips(out_img, mask, (28, 2, 4), seed=seed, count=5, size=1.8)
+
+    # burnt edge: alpha chewed in horizontal tears, never into detached specks
+    noise = Image.effect_noise(image.size, 90).convert("L")
+    tears = noise.point(lambda v: 255 if v > 96 else 210)
+    out_img.putalpha(ImageChops.multiply(out_img.getchannel("A"), tears))
+    return out_img
 
 
 # --------------------------------------------------------------------------- #
@@ -369,8 +511,6 @@ def build_skin(sprite_path, lanes=None, transform=None):
         for f in range(4):
             press = arrow_frame(POP, rgb, "press", rotate=rotate, scale=0.98)
             confirm = arrow_frame(POP, rgb, "confirm", rotate=rotate, scale=0.98, frame_index=f)
-            tip = arrow_frame(POP, rgb, "strum", rotate=rotate, scale=0.98)
-            confirm.alpha_composite(tip)
             if transform:
                 press, confirm = transform(press, 300 + f * 10 + index), transform(confirm, 400 + f * 10 + index)
             frames.append(("%s press%04d" % (prefix, f), press))
@@ -389,13 +529,35 @@ def build_skin(sprite_path, lanes=None, transform=None):
 
 
 def drained(image, seed):
-    """Song 2 skin: colour pulled out, blacks crushed, faint cold cast."""
+    """Song 2 skin: colour pulled out, with a cold metallic rim so it is not flat.
+
+    The old version was a straight desaturate, which read as a grey blob on the
+    grey stage. Now it keeps a steel keyline, a specular streak and a little
+    static, the same way a blank tape still shows its heads.
+    """
     rgb = image.convert("RGB")
     grey = rgb.convert("L").convert("RGB")
     mixed = Image.blend(rgb, grey, 0.55)
     mixed = Image.blend(mixed, Image.new("RGB", image.size, (16, 20, 28)), 0.18)
     out_img = mixed.convert("RGBA")
-    out_img.putalpha(image.getchannel("A"))
+    mask = image.getchannel("A")
+    out_img.putalpha(mask)
+
+    # metallic rim + a highlight running down the shaft
+    out_img.alpha_composite(coloured(edge_of(mask, 3), (196, 214, 232), 145))
+    out_img.alpha_composite(coloured(edge_of(mask, 1), (255, 255, 255), 120))
+    spec = Image.new("L", image.size, 0)
+    sd = ImageDraw.Draw(spec)
+    w, h = image.size
+    sd.line([(w * 0.40, h * 0.30), (w * 0.40, h * 0.78)], fill=210, width=max(1, w // 60))
+    sd.line([(w * 0.52, h * 0.26), (w * 0.52, h * 0.70)], fill=120, width=max(1, w // 90))
+    spec = spec.filter(ImageFilter.GaussianBlur(w * 0.02))
+    out_img.alpha_composite(coloured(ImageChops.multiply(spec, mask), (255, 255, 255), 105))
+
+    # static: fine speckle clipped to the sprite
+    noise = Image.effect_noise(image.size, 70).convert("L")
+    speck = coloured(ImageChops.multiply(noise.point(lambda v: int(v * 0.14)), mask), (230, 240, 255), 190)
+    out_img.alpha_composite(speck)
     return out_img
 
 

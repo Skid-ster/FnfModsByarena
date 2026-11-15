@@ -90,12 +90,38 @@ feat(song3): denser final section
 
 ## Changing the screen grade
 
+Two shaders ship, and they stack:
+
+* `shaders/trollge_vhs.frag` -- the VHS grade on `camGame` (wobble, halation, grain, vignette).
+* `shaders/crt.frag` -- the CRT pass (`camGame` + a weaker copy on `camHUD`): barrel curvature, RGB split, tear
+  bands, scanlines, static, vignette. Uniforms are `uTime`/`iTime`, `uAberration`, `uScanline`, `uStatic`,
+  `uCurvature`, `uVignette`, `uGlitch`.
+
+Both are loaded by `data/stages/trollge.hx` with `FunkinShader.fromFile('<name>')` (Psych calls this
+`CustomShader`), wrapped in filters with `openfl.filters.ShaderFilter`, and driven from `update(elapsed)`. Rules for
+touching them:
+
+* every load, filter creation and `setFloat` stays inside its own `try/catch`, and every shader variable is null-checked
+  -- a driver that cannot compile a shader should cost you the effect, never the song;
+* a new uniform has to be declared in the `.frag` **and** set by the stage script; `validate_mod.py` cross-checks both
+  directions and fails on a mismatch, because `setFloat` on a uniform that does not exist fails silently;
+* use the OpenFL names (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`, `flixel_texture2D(bitmap, uv)`),
+  and never `switch` -- it breaks on macOS GL drivers.
+
+## Changing the screen grade
+
 `shaders/trollge_vhs.frag` is the full-screen filter; `data/stages/trollge.hx` loads it, sets its uniforms every
 frame and disables it silently when the platform cannot run shaders. Keep to the engine's shader rules (they are in
 `assets/shaders/engine/CompatabilityGuide.md` upstream, and `tools/validate_mod.py` enforces the important ones):
 no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float literals written as `0.0`.
 
 ## Changing the arrows or the HUD
+
+The rule the noteskin lives by: **a note must be brighter than the receptor it lands on.** The interiors are lifted
+towards white around a blurred core (`hot_core` in `tools/make_noteskin.py`) and the receptors stay dark with a hot rim,
+a static edge and a keyline. Measured on the shipped atlas, note interiors sit at 116-154 mean luminance and receptors at
+~72; if a change inverts that relationship, the arrows stop reading at high scroll speed. Holds get the same fringe,
+scanline and ink pass as the notes so a sustain is legible too.
 
 * **Arrow colours** live in `LANES` / `SHADOW_LANES` in `tools/make_noteskin.py`; each skin is drawn from that
   palette, so changing one RGB triple re-skins a whole lane. Re-run the script, then
