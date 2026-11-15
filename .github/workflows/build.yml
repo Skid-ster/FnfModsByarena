@@ -1,0 +1,82 @@
+name: Build & Validate
+
+on:
+  push:
+    branches: ["main", "arena/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate mod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install --upgrade pip pillow numpy soundfile
+
+      - name: Validate charts, configs, atlases and audio
+        run: python3 tools/validate_mod.py
+
+      - name: Package mod archive
+        run: python3 tools/package_mod.py
+
+      - name: Upload packaged mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: SuperScaryTrollge-mod
+          path: dist/*.zip
+          if-no-files-found: error
+
+  charts-in-sync:
+    name: Charts match the generator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install --upgrade pip numpy soundfile pillow
+
+      - name: Regenerate charts
+        run: python3 tools/make_chart.py
+
+      - name: Fail if the committed charts drifted
+        run: |
+          if ! git diff --exit-code -- mods/TrollgeMod/songs; then
+            echo "::error::Chart files are out of date. Run 'python3 tools/make_chart.py' and commit the result."
+            exit 1
+          fi
+
+  release:
+    name: Publish release
+    needs: [validate, charts-in-sync]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Package mod archive
+        run: python3 tools/package_mod.py
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true

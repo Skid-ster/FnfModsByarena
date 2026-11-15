@@ -1,0 +1,19 @@
+{
+	"displayName": "Trolling",
+	"bpm": 140.0,
+	"beatsPerMeasure": 4,
+	"stepsPerBeat": 4,
+	"icon": "trollge",
+	"color": "#3F7BD1",
+	"coopAllowed": false,
+	"opponentModeAllowed": true,
+	"needsVoices": false,
+	"difficulties": [
+		"easy",
+		"normal"
+	],
+	"customValues": {
+		"scareTier": 2,
+		"lengthSeconds": 104.0
+	}
+}

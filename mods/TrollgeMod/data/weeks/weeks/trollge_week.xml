@@ -1,0 +1,8 @@
+<!DOCTYPE codename-engine-week>
+<week name="SUPER SCARY TROLLGE" chars="trollge,bf,gf" sprite="trollge_week" bgColor="#120A0C">
+	<song>trolling</song>
+	<song>getting_dark</song>
+	<song>super_scary</song>
+	<difficulty name="easy"/>
+	<difficulty name="normal"/>
+</week>

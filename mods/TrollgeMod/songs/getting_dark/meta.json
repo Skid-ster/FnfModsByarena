@@ -1,0 +1,19 @@
+{
+	"displayName": "It's Getting Dark",
+	"bpm": 150.0,
+	"beatsPerMeasure": 4,
+	"stepsPerBeat": 4,
+	"icon": "trollge",
+	"color": "#8A1023",
+	"coopAllowed": false,
+	"opponentModeAllowed": true,
+	"needsVoices": false,
+	"difficulties": [
+		"easy",
+		"normal"
+	],
+	"customValues": {
+		"scareTier": 4,
+		"lengthSeconds": 103.6
+	}
+}

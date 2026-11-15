@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="TrollgeScary">
+	<SubTexture name="TrollgeScary idle0000" x="0" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary idle0001" x="460" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary sUP0000" x="920" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary sDOWN0000" x="1380" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary sLEFT0000" x="1840" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary sRIGHT0000" x="2300" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary mUP0000" x="2760" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary mDOWN0000" x="3220" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary mLEFT0000" x="3680" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary mRIGHT0000" x="4140" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary scared0000" x="4600" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary hey0000" x="5060" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary laugh0000" x="5520" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary laugh0001" x="5980" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary attack0000" x="6440" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary hit0000" x="6900" y="0" width="460" height="560"/>
+	<SubTexture name="TrollgeScary die0000" x="7360" y="0" width="460" height="560"/>
+</TextureAtlas>

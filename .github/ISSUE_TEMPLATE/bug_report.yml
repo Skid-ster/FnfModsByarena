@@ -1,0 +1,50 @@
+name: Bug report
+description: Something in the mod is broken (crash, stuck note, missing sprite...)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Please attach the `logs/` output if the game crashed.
+  - type: input
+    id: engine
+    attributes:
+      label: Codename Engine version / commit
+      placeholder: "1.0.0 / 3c48be4"
+    validations:
+      required: true
+  - type: dropdown
+    id: song
+    attributes:
+      label: Which song?
+      options:
+        - Trolling (2/10)
+        - It's Getting Dark (4/10)
+        - Super Scary Trollge (7/10)
+        - Menus / story mode
+        - Not song specific
+    validations:
+      required: true
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty
+      options: [easy, normal, n/a]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the timestamp in the song (e.g. "right after the 32s jumpscare") if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      render: shell
