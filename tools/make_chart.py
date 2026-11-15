@@ -84,7 +84,7 @@ def build_chart(song, notes, with_camera=True):
             {
                 "position": "dad",
                 "type": 0,
-                "characters": ["trollge"],
+                "characters": [L.characters(song, "opponent")],
                 "keyCount": 4,
                 "visible": True,
                 "strumScale": 1.0,
@@ -93,7 +93,7 @@ def build_chart(song, notes, with_camera=True):
             {
                 "position": "boyfriend",
                 "type": 1,
-                "characters": ["bf"],
+                "characters": [L.characters(song, "player")],
                 "keyCount": 4,
                 "visible": True,
                 "strumScale": 1.0,

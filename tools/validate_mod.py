@@ -74,6 +74,11 @@ REQUIRED_FILES = [
     "images/characters/TrollgeScary.xml",
     "images/icons/trollge/icon.png",
     "images/icons/trollge_scary/icon.png",
+    "data/characters/bf_super_scary.xml",
+    "data/characters/bf_super_scary_dead.xml",
+    "images/characters/Boyfriend_super_scary.png",
+    "images/characters/Boyfriend_super_scary.xml",
+    "images/icons/bf_super_scary/icon.png",
     "images/stages/trollge/bg.png",
     "images/stages/trollge/bg_scary.png",
     "images/stages/trollge/bg_nightmare.png",
@@ -125,7 +130,8 @@ def check_xml():
 
 def check_mod_json():
     data = json.load(open(os.path.join(MOD, "mod.json"), encoding="utf-8"))
-    ok(data.get("version") == "2.0.0", "mod.json version should be 2.0.0")
+    ok(isinstance(data.get("version"), str) and data["version"].count(".") == 2,
+       "mod.json needs a semantic version string")
     ids = [s["id"] for s in L.SONGS]
     ok(sorted(data.get("songs", [])) == sorted(ids), "mod.json songs must match the built songs")
     ok(data.get("week") == "trollge_week", "mod.json week must be trollge_week")
@@ -213,6 +219,30 @@ def check_charts():
 # Art
 # --------------------------------------------------------------------------- #
 
+#: Characters that ship with the engine itself and do not need a mod XML.
+BASE_CHARACTERS = {"bf", "gf", "dad", "mom", "monster", "pico", "spooky",
+                   "bf-dead", "gf-dead", "dad-dead"}
+
+#: Animations the engine needs on a playable character.
+REQUIRED_CHARACTER_ANIMS = ["idle", "singUP", "singDOWN", "singLEFT", "singRIGHT",
+                            "singUPmiss", "singDOWNmiss", "singLEFTmiss", "singRIGHTmiss"]
+
+
+def load_frames(png, xml):
+    """-> (image size, {frame name: (x, y, w, h, frameWidth, frameHeight)})"""
+    root = ET.parse(xml).getroot()
+    frames = {}
+    for el in root:
+        if el.tag != "SubTexture":
+            continue
+        w, h = int(el.get("width")), int(el.get("height"))
+        frames[el.get("name")] = (
+            int(el.get("x")), int(el.get("y")), w, h,
+            int(el.get("frameWidth", w)), int(el.get("frameHeight", h)),
+        )
+    return frames
+
+
 def check_atlases():
     try:
         from PIL import Image
@@ -220,40 +250,88 @@ def check_atlases():
         WARNINGS.append("Pillow not installed, skipped pixel-level atlas checks")
         return
 
-    for name in ("Trollge", "TrollgeScary"):
-        png = os.path.join(MOD, "images", "characters", name + ".png")
-        xml = os.path.join(MOD, "images", "characters", name + ".xml")
-        if not (os.path.isfile(png) and os.path.isfile(xml)):
-            ERRORS.append("missing atlas %s" % name)
+    char_dir = os.path.join(MOD, "data", "characters")
+    for entry in sorted(os.listdir(char_dir)):
+        if not entry.endswith(".xml"):
             continue
-        image = Image.open(png)
-        root = ET.parse(xml).getroot()
-        frames = [el for el in root if el.tag == "SubTexture"]
-        ok(len(frames) > 0, "%s atlas has no frames" % name)
-        for el in frames:
-            x, y = int(el.get("x")), int(el.get("y"))
-            w, h = int(el.get("width")), int(el.get("height"))
-            ok(x >= 0 and y >= 0 and x + w <= image.width and y + h <= image.height,
-               "%s: frame %s outside of the sheet" % (name, el.get("name")))
-        names = {el.get("name") for el in frames}
-        ok(len(names) == len(frames), "%s: duplicate frame names" % name)
+        char_path = os.path.join(char_dir, entry)
+        root = ET.parse(char_path).getroot()
+        sprite = root.get("sprite") or entry[:-4]
+        png = os.path.join(MOD, "images", "characters", sprite + ".png")
+        xml = os.path.join(MOD, "images", "characters", sprite + ".xml")
+        ok(os.path.isfile(png) and os.path.isfile(xml),
+           "%s: missing atlas %s.png/.xml" % (rel(char_path), sprite))
+        if not (os.path.isfile(png) and os.path.isfile(xml)):
+            continue
 
-        # Character XML -> every <anim anim="..."> prefix must exist.
-        for char in (name.lower(), name.lower().replace("trollge", "trollge")):
-            char_xml = os.path.join(MOD, "data", "characters", char + ".xml")
-            if not os.path.isfile(char_xml):
-                continue
-            for anim in ET.parse(char_xml).getroot().iter("anim"):
-                prefix = anim.get("anim")
-                ok(any(n.startswith(prefix) for n in names),
-                   "%s: anim %r references missing frames %r" % (rel(char_xml), anim.get("name"), prefix))
+        image = Image.open(png)
+        frames = load_frames(png, xml)
+        names = set(frames)
+        ok(len(frames) > 0, "%s: atlas %s has no frames" % (rel(char_path), sprite))
+        for name, (x, y, w, h, _fw, _fh) in frames.items():
+            ok(x >= 0 and y >= 0 and x + w <= image.width and y + h <= image.height,
+               "%s: frame %r outside of the sheet" % (sprite, name))
+        ok(len(set(frames)) == len(frames), "%s: duplicate frame names" % sprite)
+
+        # all frames must share one frame size -- the mod's characters are
+        # normalised onto a common canvas so no per-anim offsets are needed
+        sizes = {(fw, fh) for (_x, _y, _w, _h, fw, fh) in frames.values()}
+        ok(len(sizes) == 1,
+           "%s: frames use %d different frame sizes %s" % (sprite, len(sizes), sorted(sizes)))
+
+        anims = {a.get("name"): a.get("anim") for a in root.iter("anim")}
+        for name, prefix in anims.items():
+            ok(any(n.startswith(prefix) for n in names),
+               "%s: anim %r references missing frames %r" % (rel(char_path), name, prefix))
+
+        # a game-over character only needs its death animation
+        is_gameover_char = "firstDeath" in anims and "idle" not in anims
+        if root.get("isPlayer") == "true" and not is_gameover_char:
+            for needed in REQUIRED_CHARACTER_ANIMS:
+                ok(needed in anims, "%s: playable character has no %r animation"
+                   % (rel(char_path), needed))
+
+        icon = root.get("icon")
+        if icon:
+            icon_path = os.path.join(MOD, "images", "icons", icon, "icon.png")
+            flat = os.path.join(MOD, "images", "icons", "icon-" + icon + ".png")
+            ok(os.path.isfile(icon_path) or os.path.isfile(flat),
+               "%s: health icon %r not found" % (rel(char_path), icon))
+
+        if is_gameover_char:
+            for needed in ("firstDeath", "deathLoop", "deathConfirm"):
+                ok(needed in anims, "%s: game-over character has no %r animation"
+                   % (rel(char_path), needed))
+
+        dead = root.get("gameOverChar")
+        if dead:
+            ok(os.path.isfile(os.path.join(char_dir, dead + ".xml")),
+               "%s: gameOverChar %r has no character XML" % (rel(char_path), dead))
 
         # Prefix collision check (Flixel resolves animations with addByPrefix).
         prefixes = sorted({re.sub(r"\d+$", "", n) for n in names})
         for a in prefixes:
             for b in prefixes:
                 if a != b and b.startswith(a):
-                    ERRORS.append("%s: animation prefix %r shadows %r" % (name, a, b))
+                    ERRORS.append("%s: animation prefix %r shadows %r" % (sprite, a, b))
+
+
+def check_character_refs():
+    """Every character a chart asks for must exist (or be a base-game one)."""
+    for song in L.SONGS:
+        charts_dir = os.path.join(MOD, "songs", song["id"], "charts")
+        if not os.path.isdir(charts_dir):
+            continue
+        for chart in sorted(os.listdir(charts_dir)):
+            data = json.load(open(os.path.join(charts_dir, chart), encoding="utf-8"))
+            for line in data.get("strumLines", []):
+                for char in line.get("characters") or []:
+                    if char in BASE_CHARACTERS:
+                        continue
+                    path = os.path.join(MOD, "data", "characters", char + ".xml")
+                    ok(os.path.isfile(path),
+                       "%s/%s: character %r has no data/characters/%s.xml"
+                       % (song["id"], chart, char, char))
 
 
 def check_icons():
@@ -261,7 +339,7 @@ def check_icons():
         from PIL import Image
     except ImportError:
         return
-    for icon in ("trollge", "trollge_scary"):
+    for icon in ("trollge", "trollge_scary", "bf_super_scary"):
         path = os.path.join(MOD, "images", "icons", icon, "icon.png")
         if not os.path.isfile(path):
             continue
@@ -354,6 +432,7 @@ def main():
     check_mod_json()
     check_charts()
     check_atlases()
+    check_character_refs()
     check_icons()
     check_scripts()
     check_audio()

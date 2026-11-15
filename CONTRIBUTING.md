@@ -8,7 +8,8 @@ scripts in `tools/`, so most contributions are a code change plus a regeneration
 1. **Never hand-edit generated files.** These are outputs:
    * `mods/TrollgeMod/songs/*/charts/*.json`
    * `mods/TrollgeMod/songs/*/meta.json`, `events.json`
-   * `mods/TrollgeMod/images/**`
+   * `mods/TrollgeMod/images/**` (including `images/characters/Boyfriend_*.png/.xml`,
+     `data/characters/bf_*.xml` and the `bf_*` icons -- those come from `tools/make_bf.py`)
    * `mods/TrollgeMod/songs/*/song/Inst.ogg`, `mods/TrollgeMod/sounds/*.ogg`
    * `docs/preview.png`, `docs/stages.png`, `docs/jumpscare.png`
 
@@ -40,6 +41,34 @@ feat(song3): denser final section
 - song_layout: +2 spacing-1 sections in the last act
 - regenerated charts + instrumental
 ```
+
+## Adding a player skin
+
+1. Drop the Sparrow atlas (`<name>.png` + `<name>.xml`) into `art_src/bf/`.
+2. Add an entry to `SKINS` in `tools/make_bf.py`:
+
+```python
+{
+    "song": "getting_dark",
+    "source": ("Boyfriend_<name>.png", "Boyfriend_<name>.xml"),
+    "sprite": "Boyfriend_getting_dark",
+    "character": "bf_getting_dark",
+    "dead_character": "bf_getting_dark_dead",
+    "icon": "bf_getting_dark",
+    "color": "#31B0D1",
+    "icon_frames": ("BF idle dance0000", "BF NOTE UP MISS0000"),
+    "anims": [("idle", "BF idle dance", 24, True), ...],   # engine name, atlas prefix, fps, loop
+    "dead": ("Gameover", 24),
+},
+```
+
+3. `python3 tools/make_bf.py getting_dark` -- it normalises the atlas (feet on y=539, centred on
+   x=229, every frame 460x560), writes the character XMLs, builds the health icon and a preview,
+   and warns you about any animation the atlas is missing.
+4. Point the song at it: `"bf": "bf_getting_dark"` in `tools/song_layout.py`, then
+   `python3 tools/make_chart.py`.
+5. `python3 tools/validate_mod.py` -- it now checks that every character a chart references exists,
+   that all of its animations resolve to real frames, and that the atlas is uniformly framed.
 
 ## Ideas that fit well
 

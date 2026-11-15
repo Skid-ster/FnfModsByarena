@@ -40,6 +40,9 @@ SONGS = [
     {
         "id": "trolling",
         "display": "Trolling",
+        # Character ids come from data/characters/<id>.xml.
+        "bf": "bf",
+        "trollge": "trollge",
         "bpm": 140.0,
         "scare": 2,
         "offset": 1.1428571428571428,
@@ -72,6 +75,8 @@ SONGS = [
     {
         "id": "getting_dark",
         "display": "It's Getting Dark",
+        "bf": "bf",          # swap to "bf_getting_dark" once that skin is uploaded
+        "trollge": "trollge",
         "bpm": 150.0,
         "scare": 4,
         "offset": 1.2,
@@ -107,6 +112,8 @@ SONGS = [
     {
         "id": "super_scary",
         "display": "Super Scary Trollge",
+        "bf": "bf_super_scary",      # art_src/bf/Boyfriend_crazy2.png -> tools/make_bf.py
+        "trollge": "trollge",
         "bpm": 160.0,
         "scare": 7,
         "offset": 1.5,
@@ -148,6 +155,11 @@ SONGS = [
 ]
 
 SONGS_BY_ID = {s["id"]: s for s in SONGS}
+
+
+def characters(song, side="player"):
+    """Character id used by the chart strum line ("player" or "opponent")."""
+    return song["bf"] if side == "player" else song["trollge"]
 
 
 # --------------------------------------------------------------------------- #
