@@ -207,10 +207,14 @@ def build_backgrounds():
     tier3 = ImageChops.add(tier3, Image.new("RGB", src.size, (0, 60, 70)), scale=1.0, offset=-40)
     shifted = ImageChops.offset(tier3, 22, 0)
     tier3 = Image.blend(tier3, shifted, 0.35)
+    # Seeded on purpose: an unseeded `random` here made bg_glitch.png (and every
+    # preview that composites it) different on every run, so the shipped art was
+    # not reproducible from tools/.
+    bands = random.Random(6006)
     for _ in range(26):                     # hard displacement bands
-        y0 = random.randrange(BG_H)
-        band = random.randint(4, 22)
-        dx = random.randint(-90, 90)
+        y0 = bands.randrange(BG_H)
+        band = bands.randint(4, 22)
+        dx = bands.randint(-90, 90)
         strip = tier3.crop((0, y0, BG_W, min(BG_H, y0 + band)))
         tier3.paste(strip, (dx, y0))
     tier3 = scanlines(tier3, 4, 22)

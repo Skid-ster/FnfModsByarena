@@ -369,6 +369,12 @@ def write_ogg(path, stereo, sr=SR):
 
     The buffer is streamed in chunks on purpose: libsndfile's Vorbis encoder
     segfaults on very large single-shot writes (e.g. a full 104 s track).
+
+    Note: the Ogg container is not byte-reproducible -- libsndfile stamps the
+    serial number from the clock, so re-rendering an unchanged song rewrites the
+    file without changing a sample. Verified by decoding both and comparing: the
+    PCM is bit-identical. Do not "fix" that by committing re-renders; diff the
+    decoded audio instead (`tools/audit_songs.py` does exactly that).
     """
     import soundfile as sf
 

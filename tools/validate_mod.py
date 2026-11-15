@@ -289,6 +289,25 @@ def check_package():
     for entry in package_mod.INCLUDE:
         full = os.path.join(MOD, entry)
         ok(os.path.exists(full), "packaged entry missing: %s" % entry)
+    # The archive name *is* the mod name: Codename's MainState passes the zip's
+    # file name (without extension) into ModsFolderLibrary as `modName`, and
+    # freeplay then looks for config/freeplaySonglist/LIB_<modName>.txt. A zip
+    # called SuperScaryTrollge-v3.6.0.zip therefore names the mod
+    # "superscarytrollge-v3.6.0", loses the freeplay list and makes
+    # ModsFolder.init() forget the selection on the next launch. The mod folder
+    # and the installable archive have to agree with the LIB_ file, exactly.
+    mod_name = os.path.basename(MOD)
+    ok(package_mod.INSTALL_NAME == mod_name,
+       "package_mod.INSTALL_NAME is %r but the mod folder is %r: the engine names "
+       "a mod after the file it loads, so these must match or freeplay will not "
+       "find its LIB_ list" % (package_mod.INSTALL_NAME, mod_name))
+    list_file = os.path.join(MOD, "data", "config", "freeplaySonglist",
+                             "LIB_%s.txt" % mod_name)
+    ok(os.path.isfile(list_file),
+       "freeplay not found by the engine: %r is loaded as modName %r, so it looks "
+       "for LIB_%s.txt and this file does not exist"
+       % (package_mod.INSTALL_NAME + ".zip", mod_name, mod_name))
+
     # music/ only exists for the game-over overrides -- make sure it is really in.
     for rel_path in ("music/gameOver.ogg", "music/gameOver.ini",
                      "sounds/gameOverSFX.ogg", "sounds/gameOverEnd.ogg"):
