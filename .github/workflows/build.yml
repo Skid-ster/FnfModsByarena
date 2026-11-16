@@ -30,6 +30,15 @@ jobs:
       - name: Audit the mix and the chart style
         run: python3 tools/audit_songs.py --strict
 
+      # Two claims that used to be labels rather than properties of the shipped
+      # build: that the melodies are written music, and that the songs actually
+      # get scarier. Both are measured on the files in the repo.
+      - name: Measure the melodies
+        run: python3 tools/melody_report.py --strict
+
+      - name: Measure the dread ladder
+        run: python3 tools/dread_report.py --strict
+
       - name: Package mod archive
         run: python3 tools/package_mod.py
 

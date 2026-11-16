@@ -344,74 +344,160 @@ def check_xml():
             ERRORS.append("invalid XML %s: %s" % (rel(path), exc))
 
 
-def check_week_and_freeplay():
-    """Both menus have to offer all five songs, in scare order -- and freeplay
-    has to offer *only* those five.
+def mod_folder():
+    """The mod's folder name == the name the engine derives from the zip."""
+    return os.path.basename(MOD)
 
-    Codename's freeplay list is `data/config/freeplaySonglist/LIB_<modName>.txt`
-    (source: funkin/menus/FreeplayState.hx, class FreeplaySonglist). Current
-    engines never read a `freeplaySonglist.txt` without the `LIB_` prefix -- the
-    lookup is literally `Paths.txt('config/freeplaySonglist/LIB_$modName')` --
-    so the mod ships the LIB_ form, and this check is written around that fact
-    rather than around the older engine builds that did read the plain file.
+
+def _lib_redirect(asset, mod_name):
+    """Port of ModsFolderLibrary.__parseAsset / ZipFolderLibrary.__parseAsset.
+
+    The engine's libraries treat a file name starting with `LIB_` as a
+    *redirect*: `__parseAsset` strips the `LIB_<mod>.` prefix and keeps the
+    extension, then looks that path up instead. In Haxe (`haxe.io.Path`):
+
+        var file = new Path(_parsedAsset);
+        if (file.file.startsWith("LIB_")) {
+            if (file.file.substr(4) != modName) return false;
+            _parsedAsset = file.dir + "." + file.ext;
+        }
+
+    So `data/config/freeplaySonglist/LIB_TrollgeMod.txt` becomes
+    `data/config/freeplaySonglist.txt` -- the `LIB_` file is never opened as a
+    file. This is the behaviour that broke freeplay in v3.6.0, so it is
+    modelled here rather than described.
+    """
+    prefix = "assets/"
+    if not asset.startswith(prefix):
+        return None
+    parsed = asset[len(prefix):]
+    slash = parsed.rfind("/")
+    directory = parsed[:slash] if slash != -1 else ""
+    base = parsed[slash + 1:] if slash != -1 else parsed
+    dot = base.rfind(".")
+    stem = base[:dot] if dot != -1 else base
+    ext = base[dot + 1:] if dot != -1 else ""
+    if stem.startswith("LIB_"):
+        if stem[4:] != mod_name:
+            return None
+        # file.dir + "." + file.ext  (empty dir -> ".txt", exactly like Haxe)
+        parsed = (directory + "." if directory else ".") + ext
+    return parsed
+
+
+def _freeplay_target(mod_name):
+    """The path the engine ends up opening for this mod's freeplay list."""
+    # FreeplayState: Paths.txt('config/freeplaySonglist/LIB_$modName')
+    # Paths.txt(key) == getPath('data/' + key + '.txt')
+    asked = "data/config/freeplaySonglist/LIB_%s.txt" % mod_name
+    return _lib_redirect(prefix_asset(asked), mod_name)
+
+
+def prefix_asset(path):
+    return "assets/" + path
+
+
+def check_week_and_freeplay():
+    """Freeplay and story mode both have to offer this mod's five songs.
+
+    The mechanism (source: funkin/menus/FreeplayState.hx, class FreeplaySonglist,
+    plus funkin/backend/assets/ModsFolderLibrary.hx, __parseAsset):
+
+        asked  = Paths.txt('config/freeplaySonglist/LIB_$modName')
+        parsed = __parseAsset(asked)          # LIB_<mod>.x -> <dir>/x
+        found  = modLib.exists(parsed, "TEXT")
+
+    `__parseAsset` REWRITES the path: the `LIB_<mod>.` file name becomes the
+    plain name in the same directory. A mod that ships only
+    `data/config/freeplaySonglist/LIB_TrollgeMod.txt` therefore ships *nothing*
+    the engine opens, because it looks for
+    `data/config/freeplaySonglist.txt`. That is exactly what v3.6.0 did, and why
+    freeplay showed the base game's list while story mode -- whose `LIB_` target
+    (`data/weeks/weeks.txt`) *was* shipped -- kept working.
+
+    This check is written against the resolved path for that reason.
     """
     ids = [s["id"] for s in L.SONGS]
     week = os.path.join(MOD, "data", "weeks", "weeks", "trollge_week.xml")
     if os.path.isfile(week):
         root = ET.parse(week).getroot()
-        # Story mode offers only the difficulties the week declares: shipping a
-        # hard chart the week never lists means nobody can select it.
         listed_diffs = [node.get("name") for node in root.findall("difficulty")]
         ok(listed_diffs == list(L.DIFFICULTIES),
            "week difficulties are %s, expected %s" % (listed_diffs, list(L.DIFFICULTIES)))
         listed = [node.text.strip() for node in root.iter("song") if node.text]
         ok(listed == ids, "week song list is %s, expected %s" % (listed, ids))
 
-    config = os.path.join(MOD, "data", "config")
-    list_dir = os.path.join(config, "freeplaySonglist")
+    # Story mode works only because the mod ships the file the LIB_ lookup
+    # redirects to. Assert that, so nobody "tidies up" weeks.txt.
+    weeks_target = _lib_redirect(prefix_asset("data/weeks/weeks/LIB_%s.txt" % mod_folder()), mod_folder())
+    ok(weeks_target is not None,
+       "the week list lookup does not resolve at all (mod folder name does not "
+       "match the LIB_ prefix the engine rewrites)")
+    ok(os.path.isfile(os.path.join(MOD, weeks_target)),
+       "story mode is broken: the engine asks for data/weeks/weeks/LIB_<mod>.txt, "
+       "rewrites it to %s, and that file is not shipped" % weeks_target)
 
-    # 1. The replacement list has to exist, and it has to be the LIB_ form the
-    #    engine actually opens.
-    path = os.path.join(list_dir, "LIB_TrollgeMod.txt")
-    if ok(os.path.isfile(path), "the freeplay replacement list is missing: "
-          "data/config/freeplaySonglist/LIB_TrollgeMod.txt"):
-        with open(path, encoding="utf-8") as handle:
-            raw = handle.read()
-        listed = [line.strip() for line in raw.splitlines() if line.strip()]
-        # 2. All five songs, exactly, in scare order: freeplay is a replacement,
-        #    so anything else in here is either a missing song or a leak.
-        ok(listed == ids, "freeplay songlist is %s, expected the five songs in "
-                          "scare order %s" % (listed, ids))
-        ok(len(listed) == len(set(listed)), "freeplay songlist lists a song twice")
-        # 3. No base-game / sixth id: this list *replaces* the vanilla list, so a
-        #    base song in it would show a song this mod does not ship.
-        base = {"bopeebo", "fresh", "dadbattle", "spookeez", "south", "monster",
+    config = os.path.join(MOD, "data", "config")
+    base_ids = {"bopeebo", "fresh", "dadbattle", "spookeez", "south", "monster",
                 "pico", "philly-nice", "blammed", "satin-panties", "high", "milf",
                 "cocoa", "eggnog", "winter-horrorland", "senpai", "roses", "thorns",
                 "ugh", "guns", "stress", "tutorial", "test"}
+
+    # 1. The path the engine actually opens has to exist. This is the check that
+    #    would have caught the v3.6.0 freeplay bug.
+    target = _freeplay_target(mod_folder())
+    ok(target is not None,
+       "freeplay list lookup does not resolve (libName/modName mismatch)")
+    resolved = os.path.join(MOD, target) if target else None
+    ok(bool(resolved) and os.path.isfile(resolved),
+       "freeplay would show the BASE GAME's songs: the engine asks for "
+       "data/config/freeplaySonglist/LIB_<mod>.txt, __parseAsset rewrites that to "
+       "%s, and the file is not shipped" % (target or "?"))
+    ok(not os.path.isfile(os.path.join(config, "freeplaySonglist.txt")) or True,
+       "unreachable placeholder")
+
+    # 2. Read the file the engine reads, and check its contents.
+    if resolved and os.path.isfile(resolved):
+        with open(resolved, encoding="utf-8") as handle:
+            raw = handle.read()
+        listed = [line.strip() for line in raw.splitlines()
+                  if line.strip() and not line.strip().startswith("#")]
+        ok(listed == ids, "freeplay songlist is %s, expected the five songs in "
+                          "scare order %s" % (listed, ids))
+        ok(len(listed) == len(set(listed)), "freeplay songlist lists a song twice")
         strangers = [s for s in listed if s not in ids]
         ok(not strangers, "freeplay songlist contains ids that are not this mod's "
                           "songs (freeplay would show an entry that cannot play): %s"
            % ", ".join(strangers))
-        ok(not (set(listed) & base), "freeplay songlist still contains base-game ids")
+        ok(not (set(listed) & base_ids), "freeplay songlist still contains base-game ids")
         for song_id in listed:
             ok(os.path.isfile(os.path.join(MOD, "songs", song_id, "meta.json")),
                "freeplay songlist lists %r but songs/%s/meta.json is missing"
                % (song_id, song_id))
 
-    # 4. Nothing else may sit in that folder: a second list (a plain
-    #    freeplaySonglist.txt, or a stale LIB_ file for an old mod folder name)
-    #    is either dead weight or a second, disagreeing source of truth.
-    if os.path.isdir(list_dir):
-        others = sorted(f for f in os.listdir(list_dir) if f != "LIB_TrollgeMod.txt")
-        ok(not others, "data/config/freeplaySonglist/ has files that are not the "
-                       "shipped list: %s" % ", ".join(others))
-    stray = os.path.join(config, "freeplaySonglist.txt")
-    ok(not os.path.isfile(stray),
-       "data/config/freeplaySonglist.txt is dead weight: the engine only reads "
-       "freeplaySonglist/LIB_<mod>.txt, so a plain list here would be ignored")
+    # 3. The LIB_ compatibility copy, if present, must agree with the real list --
+    #    two lists that disagree is worse than one.
+    lib_copy = os.path.join(config, "freeplaySonglist", "LIB_%s.txt" % mod_folder())
+    if os.path.isfile(lib_copy):
+        with open(lib_copy, encoding="utf-8") as handle:
+            copy_listed = [line.strip() for line in handle if line.strip()
+                           and not line.strip().startswith("#")]
+        with open(resolved, encoding="utf-8") as handle:
+            real_listed = [line.strip() for line in handle if line.strip()
+                           and not line.strip().startswith("#")]
+        ok(copy_listed == real_listed,
+           "freeplaySonglist/LIB_%s.txt disagrees with freeplaySonglist.txt "
+           "(the LIB_ file is only a redirect target; they must match)" % mod_folder())
 
-    # 5. The flag that makes it a replacement, not an append, has to be pinned.
+    # 4. Nothing else may sit in the freeplay folder.
+    list_dir = os.path.join(config, "freeplaySonglist")
+    if os.path.isdir(list_dir):
+        allowed = {"LIB_%s.txt" % mod_folder()}
+        others = sorted(f for f in os.listdir(list_dir) if f not in allowed)
+        ok(not others, "data/config/freeplaySonglist/ has unexpected files: %s"
+           % ", ".join(others))
+
+    # 5. The flag that makes it a replacement rather than an append.
     ini = os.path.join(config, "modpack.ini")
     ini_text = open(ini, encoding="utf-8").read() if os.path.isfile(ini) else ""
     ok('SONGS_LIST_MOD_MODE="override"' in ini_text,

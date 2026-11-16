@@ -82,7 +82,9 @@ def main():
     print("Packaged %d files -> %s (%.1f MB)" % (count, os.path.relpath(target, ROOT), size))
     print("Install with %s -- the engine names a mod after this file, and"
           % os.path.relpath(install, ROOT))
-    print("freeplay reads config/freeplaySonglist/LIB_%s.txt." % INSTALL_NAME)
+    print("freeplay asks for config/freeplaySonglist/LIB_%s.txt, which the engine"
+          % INSTALL_NAME)
+    print("rewrites to config/freeplaySonglist.txt; both ship, so either build works.")
     return 0
 
 
