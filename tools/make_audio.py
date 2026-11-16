@@ -998,6 +998,48 @@ def render_song(song):
     add_at(fx_s, sub_drop(1.8, 150.0, 26.0), end_at, 0.42)
     add_at(kick_s, kick(drive=2.0), end_at, 0.8)
 
+    # ---- dread layer ------------------------------------------------------ #
+    # The scare rating was a label: the *audio* of the 10/10 song measured as
+    # dark as the 2/10 one (spectral centroid 878 Hz vs 986, 84% of the energy
+    # below 200 Hz). These three layers are what actually makes a track feel
+    # wrong, and each one scales with the tier, so the ladder is audible:
+    #
+    #   * a detuned low drone, a hair under the tonic. Two oscillators a few
+    #     cents apart beat against each other at about 0.7 Hz -- slow enough to
+    #     feel like unease rather than to hear as a wobble;
+    #   * a tritone above it on the songs that are meant to hurt (tier >= 4).
+    #     The tritone is the one interval no key contains, which is why horror
+    #     scores live on it;
+    #   * breath: band-passed noise, gated on the section's own accents, so the
+    #     track sounds like something is in the room with you.
+    dread_l = np.zeros(n_total)
+    dread_r = np.zeros(n_total)
+    dread_amount = max(0.0, (tier - 1) / 4.0)          # 0 at tier 1, 1 at tier 5
+    if dread_amount > 0.0:
+        drone_hz = L.midi_to_hz(song["tonic"] - 12) if hasattr(L, "midi_to_hz") else midi_to_hz(song["tonic"] - 12)
+        t_all = np.arange(n_total) / SR
+        beat_hz = 0.55 + 0.18 * tier
+        drone = (sine(drone_hz, n_total) * 0.55
+                 + sine(drone_hz * 1.0035, n_total) * 0.45)
+        # slow amplitude breathing, offset per side so the drift never settles
+        drone_l = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * t_all))
+        drone_r = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * t_all + 1.9))
+        if tier >= 4:
+            tritone = midi_to_hz(song["tonic"] - 12) * (2 ** (6 / 12.0))
+            drone_l = drone_l + sine(tritone, n_total) * 0.22
+            drone_r = drone_r + sine(tritone * 1.002, n_total) * 0.22
+        gain = 0.075 * dread_amount
+        dread_l += lowpass(drone_l, 120.0) * gain
+        dread_r += lowpass(drone_r, 120.0) * gain
+
+        # Breath: narrow band of noise, swung in and out on a slow envelope.
+        breath = bandpass(noise(n_total, seed=7 + tier), 700.0, 2600.0)
+        swing = 0.5 + 0.5 * np.sin(2 * np.pi * (0.11 + 0.03 * tier) * t_all - 0.6)
+        swing = swing ** 3
+        breath = breath * swing * (0.05 * dread_amount)
+        dread_l += breath
+        dread_r += np.roll(breath, int(0.021 * SR))
+
     # ---- stereo mix ------------------------------------------------------- #
     # One reverb + one delay pass, both mono sends: wide, cheap and predictable.
     lead_send = 0.5 * (lead_p + lead_o)
@@ -1045,6 +1087,8 @@ def render_song(song):
         "wet_r": (wet_r, 0.05, 0.42),
         "echo_l": (echo_l, 0.32, 0.05),
         "echo_r": (echo_r, 0.05, 0.32),
+        "dread_l": (dread_l, 0.40, 0.40),
+        "dread_r": (dread_r, 0.40, 0.40),
     }
 
     left = np.zeros(n_total)

@@ -1,3 +1,7 @@
+# Compatibility copy. The engine rewrites `LIB_TrollgeMod.txt` to the plain
+# `data/config/freeplaySonglist.txt` in the same directory and reads THAT file
+# (ModsFolderLibrary.__parseAsset). Keep the two in sync -- the real list is the
+# parent file; this one exists for engine builds that read the prefix literally.
 trolling
 getting-dark
 dont-look-back

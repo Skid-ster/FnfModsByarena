@@ -710,7 +710,12 @@ def sections(song):
                 semi = note["semi"]
                 # The build and the last act sit an octave up: same lanes, new
                 # register, so the tune goes somewhere instead of looping.
-                if roles[i] in ("build", "finale") and bar >= bars - 1:
+                # The last bar of a build or the finale sits an octave up: same
+                # lanes, new register, so the tune goes somewhere instead of
+                # looping. Only notes that are still comfortably low are
+                # lifted -- otherwise the top of the phrase ends up inaudibly
+                # high and the sung range blows past an octave and a half.
+                if roles[i] in ("build", "finale") and bar >= bars - 1 and semi <= 14:
                     semi += 12
                 notes.append({
                     "id": lane,
@@ -762,7 +767,7 @@ DIFFICULTY_STRIDE = {"easy": 2, "normal": 4, "hard": 1}
 #: song 1 keeps one note in every `spacing` 16ths of a phrase, song 5 keeps them
 #: all. This is the "density climbs" axis of the ladder, expressed as musical
 #: space rather than as a different chart.
-TIER_SPACING = {2: 3, 4: 3, 6: 2, 8: 2, 10: 2}
+TIER_SPACING = {2: 5, 4: 4, 6: 3, 8: 2, 10: 2}
 
 #: Scroll speed per difficulty, inside the base game's 1.2-2.6 range.
 DIFFICULTY_SCROLL = {"easy": -0.35, "normal": -0.15, "hard": 0.0}
@@ -825,6 +830,16 @@ def notes(song, difficulty="hard"):
         if stride > 1:
             kept = [n for j, n in enumerate(kept) if _keep(j, stride)]
             kept = _thin(kept) or kept[:1]
+            # A strided chart must never leave a bar silent: a bar with no arrow
+            # reads as a hole in the song, not as an easier chart. Where the
+            # stride emptied a bar, put its *first* note back -- the downbeat is
+            # the one the melody leans on.
+            have = {n["measure"] for n in kept}
+            for n in notes_here:
+                if n["measure"] not in have:
+                    kept.append(n)
+                    have.add(n["measure"])
+            kept.sort(key=lambda n: (n["time"], n["id"]))
         # A phrase always lands its last note: that is where the cadence is.
         if notes_here and kept[-1] is not notes_here[-1]:
             kept.append(notes_here[-1])
@@ -912,7 +927,142 @@ def scroll_speed(song, difficulty):
 # Musical helpers used by the audio renderer
 # --------------------------------------------------------------------------- #
 
+def diatonic_triads(song):
+    """Every chord the song's scale can build, as (root, [tones from root]).
+
+    Triads come first, then the same roots as seventh chords, then the two sus
+    forms. Horror writing lives on sevenths and suspensions -- a bar of Am7 or
+    Asus4 under a melody that steps past the third is ordinary practice, and
+    it gives the harmoniser an honest way to follow a tune that is not
+    arpeggiating a triad. Order matters: the harmoniser takes the earliest
+    chord that scores best, so plain triads win ties and the harmony stays
+    unhysterical until it has a reason not to be.
+    """
+    scale = SCALES[song["id"]]
+    size = len(scale)
+
+    def deg(i):
+        return scale[i % size] + 12 * (i // size)
+
+    out = []
+    for i in range(size):                      # plain triads
+        root = deg(i)
+        out.append((root, sorted({(deg(i + 2 * k) - root) % 12 for k in range(3)})))
+    for i in range(size):                      # sevenths
+        root = deg(i)
+        out.append((root, sorted({(deg(i + 2 * k) - root) % 12 for k in range(4)})))
+    for i in range(size):                      # sus2 and sus4
+        root = deg(i)
+        out.append((root, sorted({0, (deg(i + 1) - root) % 12,
+                                  (deg(i + 2) - root) % 12})))
+        out.append((root, sorted({0, (deg(i + 3) - root) % 12,
+                                  (deg(i + 2) - root) % 12})))
+    return out
+
+
+#: Weight of a note in the harmoniser: a note on a beat decides the chord, a
+#: note off the beat is colour. This is the scoring an arranger does by ear.
+_CHORD_WEIGHT_STRONG = 7.0
+_CHORD_WEIGHT_WEAK = 1.0
+_CHORD_WEIGHT_LEAP = 0.5
+
+
+def _melody_bars(song):
+    """{(block_index, bar_in_block): [(step, semitone), ...]} for the whole song."""
+    out = {}
+    for block, section in enumerate(sections(song)):
+        for note in section["notes"]:
+            if note.get("semi") is None:
+                continue
+            base = section["time"]
+            bar = int(round((note["time"] - base) / (measure(song) * 1000.0)))
+            key = (block, min(bar, section["measures"] - 1))
+            step_in_bar = int(round(
+                (note["time"] - base - bar * measure(song) * 1000.0)
+                / (step(song) * 1000.0)))
+            out.setdefault(key, []).append((note["semi"], step_in_bar % 16))
+    return out
+
+
+def harmonise(song):
+    """Choose a chord for every bar from the notes the melody actually sings.
+
+    The progression used to be a fixed loop running off the absolute bar
+    number. That is why the tunes never fitted it: the same phrase came back
+    over a different chord, and a melody cannot be *written* against harmony
+    that moves underneath it. Here the chords are chosen to fit the melody,
+    which is the order an arranger works in -- write the tune, then harmonise
+    it -- and the song's `progression` is kept only as the tie-breaker that
+    decides between equally good chords (so the key still feels like the song's,
+    rather than drifting wherever the tune happens to lean).
+
+    Cached on the song dict; invalidated by not existing yet.
+    """
+    if "_harmony" in song:
+        return song["_harmony"]
+    _prepare(song)
+    triads = diatonic_triads(song)
+    prog = song["progression"]
+    melody = _melody_bars(song)
+    n_blocks = len(song["section_measures"])
+    harmony = []
+    for block in range(n_blocks):
+        bars = song["section_measures"][block]
+        # A block's first bar and its last bar carry the most weight in the ear
+        # (entry and cadence), and consecutive bars should not fight: give a
+        # bar a small bonus for repeating the chord before it, which is what
+        # keeps a riff over one harmony instead of changing colour every bar.
+        prev_chosen = None
+        for bar in range(bars):
+            abs_bar = song["_block_starts"][block] + bar
+            notes = melody.get((block, bar), [])
+            best, best_score = None, -1e9
+            for ti, (root, tones) in enumerate(triads):
+                pcs = {(root + t) % 12 for t in tones}
+                score = 0.0
+                for semi, step_in_bar in notes:
+                    weight = (_CHORD_WEIGHT_STRONG if step_in_bar in (0, 4, 8, 12)
+                              else _CHORD_WEIGHT_WEAK)
+                    if semi % 12 in pcs:
+                        score += weight
+                    elif semi % 12 == root % 12:
+                        score += weight * 0.5
+                    else:
+                        score -= weight
+                # Prefer the song's own progression when it is just as good,
+                # and prefer the tonic at the top of a section so cadences land.
+                pref_root, _ = prog[(abs_bar - song["_block_starts"][block])
+                                    % len(prog)]
+                if root % 12 == pref_root % 12:
+                    score += 0.6
+                if prev_chosen is not None and root % 12 == prev_chosen % 12:
+                    score += 1.2
+                if bar == bars - 1:
+                    score += 0.4
+                if notes:
+                    # The bar's own downbeat is what the ear checks first:
+                    # give it extra weight so the harmoniser cannot average it
+                    # away against a cluster of weak passing notes.
+                    first = min(notes, key=lambda n: n[1])
+                    if first[0] % 12 in pcs:
+                        score += 2.0
+                    weight_root = 1.0 if root % 12 == first[0] % 12 else 0.0
+                    score += weight_root
+                else:
+                    score = 0.5 if root % 12 == pref_root % 12 else 0.0
+                if score > best_score + 1e-9:
+                    best, best_score = (root, tones), score
+            harmony.append(best)
+            prev_chosen = best[0]
+    song["_harmony"] = harmony
+    return harmony
+
+
 def chord_for_measure(song, index):
+    """The chord under one bar, chosen to fit the melody (see `harmonise`)."""
+    harmony = harmonise(song)
+    if 0 <= index < len(harmony):
+        return harmony[index]
     prog = song["progression"]
     return prog[index % len(prog)]
 
