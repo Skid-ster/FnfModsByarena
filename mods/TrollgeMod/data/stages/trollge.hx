@@ -193,16 +193,19 @@ function update(elapsed:Float) {
 
 	// A glitch event rings out over ~1.2 s instead of snapping back instantly.
 	var target:Float = 0.0;
+	// Chart events are in song time; wall time includes the intro cutscene and
+	// countdown, and would trigger the shader before the actual scare.
+	var songSeconds:Float = Conductor != null ? Conductor.songPosition / 1000.0 : -1.0;
 	for (t in glitchTimes) {
-		var since:Float = songClock - t;
+		var since:Float = songSeconds - t;
 		if (since >= 0.0 && since < 1.2) {
 			var amount:Float = 1.0 - since / 1.2;
 			if (amount > target) target = amount;
 		}
 	}
 	// 8/10 and up also twitches on every beat, so the picture never settles.
-	if (scareTier >= 8 && Conductor != null) {
-		var phase:Float = (Conductor.songPosition / 1000.0) % 1.0;
+	if (scareTier >= 8 && Conductor != null && Conductor.crochet > 0 && songSeconds >= 0) {
+		var phase:Float = (Conductor.songPosition % Conductor.crochet) / Conductor.crochet;
 		var pulse:Float = 1.0 - phase;
 		if (pulse * 0.22 > target) target = pulse * 0.22;
 	}
@@ -311,9 +314,9 @@ function beatHit(curBeat) {
 	if (scareTier >= 6) camShake(1.2 + 0.35 * scareTier, 0.09);
 	if (scareTier >= 10 && curBeat % 4 == 0) camShake(4.0, 0.22);
 
-	// Ambient dread per tier (FlxG.random.bool takes a 0..1 probability).
+	// FlxRandom.bool takes a percentage in the range 0..100.
 	if (staticSpr == null) return;
-	var chance:Float = scareTier >= 8 ? 0.30 : (scareTier >= 6 ? 0.16 : 0.06);
+	var chance:Float = scareTier >= 8 ? 30.0 : (scareTier >= 6 ? 16.0 : 6.0);
 	if (FlxG.random.bool(chance)) {
 		var peak:Float = scareTier >= 8 ? 0.35 : (scareTier >= 6 ? 0.22 : 0.12);
 		FlxTween.cancelTweensOf(staticSpr);

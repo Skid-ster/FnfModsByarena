@@ -41,7 +41,11 @@ function beatHit(curBeat) {
 
 function onDance(event) {
 	// Even the idle dance gets twitchy once things go bad.
-	if (scareTier >= 8 && FlxG.random.bool(0.18)) this.playAnim('laugh', true, "DANCE");
+	if (scareTier >= 8 && FlxG.random.bool(18.0)) {
+		// Character.dance() otherwise immediately overwrites the chosen anim.
+		event.cancel();
+		this.playAnim('laugh', true, "DANCE");
+	}
 }
 
 function postUpdate(elapsed) {

@@ -542,6 +542,28 @@ def section_roles(song):
     return roles
 
 
+def measure_roles(song):
+    """Map absolute chart-bar indices to their section's arrangement role."""
+    roles = section_roles(song)
+    out = {}
+    start = 0
+    for bars, role in zip(song["section_measures"], roles):
+        for bar in range(start, start + bars):
+            out[bar] = role
+        start += bars
+    return out
+
+
+def melodic_onsets(song):
+    """Hard-chart melody without doubling unison finale hands in the audio."""
+    seen = set()
+    for note in notes(song, "hard"):
+        key = (round(note["time"], 3), note["side"], note.get("semi"))
+        if key not in seen:
+            seen.add(key)
+            yield note
+
+
 def side_for_block(index):
     """Base-game phrasing: the opponent opens, then the two characters trade
     phrase blocks for the rest of the song (and the player always gets the last
@@ -953,10 +975,13 @@ def diatonic_triads(song):
         out.append((root, sorted({(deg(i + 2 * k) - root) % 12 for k in range(4)})))
     for i in range(size):                      # sus2 and sus4
         root = deg(i)
+        # Suspensions replace the third, not the fifth: 1-2-5 / 1-4-5.
+        # The former 1-2-3 / 1-4-3 voicings created a cluster on almost
+        # every bar, often masking the very hook the chord was meant to support.
         out.append((root, sorted({0, (deg(i + 1) - root) % 12,
-                                  (deg(i + 2) - root) % 12})))
+                                  (deg(i + 4) - root) % 12})))
         out.append((root, sorted({0, (deg(i + 3) - root) % 12,
-                                  (deg(i + 2) - root) % 12})))
+                                  (deg(i + 4) - root) % 12})))
     return out
 
 
@@ -968,19 +993,29 @@ _CHORD_WEIGHT_LEAP = 0.5
 
 
 def _melody_bars(song):
-    """{(block_index, bar_in_block): [(step, semitone), ...]} for the whole song."""
-    out = {}
-    for block, section in enumerate(sections(song)):
-        for note in section["notes"]:
-            if note.get("semi") is None:
-                continue
-            base = section["time"]
-            bar = int(round((note["time"] - base) / (measure(song) * 1000.0)))
-            key = (block, min(bar, section["measures"] - 1))
-            step_in_bar = int(round(
-                (note["time"] - base - bar * measure(song) * 1000.0)
-                / (step(song) * 1000.0)))
-            out.setdefault(key, []).append((note["semi"], step_in_bar % 16))
+    """{(block_index, bar_in_block): [(semitone, step), ...]} for hard melody.
+
+    Follow chart thinning rather than discarded notation, and collapse doubled
+    hands into one musical onset. Measure indices are absolute bar indices;
+    timestamps include a lead-in and must not be rounded to a different bar.
+    """
+    layout = sections(song)
+    starts = [int(round((section["time"] - measure_time(song, 0)) /
+                        (measure(song) * 1000.0))) for section in layout]
+    out, seen = {}, set()
+    for note in notes(song, "hard"):
+        if note.get("semi") is None:
+            continue
+        onset = (round(note["time"], 3), note["side"], note["semi"])
+        if onset in seen:
+            continue
+        seen.add(onset)
+        block = next(i for i in range(len(starts) - 1, -1, -1)
+                     if note["measure"] >= starts[i])
+        bar = note["measure"] - starts[block]
+        pos = int(round((note["time"] - measure_time(song, note["measure"])) /
+                        (step(song) * 1000.0))) % 16
+        out.setdefault((block, bar), []).append((note["semi"], pos))
     return out
 
 
@@ -1068,34 +1103,18 @@ def chord_for_measure(song, index):
 
 
 def note_pitch(song, measure_index, strum_id, octave_shift=0, octave=0, semi=None):
-    """MIDI pitch of one chart note.
+    """Return the written pitch, with no automatic chord-tone substitutions.
 
-    The melody decides the octave (`note["octave"]`), so the same arrow can sing
-    in two registers and a phrase can leap an octave without changing lane. The
-    bar's chord decides the *harmony*: the note is moved onto the nearest chord
-    tone when the phrase's own degree is a clash, which is how the parts stay in
-    key while the progression moves underneath the tune.
+    A chromatic passing note is part of the tune, not an error to repair. The
+    lead and voice use this written pitch class; the opponent vocal is rendered
+    an octave lower. The fallback is for notes without a melodic semitone.
     """
-    root, tones = chord_for_measure(song, measure_index)
-    size = len(SCALES[song["id"]])
     if semi is not None:
-        # The phrase said exactly which note it wants: sing that, one octave up
-        # from the tonic register the phrases are written in.
-        pitch = song["tonic"] + 12 + semi + 12 * octave_shift
-    else:
-        klass = LANE_CLASS[strum_id]
-        pitch = song["tonic"] + degree_to_semitones(
-            song, klass + size * (1 + octave + octave_shift))
-    # Land on the chord: keep the melody's register, move by at most a tone.
-    chord_pitches = [song["tonic"] + root + t for t in tones]
-    while max(chord_pitches) < pitch - 6:
-        chord_pitches = [p + 12 for p in chord_pitches]
-    while min(chord_pitches) > pitch + 6:
-        chord_pitches = [p - 12 for p in chord_pitches]
-    nearest = min(chord_pitches, key=lambda p: abs(p - pitch))
-    if abs(nearest - pitch) <= 1:
-        pitch = nearest
-    return int(round(pitch))
+        return int(round(song["tonic"] + 12 + semi + 12 * octave_shift))
+    size = len(SCALES[song["id"]])
+    klass = LANE_CLASS[strum_id]
+    return int(round(song["tonic"] + degree_to_semitones(
+        song, klass + size * (1 + octave + octave_shift))))
 
 
 # --------------------------------------------------------------------------- #

@@ -325,7 +325,7 @@ def main():
                             % (song["id"], voices["duration"], L.length(song)))
 
         print("\n%s  (%s, scare %d/10)" % (song["display"], song["id"], song["scare"]))
-        print("  audio  %.2fs  peak %.1f dB  true-peak %.1f dB  rms %.1f dB  crest %.1f dB  centroid %.0f Hz"
+        print("  audio  %.2fs  peak %.1f dB  peak estimate %.1f dB  rms %.1f dB  crest %.1f dB  centroid %.0f Hz"
               % (audio["duration"], audio["peak_db"], audio["true_peak_db"], audio["rms_db"],
                  audio["crest_db"], audio["centroid"]))
         print("  bands  " + "  ".join("%s %.0f%%" % (k, v) for k, v in audio["bands"].items()))
@@ -352,7 +352,7 @@ def main():
                    "| Metric | Value | Target |", "| --- | --- | --- |"]
         report.append(fmt_row("length", "%.2f s" % audio["duration"]))
         report.append(fmt_row("peak", "%.1f dBFS" % audio["peak_db"], audio["peak_db"], "peak_db"))
-        report.append(fmt_row("true peak (4x oversampled)", "%.2f dBTP" % audio["true_peak_db"],
+        report.append(fmt_row("inter-sample peak estimate (4x Catmull-Rom)", "%.2f dBTP" % audio["true_peak_db"],
                               audio["true_peak_db"], "true_peak_db"))
         report.append(fmt_row("style", song.get("style", "-")))
         report.append(fmt_row("Boyfriend", song.get("bf", "-")))

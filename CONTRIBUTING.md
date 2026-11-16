@@ -48,6 +48,7 @@ python3 tools/make_menu.py      # main menu buttons, backdrop, docs/menu_preview
 python3 tools/make_stage_preview.py  # if you touched the stage xml
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
+python3 tools/test_polish.py    # character wiring, effect timing, HUD and notes
 python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
 ```
 
@@ -73,6 +74,11 @@ song IDs. Static resolution checks do not replace testing in the engine.
 
 ## Changing the music
 
+Research references and their limitations are recorded in [music-research.md](docs/music-research.md).
+`measure_roles()` maps role changes directly to chart-bar indices; `melodic_onsets()`
+collapses unison hands. After rendering, `check_stem_mix.py` estimates the decoded
+sum at equal stem gain, not actual engine playback or standards-compliant true peak.
+
 * **The melody lives in `tools/phrases.py`, not in the renderer.** Each phrase is a block of text where one line is a
   bar of sixteen 16th steps: a number is a semitone above the song's tonic (`12` is the octave, `15` the minor third
   above it), `.` is a rest and `-` ties the previous note. `song_layout.py` parses it (rejecting a phrase that is not a
@@ -84,7 +90,9 @@ song IDs. Static resolution checks do not replace testing in the engine.
   phrase longer than itself plays a window of it; a block that names a shorter one repeats it.
 * **Lanes vs pitches.** A phrase note carries both: `lane` is the arrow the player hits (the note's degree class --
   tonic, flat third, fifth, flat seventh) and `semi` is the pitch the singer sings. That is why the chart can stay
-  playable while the tune steps and leaps: `note_pitch()` sings `semi`, and the chart only needs the lane.
+  playable while the tune steps and leaps: `note_pitch()` preserves `semi` without chord snapping, and the chart only needs the lane.
+  Harmony and `melody_report.py` use the thinned hard chart, counting doubled hands once; run `python3 tools/test_music.py`
+  after touching pitch, chord voicings or the bass. Listening still decides whether it works.
 * **Arrangement** is by section role, not by hand: `section_roles()` in `tools/song_layout.py` labels every phrase
   block (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and rhythm cell, and `ROLE_GAIN`
   sets how hard each role pushes. The chart writer reads the same list, so a `break` block drops its drums *and*
@@ -98,7 +106,7 @@ song IDs. Static resolution checks do not replace testing in the engine.
 * **Cutscene copy** lives in `song_layout.py` too (`"cutscene": {"tag", "lines", "outro"}`). Edit the words there and
   run `tools/make_cutscenes.py`: it rewrites `songs/<song>/cutscene.hx`, `songs/<song>/cutscene-end.hx` and the frames
   in `images/ui/`. Never hand-edit the `.hx` files, CI diffs them.
-* **Difficulties** come from `notes(song, difficulty)`: hard keeps every note, normal two in three, easy every second.
+* **Difficulties** come from `notes(song, difficulty)`: hard applies tier spacing, normal drops one in four of those notes, and easy keeps every second.
   Do not hand-write an easy chart — it is a strided subset, so the three charts can never disagree about timing.
 * **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `glitch`, `industrial`, `finale`). Each style
   picks its own kit,
@@ -169,12 +177,13 @@ no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float li
 
 The rule the noteskin lives by: **a note must be brighter than the receptor it lands on.** The interiors are lifted
 towards white around a blurred core (`hot_core` in `tools/make_noteskin.py`) and the receptors stay dark with a hot rim,
-a static edge and a keyline. Measured on the shipped atlas, note interiors sit at 116-154 mean luminance and receptors at
-~72; if a change inverts that relationship, the arrows stop reading at high scroll speed. Holds get the same fringe,
+a static edge and a keyline. `tools/test_polish.py` checks the finale's four note/receptor pairs and the separation
+between lane colours; a change that inverts that relationship can make arrows hard to read at speed. Holds get the same fringe,
 scanline and ink pass as the notes so a sustain is legible too.
 
 * **Arrow colours** live in `LANES` / `SHADOW_LANES` in `tools/make_noteskin.py`; each skin is drawn from that
-  palette, so changing one RGB triple re-skins a whole lane. Re-run the script, then
+  palette, so changing one RGB triple re-skins a whole lane. Texture passes use seeded noise; preserve this so the
+  atlases can be regenerated. Re-run the script, then
   `python3 tools/make_chart.py` if you renamed a skin.
 * **Which song uses which skin** is `song_layout.py` -> `"noteskin"` (`None`, `"shadow"`, `"corrupt"`). The
   chart's `noteTypes` carries it to the notes; `data/stages/trollge.hx` mirrors it onto the strums through

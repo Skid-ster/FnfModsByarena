@@ -66,7 +66,7 @@ def vignette(image, strength=0.7):
 
 
 def grain(image, amount=0.06, seed=0):
-    noise = Image.effect_noise(image.size, 90).convert("L")
+    noise = Image.frombytes("L", image.size, random.Random(seed).randbytes(image.width * image.height))
     noise = noise.point(lambda v: int(abs(v - 128) * amount))
     tinted = Image.merge("RGB", (noise, noise, noise))
     return ImageChops.add(image.convert("RGB"), tinted)
@@ -167,19 +167,27 @@ def build_scare_art():
         glitch.paste(strip, (offset, gy))
     save(glitch, "trollge_distortion.png")
 
-    # --- Inverted reality: a corrupted, colour-flipped frame ---------------
-    inv = Image.new("RGB", (BG_W, BG_H))
-    ipx = inv.load()
-    for yy in range(BG_H):
-        base = 200 if (yy // 3) % 2 == 0 else 150
-        for xx in range(BG_W):
-            v = max(0, min(255, base + rng.randint(-40, 40)))
-            ipx[xx, yy] = (v // 3, v // 6, v - 20)
-    inv = inv.filter(ImageFilter.GaussianBlur(1.2))
-    inv = ImageEnhance.Contrast(inv).enhance(1.5)
+    # --- Inverted reality: a damaged negative of the actual battle room. ----
+    # The old near-opaque purple noise hid both the notes and the environment.
+    # Retain the negative image as a fleeting, translucent visual interruption.
+    room = Image.open(os.path.join(SRC, "scary_bg.png")).convert("RGB").resize(
+        (BG_W, BG_H), Image.LANCZOS)
+    negative = ImageOps.invert(ImageOps.grayscale(room))
+    inv = ImageOps.colorize(negative, black=(12, 5, 20), white=(170, 100, 154))
+    inv = ImageEnhance.Contrast(inv).enhance(1.12)
+    inv = rgb_split(inv, 5)
+    inv = scanlines(inv, 4, 16)
+    # Sparse, seeded tracking errors, leaving the middle readable.
+    draw = ImageDraw.Draw(inv)
+    for _ in range(12):
+        y = rng.randrange(BG_H)
+        x = rng.randrange(BG_W)
+        length = rng.randint(25, 140)
+        draw.line((x, y, min(BG_W - 1, x + length), y), fill=(183, 90, 128), width=1)
     inverted = inv.convert("RGBA")
-    inverted.putalpha(Image.new("L", (BG_W, BG_H), 236))
+    inverted.putalpha(Image.new("L", (BG_W, BG_H), 192))
     save(inverted, "trollge_invert.png")
+
 
 
 def build_backgrounds():
@@ -198,7 +206,7 @@ def build_backgrounds():
     tier2 = Image.blend(tier2, ImageChops.add(tier2, red), 0.4)
     tier2 = ImageEnhance.Brightness(tier2).enhance(0.85)
     tier2 = scanlines(tier2, 5, 14)
-    tier2 = grain(tier2, 0.05)
+    tier2 = grain(tier2, 0.05, seed=4004)
     tier2 = vignette(tier2, 0.6)
     save(tier2.convert("RGBA"), "stages/trollge/bg_scary.png")
 
@@ -218,7 +226,7 @@ def build_backgrounds():
         strip = tier3.crop((0, y0, BG_W, min(BG_H, y0 + band)))
         tier3.paste(strip, (dx, y0))
     tier3 = scanlines(tier3, 4, 22)
-    tier3 = grain(tier3, 0.08)
+    tier3 = grain(tier3, 0.08, seed=6006)
     tier3 = vignette(tier3, 0.68)
     save(tier3.convert("RGBA"), "stages/trollge/bg_glitch.png")
 
@@ -227,7 +235,7 @@ def build_backgrounds():
     tier3 = ImageChops.add(tier3, Image.new("RGB", src.size, (140, 0, 10)), scale=1.0, offset=-60)
     tier3 = rgb_split(tier3, 6)
     tier3 = scanlines(tier3, 3, 34)
-    tier3 = grain(tier3, 0.11)
+    tier3 = grain(tier3, 0.11, seed=8008)
     tier3 = ImageEnhance.Contrast(tier3).enhance(1.2)
     tier3 = vignette(tier3, 0.75)
     save(tier3.convert("RGBA"), "stages/trollge/bg_nightmare.png")

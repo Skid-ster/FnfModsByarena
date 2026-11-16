@@ -1,16 +1,19 @@
-# Unreleased development status
+# v3.8.0 testing release status
 
-This work is not an engine-verified release. No Codename Engine runtime, GLSL
+This is a testing release, not an engine-verified release. No Codename Engine runtime, GLSL
 compiler, or playback/listening test was available in this environment.
 
 ## Checks run on this checkout
 
-- `python3 tools/validate_mod.py`: 2368 checks, 0 errors, 0 warnings.
+- `python3 tools/validate_mod.py`: 2378 checks, 0 errors, 0 warnings.
 - `python3 tools/audit_songs.py --strict`: all metrics inside target windows.
 - `python3 tools/mix_report.py --strict`: all five melody/bass energy ratios
   above 1.0, crest factors in range.
 - `python3 tools/melody_report.py --strict`: all 30 gates clear.
+- `python3 tools/test_music.py`: music generation regression tests.
+- `python3 tools/check_stem_mix.py`: decoded equal-gain stem-sum peak estimates.
 - `python3 tools/dread_report.py --strict`: dread ladder within its tolerance.
+- `python3 tools/test_polish.py`: character wiring, chart timing, note contrast, countdown bounds and seeded texture checks pass.
 - `python3 tools/test_shader_validation.py`: unsupported and wrong-camera
   sampling mutations rejected; current CRT accepted.
 - `python3 tools/check_freeplay_zip.py`: built archive passes old/new path and
@@ -20,14 +23,22 @@ compiler, or playback/listening test was available in this environment.
 These are measurements and static models, not proof that the songs sound good,
 the shaders compile on a user's GPU, or Freeplay opens on an engine build.
 
-## Measured change
+## Music changes
 
-Using `mix_report.py` on the actual pre-change and current The Incident
-instrumentals, energy below 250 Hz fell from 80.9% to 38.8%; energy from
-250–2000 Hz rose from 9.6% to 50.3%. This band's energy is not the same thing
-as perceived melody intelligibility. Crest factor moved from 13.6 to 13.8 dB.
-The FFT measurement here uses channel-wise one-second windows; other reports
-use different windows and therefore yield different percentages.
+The rendered lead and vocals now preserve the written semitone instead of
+snapping near chord tones. Harmony is scored against the notes remaining after
+hard-chart thinning, in their correct bars; simultaneous doubled hands are
+counted once. Suspensions retain the fifth, pad extensions are actual diatonic
+ninths, and the glitch bass gates a stable root instead of jumping randomly to
+tritones. The opening song's recurring phrases were re-timed so their hooks
+survive thinning. `test_music.py` covers these properties and the report's
+onset accounting. Section roles now align to chart bars, unison hands produce
+one sung onset, drones use the song tonic, and a linked gain curve protects
+the decoded equal-gain sum of the instrumental and voices. `melody_report.py` now assesses the chart rather than the
+unthinned notation, so its results are not comparable to older tables.
+
+These corrections are not a listening test. Scary/catchy sound and balance
+still need to be assessed with the actual instrumental and voices together.
 
 ## Source findings and remaining work
 
@@ -45,5 +56,13 @@ use different windows and therefore yield different percentages.
 - Listen to all songs with the owner; play each song in Story and Freeplay on
   target Codename versions (zip and extracted installs). Confirm exact Freeplay
   ordering, shader behavior, chart sync, cutscenes and ending.
-- Version/tag 3.8.0 and release assets have **not** been published. Do not call
-  this finished until the engine and owner checks above are complete.
+- Please report listening and engine results before treating this testing build as finished.
+
+## Battle polish
+
+All five Trollge character XMLs now load their shared behavior extension. Shader
+event pulses follow `Conductor.songPosition` rather than wall time, and ambient
+random chances use the percentage units documented in the engine's FlxRandom.
+The finale note skin retains distinct lane colours; READY fits its canvas; the
+inversion is shorter, less opaque, and shows a negative of the room. Background
+and noteskin textures are seeded. These changes have not been tested in-engine.

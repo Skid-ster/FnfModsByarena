@@ -891,6 +891,9 @@ def character_xml(skin, anims, dead=False):
         '<character sprite="%s" icon="%s" color="%s" %s>'
         % (skin["sprite"], skin["icon"], skin["color"], attrs),
     ]
+    if skin["role"] == "opponent" and not dead:
+        # Codename loads extensions from data/scripts during buildCharacter.
+        head.append('    <extension script="trollge_behavior"/>')
     body = [
         '    <anim name="%s" anim="%s" x="0" y="0" fps="%d" loop="%s"/>'
         % (name, prefix, fps, "true" if loop else "false")

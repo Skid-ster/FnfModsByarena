@@ -30,6 +30,12 @@ jobs:
       - name: Test shader validator regressions
         run: python3 tools/test_shader_validation.py
 
+      - name: Test battle presentation regressions
+        run: python3 tools/test_polish.py
+
+      - name: Test music rendering regressions
+        run: python3 tools/test_music.py
+
       - name: Audit the mix and the chart style
         run: python3 tools/audit_songs.py --strict
 
@@ -38,6 +44,9 @@ jobs:
       # get scarier. Both are measured on the files in the repo.
       - name: Measure melody-band mix balance
         run: python3 tools/mix_report.py --strict
+
+      - name: Check decoded instrumental and vocal sums
+        run: python3 tools/check_stem_mix.py
 
       - name: Measure the melodies
         run: python3 tools/melody_report.py --strict
@@ -86,7 +95,8 @@ jobs:
   release:
     name: Publish release
     needs: [validate, charts-in-sync]
-    if: startsWith(github.ref, 'refs/tags/v')
+    # v3.8.0 is published manually as a clearly labelled testing release.
+    if: startsWith(github.ref, 'refs/tags/v') && github.ref != 'refs/tags/v3.8.0'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

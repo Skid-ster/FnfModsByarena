@@ -1164,14 +1164,17 @@ def check_scripts():
             ok(os.path.isfile(os.path.join(MOD, "images", "game", "notes", skin + ".png")),
                "stage script uses the %r skin but its atlas is missing" % skin)
 
-    # Character XML extensions must point at a real script.
-    for char in ("trollge", "trollge_scary"):
+    # Every Trollge phase needs the behavior extension, not merely an existing
+    # script file: an absent <extension> otherwise silently disables flicker.
+    for char in ("trollge", "trollge_glitch", "trollge_static", "trollge_final", "trollge_sad"):
         path = os.path.join(MOD, "data", "characters", char + ".xml")
         if not os.path.isfile(path):
             continue
-        for ext in ET.parse(path).getroot().iter("extension"):
-            target = os.path.join(MOD, "data", "scripts", ext.get("script") + ".hx")
-            ok(os.path.isfile(target), "%s: extension script %r missing" % (char, ext.get("script")))
+        extensions = [ext.get("script") for ext in ET.parse(path).getroot().iter("extension")]
+        ok(extensions.count("trollge_behavior") == 1,
+           "%s: expected one trollge_behavior extension" % char)
+        target = os.path.join(MOD, "data", "scripts", "trollge_behavior.hx")
+        ok(os.path.isfile(target), "%s: trollge_behavior extension is missing" % char)
 
 
 def check_stage_positioning():

@@ -83,10 +83,17 @@ def build_health_bar():
 def badge_text(word, glitch=0, seed=0):
     """One countdown badge: chunky word, red offset copy, glitch slices."""
     image = Image.new("RGBA", (BADGE_W, BADGE_H), (0, 0, 0, 0))
-    font = ImageFont.truetype(FONT_BOLD, 128)
     text_layer = Image.new("RGBA", (BADGE_W, BADGE_H), (0, 0, 0, 0))
     td = ImageDraw.Draw(text_layer)
+    # Leave room for stroke, shadow and glitch displacement: READY used to
+    # exceed the frame width and its first and last letters were clipped.
+    font_size = 128
+    font = ImageFont.truetype(FONT_BOLD, font_size)
     box = td.textbbox((0, 0), word, font=font)
+    while box[2] - box[0] > BADGE_W - 64 and font_size > 24:
+        font_size -= 1
+        font = ImageFont.truetype(FONT_BOLD, font_size)
+        box = td.textbbox((0, 0), word, font=font)
     x = (BADGE_W - (box[2] - box[0])) / 2 - box[0]
     y = (BADGE_H - (box[3] - box[1])) / 2 - box[1]
 

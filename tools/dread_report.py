@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
-"""Measures whether the songs actually get scarier, or only say they do.
+"""Measure low-frequency spectral proxies associated with the dread layers.
 
-The owner's third ask was "actually make it scary". A scare rating in the song
-JSON is a label; this script checks the *audio*, on two things horror music does
-that a cheerful track does not:
+The result is not a measure of fear or a listening test: the drone and tritone
+bands can contain other musical material. Adjacent dread scores may drop by up
+to 3 dB and still pass; this is not a strictly increasing ladder.
 
-  * a low drone a hair off the tonic, which beats slowly against itself. It shows
-    up as a narrow band of energy at the tonic's sub-octave;
-  * a tritone. It is the one interval no key contains, so a real tritone in the
-    mix is a measured fact rather than a mood.
-
-Both are measured as *prominence above the mid band* rather than as a share of
-total energy: share-of-total measures the genre's bass, not the dread, and it is
-why the first pass appeared to show the 4/10 song as "brighter" than the 2/10.
-The script then checks that the prominence *climbs with the rating* -- the
-frightening songs must sit deeper in the mix than the friendly ones. A ladder
-that exists only in the JSON is what the last version had, and it measured flat.
-
-Run:  python3 tools/dread_report.py
-      python3 tools/dread_report.py --strict
+Run: python3 tools/dread_report.py [--strict]
 """
 
 import os
@@ -39,11 +26,7 @@ MOD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "mods", "TrollgeMod")
 SR = 44100
 
-#: The ladder must be monotonic in this: the share of energy below 250 Hz. The
-#: first pass measured 63 / 45 / 58 / 66 / 84 percent -- the 10/10 song was the
-#: darkest, but the 4/10 was the *brightest* of the five, which is a ladder you
-#: cannot hear. A tolerance of a couple of points either way lets a song have
-#: its own character without breaking the trend.
+#: Maximum allowed adjacent drop in the combined spectral proxy.
 DREAD_TOLERANCE_DB = 3.0
 
 
@@ -125,17 +108,17 @@ def report(strict=False):
     for (a_song, a), (b_song, b) in zip(ordered, ordered[1:]):
         if b["dread_db"] + DREAD_TOLERANCE_DB < a["dread_db"]:
             problems.append(
-                "%s (scare %d, dread %.1f dB) is less oppressive than %s "
-                "(scare %d, dread %.1f dB)"
+                "%s (scare %d, dread proxy %.1f dB) is more than 3 dB below %s "
+                "(scare %d, dread proxy %.1f dB)"
                 % (b_song["id"], b_song["scare"], b["dread_db"],
                    a_song["id"], a_song["scare"], a["dread_db"]))
     # The frightening end of the ladder must actually carry the layers.
     for song, stats in ordered[-2:]:
         if stats["drone_db"] < -18.0:
-            problems.append("%s is a %d/10 with no audible drone (%.1f dB)"
+            problems.append("%s is a %d/10 with drone-band proxy below threshold (%.1f dB)"
                             % (song["id"], song["scare"], stats["drone_db"]))
         if stats["tritone_db"] < -20.0:
-            problems.append("%s is a %d/10 with no audible tritone (%.1f dB)"
+            problems.append("%s is a %d/10 with tritone-band proxy below threshold (%.1f dB)"
                             % (song["id"], song["scare"], stats["tritone_db"]))
 
     print()
@@ -144,8 +127,8 @@ def report(strict=False):
         for p in problems:
             print("  - " + p)
     else:
-        print("the dread ladder climbs: every higher scare sits deeper in the "
-              "mix than the one before it.")
+        print("Dread-band proxies pass with a 3 dB adjacent-drop tolerance; "
+              "this does not establish perceived scariness.")
     if strict and problems:
         return 1
     return 0
