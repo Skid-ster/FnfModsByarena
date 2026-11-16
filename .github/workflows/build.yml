@@ -27,12 +27,18 @@ jobs:
       - name: Validate charts, configs, atlases and audio
         run: python3 tools/validate_mod.py
 
+      - name: Test shader validator regressions
+        run: python3 tools/test_shader_validation.py
+
       - name: Audit the mix and the chart style
         run: python3 tools/audit_songs.py --strict
 
       # Two claims that used to be labels rather than properties of the shipped
       # build: that the melodies are written music, and that the songs actually
       # get scarier. Both are measured on the files in the repo.
+      - name: Measure melody-band mix balance
+        run: python3 tools/mix_report.py --strict
+
       - name: Measure the melodies
         run: python3 tools/melody_report.py --strict
 
@@ -41,6 +47,9 @@ jobs:
 
       - name: Package mod archive
         run: python3 tools/package_mod.py
+
+      - name: Model Freeplay lookups on the built zip
+        run: python3 tools/check_freeplay_zip.py
 
       - name: Upload packaged mod
         uses: actions/upload-artifact@v4
@@ -106,11 +115,9 @@ jobs:
             2. Drop it into Codename Engine's `mods/` folder — or extract it so you get `mods/TrollgeMod/`.
             3. Launch the engine, open **Mods**, pick **TrollgeMod**.
 
-            **Install from `TrollgeMod.zip`, not the versioned file.** Codename takes a mod's name from the file it
-            loads (`MainState` → `loadLib(path, currentModFolder)` → `ModsFolderLibrary.modName`), and freeplay then
-            reads `config/freeplaySonglist/LIB_<modName>.txt`. Under the versioned name the mod is called
-            `superscarytrollge-v3.6.0`, so this mod's freeplay list is not found and the engine forgets your mod
-            choice on the next launch. The two zips contain exactly the same files.
+            Install from **`TrollgeMod.zip`** to match the literal `LIB_TrollgeMod`
+            compatibility lists. The versioned archive contains the same files.
+            Freeplay behavior can vary with the engine build and library name.
 
             Requires [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) — this is not a Psych or
             YoshiCrafter mod.

@@ -664,9 +664,12 @@ def render_song(song):
                 pattern = [(i * beat / 2.0, -12 if i % 4 == 0 else 0,
                             beat / 2.0 * (0.92 if i % 2 else 1.05)) for i in range(8)]
 
-        level = 0.46 * (0.5 + 0.5 * ROLE_GAIN[role]) * (0.9 if style == "industrial" else 1.0)
+        level = (0.46 if style == "trap" else 0.25) * (0.5 + 0.5 * ROLE_GAIN[role]) * (0.9 if style == "industrial" else 1.0)
         for offset_s, octave, dur in pattern:
-            add_at(bass_s, bass_for(style, base + octave, dur, tier), t0 + offset_s, level)
+            # Lift sub-octave notes by a whole octave, never a tritone. Trap
+            # deliberately keeps its 808 register.
+            pitch = octave + 12 if octave == -12 and style != "trap" else octave
+            add_at(bass_s, bass_for(style, base + pitch, dur, tier), t0 + offset_s, level)
 
     # ---- drums ------------------------------------------------------------ #
     def drum_fill(at, length, loudness=1.0, seed=40):
@@ -1073,16 +1076,20 @@ def render_song(song):
 
     # Pan table (left, right). Wide parts differ per side; the kick stays dead centre.
     stems = {
-        "kick": (kick_s, 0.66, 0.66),
+        "kick": (kick_s, 0.40, 0.40),
         "snare": (snare_s, 0.60, 0.60),
         "hat_l": (hat_l, 0.54, 0.18),
         "hat_r": (hat_r, 0.18, 0.54),
         "bass": (bass_s, 0.56, 0.56),
         "pad_l": (pad_l, 0.48, 0.18),
         "pad_r": (pad_r, 0.18, 0.48),
-        "lead_o": (lead_o, 0.54, 0.30),
-        "lead_p": (lead_p, 0.30, 0.54),
-        "fx": (fx_s, 0.50 if tier >= 2 else 0.42, 0.50 if tier >= 2 else 0.42),
+        # The finale's dense double-kick and FX mask its tune unless the
+        # lead is pushed harder than in the earlier arrangements.
+        "lead_o": (lead_o, 1.65 if style == "finale" else 0.88,
+                   0.92 if style == "finale" else 0.49),
+        "lead_p": (lead_p, 0.92 if style == "finale" else 0.49,
+                   1.65 if style == "finale" else 0.88),
+        "fx": (fx_s, 0.28, 0.28),
         "wet_l": (wet_l, 0.42, 0.05),
         "wet_r": (wet_r, 0.05, 0.42),
         "echo_l": (echo_l, 0.32, 0.05),
@@ -1100,17 +1107,24 @@ def render_song(song):
         right += signal * gr
         del signal
 
+    # Trap's sparse hats have too little sustained high-frequency energy.
+    # A quiet deterministic tape-hiss bed restores texture without exaggerating
+    # transient hats; it is filtered and goes through the same master chain.
+    if style == "trap":
+        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.055
+        left += hiss
+        right += np.roll(hiss, int(0.013 * SR))
+        del hiss
+
     # Master EQ: the audit target is a mix with a top end, not a sub wall.
-    # The 1-4 kHz pocket: a dip through the band the vocal formants occupy, so
-    # Voices.ogg sits *on top of* the instrumental instead of competing with it.
-    # Everything above 5 kHz is pulled back rather than lifted -- the old 4-6 dB
-    # air boost was the main source of the "shrill, fatiguing" top end.
+    # Preserve the melody register instead of scooping it out. Keep the
+    # sub roll-off and use a modest presence lift rather than a harsh air boost.
     master_points = [(26.0, -22.0), (40.0, -16.0), (55.0, -12.5), (70.0, -9.5),
-                     (90.0, -7.5), (120.0, -5.0), (180.0, -2.5), (250.0, -2.6),
-                     (320.0, -3.4), (450.0, -2.8), (650.0, -1.4), (800.0, 0.2),
-                     (1400.0, -1.5), (2000.0, -2.2), (3000.0, -1.8), (4000.0, -0.8),
-                     (6000.0, 1.6), (8000.0, 3.6), (10000.0, 5.2), (12000.0, 5.4),
-                     (15000.0, 4.0), (18000.0, 1.6)]
+                     (90.0, -7.5), (120.0, -5.0), (180.0, -2.5), (250.0, -1.0),
+                     (320.0, -0.5), (450.0, 0.0), (650.0, 0.0), (800.0, 0.0),
+                     (1400.0, 0.0), (2000.0, 0.0), (3000.0, 0.5), (4000.0, 0.8),
+                     (6000.0, 1.0), (8000.0, 1.0), (10000.0, 1.0), (12000.0, 1.0),
+                     (15000.0, 0.5), (18000.0, 0.0)]
     left = eq_curve(left, master_points)
     right = eq_curve(right, master_points)
     # Tape: a touch of harmonic grit and a soft top-end, so the stems glue

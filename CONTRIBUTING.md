@@ -51,22 +51,12 @@ python3 tools/validate_mod.py  # must print VALIDATION PASSED
 python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
 ```
 
-### The zip's name is part of the contract
+### Packaging and Freeplay
 
-Do not rename the installable archive. Codename names a mod after the file it loads, not after `mod.json`:
-
-```
-MainState.loadLib(path, ModsFolder.currentModFolder)
-  -> ModsFolderLibrary.modName = libName.toLowerCase()      # the zip's file stem
-  -> FreeplayState: Paths.txt('config/freeplaySonglist/LIB_$modName')
-```
-
-So `TrollgeMod.zip` finds `LIB_TrollgeMod.txt`; `SuperScaryTrollge-v3.6.0.zip` looks for
-`LIB_superscarytrollge-v3.6.0.txt`, misses, and falls back to scanning `songs/` — which is alphabetical, not scare
-order. The saved mod name (`Options.lastLoadedMod`) is compared against the `mods/` listing by `ModsFolder.init()` on
-every launch, so a versioned file name also makes the engine forget the selection between sessions.
-`tools/package_mod.py` writes both names (same bytes) and `tools/validate_mod.py` fails if `INSTALL_NAME`, the mod
-folder and the `LIB_` file ever disagree.
+Use `TrollgeMod.zip` for installation, matching the literal `LIB_TrollgeMod`
+compatibility copies. `tools/check_freeplay_zip.py` exercises the actual archive
+against old and new lookup paths and both rewrite modes. The archive model is not
+an engine test; a path-like library name can trigger an unordered folder scan.
 
 Commit the regenerated files together with the generator change, in one commit, e.g.:
 
@@ -76,6 +66,10 @@ feat(song3): denser final section
 - song_layout: +2 dense phrase blocks in the last act
 - regenerated charts + instrumental
 ```
+
+Both `data/config/freeplaySonglist{.txt,/LIB_TrollgeMod.txt}` and the older
+`data/freeplaySonglist{.txt,/LIB_TrollgeMod.txt}` must contain the same ordered
+song IDs. Static resolution checks do not replace testing in the engine.
 
 ## Changing the music
 
@@ -130,6 +124,13 @@ feat(song3): denser final section
 * **Do not chase loudness by squashing.** The audit enforces a crest factor window (7-20 dB) and 5+ dB of section
   dynamics on purpose: a wall of sound fails the build.
 
+The current Codename dependency list uses `CodenameCrew/cne-openfl` branch `cne`.
+At commit `74f5f97242fa31150d525559e514743398abd8f1`,
+`GLSLSourceAssembler.getDefaultVersion()` returns `300 es` on web/mobile,
+`410 core` on macOS and `330 core` elsewhere. Its default compatibility pass
+rewrites `gl_FragColor` and `texture2D` for modern GLSL. This is source evidence,
+not proof of compilation on a particular driver or engine version.
+
 ## Changing the screen grade
 
 Two shaders ship, and they stack:
@@ -147,8 +148,15 @@ touching them:
   -- a driver that cannot compile a shader should cost you the effect, never the song;
 * a new uniform has to be declared in the `.frag` **and** set by the stage script; `validate_mod.py` cross-checks both
   directions and fails on a mismatch, because `setFloat` on a uniform that does not exist fails silently;
-* use the OpenFL names (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`, `flixel_texture2D(bitmap, uv)`),
+* use the OpenFL names (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`, `textureCam(bitmap, getCamPos(uv))` for camera filters),
   and never `switch` -- it breaks on macOS GL drivers.
+
+The current Codename dependency list uses `CodenameCrew/cne-openfl` branch `cne`.
+At commit `74f5f97242fa31150d525559e514743398abd8f1`,
+`GLSLSourceAssembler.getDefaultVersion()` returns `300 es` on web/mobile,
+`410 core` on macOS and `330 core` elsewhere. Its default compatibility pass
+rewrites `gl_FragColor` and `texture2D` for modern GLSL. This is source evidence,
+not proof of compilation on a particular driver or engine version.
 
 ## Changing the screen grade
 

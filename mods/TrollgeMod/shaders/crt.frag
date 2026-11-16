@@ -17,7 +17,7 @@
 //      6. corner vignette
 //
 //  OpenFL/Flixel conventions: `#pragma header` pulls in the shader preamble,
-//  `bitmap` is the sampler, `flixel_texture2D` is the texture fetch, and
+//  `bitmap` is the sampler; camera filters fetch with `textureCam`, and
 //  `openfl_Alphav` is the sprite alpha the engine expects us to multiply by.
 //
 //  Uniforms are written from HScript with `setFloat`:
@@ -68,7 +68,7 @@ void main()
     float bandNoise = hash(vec2(bandSeed, floor(t * 14.0)));
     float band = step(1.0 - uGlitch * 0.35, bandNoise);
     float slide = (hash(vec2(bandSeed, t)) - 0.5) * 0.05 * uGlitch * band;
-    vec2 suv = warped + vec2(slide, 0.0);
+    vec2 suv = getCamPos(uv) + (warped - uv) + vec2(slide, 0.0);
 
     // 2. Chromatic aberration: one texture fetch per channel, split in pixels.
     vec2 texel = 1.0 / openfl_TextureSize;
@@ -76,10 +76,10 @@ void main()
     float gr = 0.0;
 
     vec4 col;
-    col.r = flixel_texture2D(bitmap, suv + vec2(ab, 0.0)).r;
-    col.g = flixel_texture2D(bitmap, suv).g;
-    col.b = flixel_texture2D(bitmap, suv - vec2(ab, 0.0)).b;
-    col.a = flixel_texture2D(bitmap, suv).a;
+    col.r = textureCam(bitmap, suv + vec2(ab, 0.0)).r;
+    col.g = textureCam(bitmap, suv).g;
+    col.b = textureCam(bitmap, suv - vec2(ab, 0.0)).b;
+    col.a = textureCam(bitmap, suv).a;
 
     // 4. Scanlines: one dark row every ~2.5 pixels of the *output*, which keeps
     //    the pattern stable no matter how the game is scaled.

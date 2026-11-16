@@ -232,17 +232,23 @@ def build_backgrounds():
     tier3 = vignette(tier3, 0.75)
     save(tier3.convert("RGBA"), "stages/trollge/bg_nightmare.png")
 
-    # Tier 5 -- 10/10: the original photograph, burning.
-    tier4 = ImageEnhance.Brightness(src).enhance(0.58)
-    tier4 = ImageEnhance.Color(tier4).enhance(1.9)
-    ember = Image.new("RGB", src.size, (150, 26, 8))
-    tier4 = ImageChops.add(ImageChops.multiply(tier4, ember.point(lambda v: v // 255 + 1)), tier4)
-    tier4 = ImageChops.add(tier4, Image.new("RGB", src.size, (70, 4, 0)), scale=1.0, offset=-70)
-    tier4 = rgb_split(tier4, 11)
-    tier4 = scanlines(tier4, 2, 52)
-    tier4 = grain(tier4, 0.18)
-    tier4 = ImageEnhance.Contrast(tier4).enhance(1.35)
-    tier4 = vignette(tier4, 0.92)
+    # Tier 5 -- 10/10: keep the room's peeling walls readable instead of
+    # crushing almost every detail into an opaque red-black field. A low ember
+    # wash leaves the central walls cooler, with the red bleeding from below.
+    tier4 = ImageEnhance.Brightness(src).enhance(0.82)
+    tier4 = ImageEnhance.Contrast(tier4).enhance(1.08)
+    red_mask = Image.new("L", src.size, 0)
+    md = ImageDraw.Draw(red_mask)
+    for y in range(BG_H):
+        md.line((0, y, BG_W, y), fill=int(25 + 62 * y / BG_H))
+    tier4 = Image.composite(Image.new("RGB", src.size, (112, 12, 8)), tier4, red_mask)
+    tier4 = rgb_split(tier4, 7)
+    tier4 = scanlines(tier4, 3, 24)
+    # Seeded byte noise: unlike Image.effect_noise this is reproducible.
+    speckle = Image.frombytes("L", src.size, random.Random(1010).randbytes(BG_W * BG_H))
+    speckle = speckle.point(lambda v: int(v * 0.025))
+    tier4 = ImageChops.add(tier4, Image.merge("RGB", (speckle, speckle, speckle)))
+    tier4 = vignette(tier4, 0.70)
     save(tier4.convert("RGBA"), "stages/trollge/bg_hell.png")
 
 

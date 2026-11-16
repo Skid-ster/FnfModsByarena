@@ -1,0 +1,20 @@
+# Freeplay -- Super Scary Trollge
+#
+# THIS is the file Codename actually opens. It is not a convention of this mod:
+# FreeplayState calls Paths.txt('config/freeplaySonglist/LIB_$modName'), and
+# ModsFolderLibrary.__parseAsset turns any `LIB_<mod>` file name into the plain
+# one next to it -- it strips the `LIB_<mod>.` prefix and keeps the extension:
+#
+#     data/config/freeplaySonglist/LIB_TrollgeMod.txt  ->  data/config/freeplaySonglist.txt
+#
+# So the engine reads this path, and a mod that only ships the LIB_ name has no
+# freeplay list at all (it silently falls back to scanning songs/, which is
+# alphabetical, not scare order). The LIB_ copy ships alongside this file for
+# engine builds that read the prefix literally.
+#
+# ORDER IS THE SCARE LADDER. One song id per line; blank lines and # are ignored.
+trolling
+getting-dark
+dont-look-back
+super-scary
+the-incident

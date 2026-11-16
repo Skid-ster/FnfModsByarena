@@ -235,9 +235,13 @@ def check_crt():
     shader = os.path.join(MOD, "shaders", "crt.frag")
     if not ok(os.path.isfile(shader), "shaders/crt.frag is missing"):
         return
-    source = open(shader, encoding="utf-8").read()
+    with open(shader, encoding="utf-8") as handle:
+        source = handle.read()
     stage_path = os.path.join(MOD, "data", "stages", "trollge.hx")
-    stage = open(stage_path, encoding="utf-8").read() if os.path.isfile(stage_path) else ""
+    stage = ""
+    if os.path.isfile(stage_path):
+        with open(stage_path, encoding="utf-8") as handle:
+            stage = handle.read()
 
     # OpenFL/Flixel conventions -- without these the shader will not compile.
     ok("#pragma header" in source, "crt.frag is missing #pragma header")
@@ -245,7 +249,15 @@ def check_crt():
     ok("openfl_TextureCoordv" in source, "crt.frag never samples openfl_TextureCoordv")
     ok("openfl_TextureSize" in source, "crt.frag never uses openfl_TextureSize")
     ok("openfl_Alphav" in source, "crt.frag must multiply by openfl_Alphav for sprite alpha")
-    ok("flixel_texture2D(bitmap" in source, "crt.frag does not fetch with flixel_texture2D(bitmap, ...)")
+    shader_code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
+    ok(not re.search(r"\bflixel_texture2D\s*\(", shader_code),
+       "crt.frag calls unsupported flixel_texture2D")
+    ok(bool(re.search(r"\btextureCam\s*\(\s*bitmap\b", shader_code)),
+       "crt.frag camera filter must fetch via textureCam(bitmap, ...)")
+    ok(bool(re.search(r"\bgetCamPos\s*\(", shader_code)),
+       "crt.frag camera filter must convert with getCamPos")
+    ok(not re.search(r"\btexture2D\s*\(\s*bitmap\b", shader_code),
+       "crt.frag camera filter must not fetch bitmap via texture2D")
     ok(source.count("{") == source.count("}"), "crt.frag has unbalanced braces")
     ok(source.count("(") == source.count(")"), "crt.frag has unbalanced parentheses")
     ok("gl_FragColor" in source, "crt.frag never writes gl_FragColor")
@@ -496,6 +508,18 @@ def check_week_and_freeplay():
         others = sorted(f for f in os.listdir(list_dir) if f not in allowed)
         ok(not others, "data/config/freeplaySonglist/ has unexpected files: %s"
            % ", ".join(others))
+
+    # Older engine generations try the pre-config path. Both the literal and
+    # rewritten lookups must contain the same ordered ids as the current list.
+    for old_path in ("data/freeplaySonglist.txt",
+                     "data/freeplaySonglist/LIB_%s.txt" % mod_folder()):
+        filename = os.path.join(MOD, old_path)
+        ok(os.path.isfile(filename), "older freeplay path is missing: %s" % old_path)
+        if os.path.isfile(filename):
+            with open(filename, encoding="utf-8") as handle:
+                old_ids = [line.strip() for line in handle
+                           if line.strip() and not line.strip().startswith("#")]
+            ok(old_ids == ids, "older freeplay list disagrees: %s" % old_path)
 
     # 5. The flag that makes it a replacement rather than an append.
     ini = os.path.join(config, "modpack.ini")
