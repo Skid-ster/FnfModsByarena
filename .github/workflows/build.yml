@@ -95,8 +95,7 @@ jobs:
   release:
     name: Publish release
     needs: [validate, charts-in-sync]
-    # v3.8.0 is published manually as a clearly labelled testing release.
-    if: startsWith(github.ref, 'refs/tags/v') && github.ref != 'refs/tags/v3.8.0'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +107,19 @@ jobs:
       - name: Package mod archive
         run: python3 tools/package_mod.py
 
+      # Keep the testing limitations and full notes intact on this release.
+      - name: Attach v3.8.0 testing archives
+        if: github.ref == 'refs/tags/v3.8.0'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v3.8.0.zip
+          body_path: docs/releases/v3.8.0.md
+          fail_on_unmatched_files: true
+
       - name: Create release
+        if: github.ref != 'refs/tags/v3.8.0'
         uses: softprops/action-gh-release@v2
         with:
           # TrollgeMod.zip is the installable one: Codename names a mod after the
