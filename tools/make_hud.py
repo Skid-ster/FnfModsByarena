@@ -15,25 +15,20 @@ Run with:  python3 tools/make_hud.py
 """
 
 import os
-import random
 import sys
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD = os.path.join(ROOT, "mods", "TrollgeMod")
 DOCS = os.path.join(ROOT, "docs")
 
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
 
 BAR_W, BAR_H = 760, 34
 BADGE_W, BADGE_H = 420, 180
 
-INK = (12, 10, 16)
-METAL = (58, 52, 64)
-METAL_LIGHT = (104, 96, 116)
-BLOOD = (196, 16, 30)
-BONE = (238, 232, 236)
 
 
 def out(path):
@@ -52,115 +47,79 @@ def save(image, path):
 # --------------------------------------------------------------------------- #
 
 def build_health_bar():
-    image = Image.new("RGBA", (BAR_W, BAR_H), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-
-    # steel slab, then the dark interior the FlxBar fill sits in
-    draw.rectangle([0, 0, BAR_W - 1, BAR_H - 1], fill=METAL + (255,))
-    draw.rectangle([5, 5, BAR_W - 6, BAR_H - 6], fill=INK + (255,))
-    for y in range(7, BAR_H - 7, 3):
-        draw.line([(7, y), (BAR_W - 8, y)], fill=(20, 18, 26, 255))
-
-    # blood-red inner shadow so the empty part still reads as Trollge
-    for inset, alpha in ((6, 110), (7, 70), (8, 40)):
-        draw.rectangle([inset, inset, BAR_W - 1 - inset, BAR_H - 1 - inset],
-                       outline=(168, 14, 26, alpha), width=1)
-
-    # edges: black outline, light top bevel, dark bottom
-    draw.rectangle([0, 0, BAR_W - 1, BAR_H - 1], outline=(12, 10, 14, 255), width=3)
-    draw.line([(4, 3), (BAR_W - 5, 3)], fill=METAL_LIGHT + (255,), width=2)
-    draw.line([(4, BAR_H - 4), (BAR_W - 5, BAR_H - 4)], fill=(26, 22, 30, 255), width=2)
-
-    # rivets
-    for x in (11, BAR_W - 14):
-        for y in (10, BAR_H - 13):
-            draw.ellipse([x - 4, y - 4, x + 4, y + 4], fill=METAL_LIGHT + (255,),
-                         outline=(10, 8, 12, 255))
-            draw.ellipse([x - 2, y - 3, x + 1, y], fill=(150, 142, 164, 255))
+    """Casing only: the engine's FlxBar covers the inset from (4,4)."""
+    image = Image.new("RGBA", (BAR_W, BAR_H), (10, 9, 14, 255))
+    d = ImageDraw.Draw(image)
+    # Only the outer four pixels are guaranteed to remain visible in PlayState.
+    d.rectangle((0, 0, BAR_W - 1, BAR_H - 1), outline=(14, 11, 16, 255), width=1)
+    d.rectangle((1, 1, BAR_W - 2, BAR_H - 2), outline=(117, 100, 104, 255), width=1)
+    d.line((3, 2, BAR_W - 4, 2), fill=(196, 151, 142, 255))
+    d.line((3, BAR_H - 3, BAR_W - 4, BAR_H - 3), fill=(74, 51, 59, 255))
+    for x in range(16, BAR_W - 16, 32):
+        d.line((x, 1, x + 4, 1), fill=(210, 169, 153, 255))
     return image
 
 
-def badge_text(word, glitch=0, seed=0):
-    """One countdown badge: chunky word, red offset copy, glitch slices."""
+def badge_text(word):
+    """Readable countdown placard. Distress belongs on the casing, not letters."""
     image = Image.new("RGBA", (BADGE_W, BADGE_H), (0, 0, 0, 0))
-    text_layer = Image.new("RGBA", (BADGE_W, BADGE_H), (0, 0, 0, 0))
-    td = ImageDraw.Draw(text_layer)
-    # Leave room for stroke, shadow and glitch displacement: READY used to
-    # exceed the frame width and its first and last letters were clipped.
-    font_size = 128
+    d = ImageDraw.Draw(image)
+    # Identical silhouettes for all three words prevent visual jumps.
+    d.polygon([(9, 12), (BADGE_W - 32, 12), (BADGE_W - 9, 35),
+               (BADGE_W - 9, BADGE_H - 12), (9, BADGE_H - 12)],
+              fill=(12, 11, 16, 247))
+    d.line([(9, BADGE_H - 12), (9, 12), (BADGE_W - 32, 12),
+            (BADGE_W - 9, 35), (BADGE_W - 9, BADGE_H - 12),
+            (9, BADGE_H - 12)], fill=(172, 126, 121, 255), width=2)
+    d.rectangle((10, 13, 15, BADGE_H - 13), fill=(206, 73, 69, 255))
+    d.text((28, 22), 'INCOMING  /  SIGNAL',
+           font=ImageFont.truetype(FONT_MONO, 14), fill=(197, 175, 165, 255))
+    d.line((28, 48, BADGE_W - 29, 48), fill=(94, 78, 82, 255), width=1)
+    font_size = 94
     font = ImageFont.truetype(FONT_BOLD, font_size)
-    box = td.textbbox((0, 0), word, font=font)
-    while box[2] - box[0] > BADGE_W - 64 and font_size > 24:
+    while d.textbbox((0, 0), word, font=font, stroke_width=1)[2] > BADGE_W - 80:
         font_size -= 1
         font = ImageFont.truetype(FONT_BOLD, font_size)
-        box = td.textbbox((0, 0), word, font=font)
-    x = (BADGE_W - (box[2] - box[0])) / 2 - box[0]
-    y = (BADGE_H - (box[3] - box[1])) / 2 - box[1]
-
-    # hard shadow, then the word itself with a thick dark outline
-    td.text((x + 7, y + 9), word, font=font, fill=(0, 0, 0, 220))
-    td.text((x + 3, y + 4), word, font=font, fill=BLOOD + (255,))
-    td.text((x, y), word, font=font, fill=BONE + (255,), stroke_width=6, stroke_fill=(14, 12, 18, 255))
-
-    if glitch:
-        rng = random.Random(seed)
-        for _ in range(glitch):
-            band_y = rng.randrange(0, BADGE_H - 4)
-            band_h = rng.randint(2, 9)
-            shift = rng.randint(-22, 22)
-            band = text_layer.crop((0, band_y, BADGE_W, band_y + band_h))
-            text_layer.paste(band, (shift, band_y))
-        tint = Image.new("RGBA", (BADGE_W, BADGE_H), (0, 0, 0, 0))
-        tint_d = ImageDraw.Draw(tint)
-        for _ in range(40):
-            gy = rng.randrange(BADGE_H)
-            tint_d.line([(0, gy), (BADGE_W, gy)], fill=(255, 40, 60, rng.randint(10, 45)))
-
-    image.alpha_composite(text_layer)
-
-    # red halo behind the word
-    halo = Image.new("RGBA", (BADGE_W, BADGE_H), (0, 0, 0, 0))
-    hd = ImageDraw.Draw(halo)
-    hd.text((x, y), word, font=font, fill=BLOOD + (255,))
-    halo = halo.filter(ImageFilter.GaussianBlur(9))
-    result = Image.new("RGBA", (BADGE_W, BADGE_H), (0, 0, 0, 0))
-    result.alpha_composite(halo)
-    result.alpha_composite(image)
-    return result
+    left, top, right, bottom = d.textbbox((0, 0), word, font=font, stroke_width=1)
+    x = (BADGE_W - (right - left)) / 2 - left
+    y = 54 + (88 - (bottom - top)) / 2 - top
+    d.text((x, y), word, font=font, fill=(250, 240, 229, 255),
+           stroke_width=1, stroke_fill=(6, 5, 8, 255))
+    for x in range(28, 122, 12):
+        d.line((x, BADGE_H - 22, x + 6, BADGE_H - 22), fill=(153, 82, 78, 255), width=2)
+    return image
 
 
 def build_countdown():
     badges = [
-        ("READY", 4, 11, "ready"),
-        ("SET", 8, 22, "set"),
-        ("GO", 14, 33, "go"),
+        ("READY", "ready"),
+        ("SET", "set"),
+        ("GO", "go"),
     ]
     made = []
-    for word, glitch, seed, name in badges:
-        image = badge_text(word, glitch, seed)
+    for word, name in badges:
+        image = badge_text(word)
         made.append(image)
         save(image, "images/game/%s.png" % name)
     return made
 
 
 def build_preview(bar, badges):
-    scale = 0.55
+    """An asset mock, not an engine screenshot; draw the FlxBar over its inset."""
     pad = 18
-    bar_h = bar.height
-    badge_h = int(max(b.height for b in badges) * scale)
-    width = bar.width + pad * 2
-    height = bar_h + badge_h + pad * 3
-    canvas = Image.new("RGBA", (int(width), int(height)), (20, 16, 22, 255))
-    canvas.alpha_composite(bar, (pad, pad))
-    x = pad
-    for badge in badges:
-        thumb = badge.resize((int(badge.width * scale), int(badge.height * scale)), Image.LANCZOS)
-        canvas.alpha_composite(thumb, (int(x), int(pad * 2 + bar_h)))
-        x += thumb.width + 4
+    canvas = Image.new("RGBA", (BAR_W + pad * 2, 188), (20, 16, 22, 255))
+    simulated = bar.copy()
+    d = ImageDraw.Draw(simulated)
+    d.rectangle((4, 4, BAR_W // 2 - 1, BAR_H - 5), fill=(104, 30, 39, 255))
+    d.rectangle((BAR_W // 2, 4, BAR_W - 5, BAR_H - 5), fill=(42, 124, 150, 255))
+    canvas.alpha_composite(simulated, (pad, pad))
+    for i, badge in enumerate(badges):
+        thumb = badge.resize((231, 99), Image.Resampling.LANCZOS)
+        canvas.alpha_composite(thumb, (pad + i * 249, 74))
     os.makedirs(DOCS, exist_ok=True)
     path = os.path.join(DOCS, "hud.png")
     canvas.convert("RGB").save(path, optimize=True)
-    print("  -> docs/hud.png (%dx%d)" % (canvas.width, canvas.height))
+    print("  -> docs/hud.png (%dx%d; simulated fill)" % (canvas.width, canvas.height))
 
 
 def main():

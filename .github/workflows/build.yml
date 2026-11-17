@@ -137,8 +137,19 @@ jobs:
           body_path: docs/releases/v3.9.0.md
           fail_on_unmatched_files: true
 
+      - name: Attach v4.0.0 testing archives
+        if: github.ref == 'refs/tags/v4.0.0'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v4.0.0.zip
+          body_path: docs/releases/v4.0.0.md
+          prerelease: true
+          fail_on_unmatched_files: true
+
       - name: Create release
-        if: github.ref != 'refs/tags/v3.8.0' && github.ref != 'refs/tags/v3.9.0'
+        if: github.ref != 'refs/tags/v3.8.0' && github.ref != 'refs/tags/v3.9.0' && github.ref != 'refs/tags/v4.0.0'
         uses: softprops/action-gh-release@v2
         with:
           # TrollgeMod.zip is the installable one: Codename names a mod after the

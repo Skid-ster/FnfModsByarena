@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure rendered instrumentals, not note choices; --strict is a mix gate.
+"""Measure the decoded equal-gain instrumental + voice mix; --strict is a mix gate.
 
 Frequency bands are energy shares, calculated per channel in non-overlapping
 one-second windows. This cannot judge composition or replace listening tests.
@@ -16,8 +16,10 @@ ROOT = Path(__file__).resolve().parent.parent
 BANDS = ((20, 80), (80, 250), (250, 2000), (2000, 8000), (8000, 16000))
 
 
-def measure(path):
-    with sf.SoundFile(path) as audio:
+def measure(path, voice_path):
+    with sf.SoundFile(path) as audio, sf.SoundFile(voice_path) as voice:
+        if (audio.samplerate, audio.channels, len(audio)) != (voice.samplerate, voice.channels, len(voice)):
+            raise ValueError(f"{path}: instrumental and voice formats or lengths differ")
         sr = audio.samplerate
         energy = np.zeros(len(BANDS))
         sum_squares = 0.0
@@ -27,6 +29,7 @@ def measure(path):
             block = audio.read(sr, dtype='float64', always_2d=True)
             if not len(block):
                 break
+            block += voice.read(len(block), dtype='float64', always_2d=True)
             count += block.size
             sum_squares += float(np.sum(block * block))
             peak = max(peak, float(np.max(np.abs(block))))
@@ -47,11 +50,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--strict', action='store_true')
     args = parser.parse_args()
+    print('Decoded equal-gain stem sum (engine muting/gain is not modelled)')
     print('song             sub    bass   melody presence    air mel/bass crest')
     failures = []
     for song in layout.SONGS:
         path = ROOT / 'mods' / 'TrollgeMod' / 'songs' / song['id'] / 'song' / 'Inst.ogg'
-        shares, crest, peak = measure(path)
+        shares, crest, peak = measure(path, path.with_name("Voices.ogg"))
         bass = shares[0] + shares[1]
         ratio = shares[2] / max(bass, 1e-12)
         print(f"{song['id']:16} " + ' '.join(f'{x * 100:6.1f}' for x in shares)

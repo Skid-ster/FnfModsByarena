@@ -84,6 +84,23 @@ class MusicTests(unittest.TestCase):
         self.assertLess(gain[n // 2], 1.0)
         self.assertEqual(gain[0], 1.0)
 
+    def test_recorded_voice_notes_have_pitch_and_click_free_edges(self):
+        # Check both registers and a long sustain, without claiming that any
+        # spectral measurement can substitute for listening.
+        for midi in (53, 57, 65, 69, 76, 84, 88):
+            x = A.sampled_voice_note(midi, .8, dark=midi < 65)
+            self.assertTrue(np.isfinite(x).all())
+            self.assertAlmostEqual(x[0], 0.0)
+            self.assertAlmostEqual(x[-1], 0.0)
+            y = x[int(.12 * A.SR):int(.4 * A.SR)]
+            size = 2 ** int(np.ceil(np.log2(len(y) * 2)))
+            corr = np.fft.irfft(abs(np.fft.rfft(y, size)) ** 2)
+            expected = A.midi_to_hz(midi)
+            lo = int(A.SR / (expected * 1.15))
+            hi = int(A.SR / (expected * .85))
+            measured = A.SR / (lo + np.argmax(corr[lo:hi]))
+            self.assertLess(abs(measured / expected - 1), .035)
+
     def test_glitch_bass_does_not_jump_to_tritone(self):
         audio = A.bass_for("glitch", 45, .7, 6)
         self.assertTrue(np.isfinite(audio).all())

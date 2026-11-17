@@ -29,7 +29,7 @@ var captionBandOut:FlxTween = null;
 function shake(power:Float, duration:Float):Void {
 	var ps = PlayState.instance;
 	ps.camGame.shake(power / 1000.0, duration);
-	if (ps.camHUD != null) ps.camHUD.shake(power / 1500.0, duration);
+	// Keep notes, score and captions steady while the room reacts.
 }
 
 var phase2Done:Bool = false;

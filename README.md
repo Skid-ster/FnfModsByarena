@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/Skid-ster/FnfModsByarena?label=release)](../../releases/latest)
 ![Engine](https://img.shields.io/badge/engine-Codename-9C35D5)
 ![Songs](https://img.shields.io/badge/songs-5-C4101E)
-![Checks](https://img.shields.io/badge/validator-2378%20checks%20%C2%B7%200%20warnings-3A7D44)
+![Checks](https://img.shields.io/badge/validator-2386%20checks%20%C2%B7%200%20warnings-3A7D44)
 
 ![Super Scary Trollge](docs/banner.jpg)
 
@@ -18,7 +18,21 @@ looks back at you.
 **Launch it and you land in the mod's own menu** — no vanilla "press enter" screen, no base-game death theme, no
 default arrows, no default shaders.
 
-**[⬇ Download v3.9.0](../../releases/tag/v3.9.0)** · [install in four steps](#install) · [see what's inside](#whats-inside)
+**[⬇ Download v4.0.0 testing release](../../releases/tag/v4.0.0)** · [install in four steps](#install) · [see what's inside](#whats-inside)
+
+## Unreleased menu and battle polish
+
+The source checkout includes a cinematic menu rebuilt around a user-provided
+reference image, redesigned HUD/countdown art, soft contact shadows, bounded
+camera punches and steadier HUD during story-event shakes. The design references and limitations
+are in [UI research](docs/ui-research.md). Songs with
+`needsVoices` use their vocal track instead of doubling each hit with a
+second sample. All five song stems have been rebuilt with recorded sung-vowel
+chops, reduced competing lead levels, narrower stereo and a gentler vocal mix.
+Both characters use different pitches of the same singer; these are not official
+BF or Trollge recordings. The v4.0.0 testing release includes these changes.
+This pass has not been played or listened to in Codename Engine; flashes,
+static and scripted scares are still present.
 
 ## v3.9.0 — release and testing status
 
@@ -42,8 +56,8 @@ Freeplay, shaders, positioning and effects in your engine build. See the
 | --- | --- |
 | **Engine** | Codename Engine 1.x (HScript behaviours, `chartVersion 1.6.0`) — *not* Psych or YoshiCrafter |
 | **Content** | 5 songs × 3 difficulties (easy / normal / hard), story week + freeplay, 5 Trollge phases, 5 Boyfriend skins |
-| **Custom everything** | arrow skins ×4, splashes, HUD, health bar, countdown badges, note-hit voices, cutscene art, main menu, death screen, two shaders |
-| **Verified** | `tools/validate_mod.py` — **2378 checks, 0 errors, 0 warnings**; `tools/audit_songs.py --strict` — every mix and chart metric inside its window |
+| **Custom everything** | arrow skins ×4, splashes, HUD, health bar, countdown badges, fallback note-hit voices, cutscene art, main menu, death screen, two shaders |
+| **Verified** | `tools/validate_mod.py` — **2386 checks, 0 errors, 0 warnings**; `tools/audit_songs.py --strict` — every mix and chart metric inside its window |
 | **Sources** | charts and audio use `tools/song_layout.py` and `tools/phrases.py`; art generators also use the existing `art_src/` assets |
 
 ## The five songs
@@ -107,7 +121,7 @@ Freeplay in your Codename installation; the intended order is not guaranteed.
 | ![The main menu](docs/menu_preview.png) | ![Five scare tiers](docs/stages.png) |
 | **The mod's own menu** — something is standing in the dark | **Five tiers, one stage** — backdrop, grade and camera per song |
 | ![The grade](docs/grade.png) | ![The HUD](docs/hud.png) |
-| **The grade** — raw vs graded, one row per scare tier | **The HUD** — health bar, countdown badges, splash art |
+| **The grade** — raw vs graded, one row per scare tier | **HUD mockup** — simulated health fill and countdown badges |
 
 ![The cast](docs/cast.png)
 
@@ -123,7 +137,7 @@ Freeplay in your Codename installation; the intended order is not guaranteed.
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
 2. Grab **`TrollgeMod.zip`** from the [releases page](../../releases). There is also
-   `SuperScaryTrollge-v3.9.0.zip` — identical contents, but **install from `TrollgeMod.zip`** (see the warning below).
+   `SuperScaryTrollge-v4.0.0.zip` — identical contents, but **install from `TrollgeMod.zip`** (see the warning below).
 3. Drop that **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **TrollgeMod**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
@@ -231,7 +245,7 @@ Charts call HScript functions through `HScript Call` events, implemented in
 | `trollgeToStatic` | 75 s of song 3: phase 2 collapses into phase 3 |
 | `trollgeFinalForm` | 60 s of song 4: static mess → red-eyed final form, with a stinger + hard shake |
 | `trollgeToSad` / `trollgeSad` | 84 s of song 5 / 96 s of song 4: he stops fighting. One pose. Stillness. |
-| `trollgeScreenShake` | Camera + HUD shake with a red flash |
+| `trollgeScreenShake` | Game camera shake with a HUD red flash |
 | `trollgeDistort` | Glitch overlay + shake |
 | `trollgeStatic` | CRT static burst |
 | `trollgeInvert` | Corrupted-frame overlay while reality flips |
@@ -297,13 +311,15 @@ How each song gets its skin:
 
 The HUD is themeable by filename alone, so `tools/make_hud.py` ships:
 
-* `images/game/healthBar.png` — a bolted steel frame with a red inner shadow (the `FlxBar` is drawn 4 px
-  inside it, and it repaints to the new form's `iconColor` when the Trollge swaps at 60 s / 96 s).
-* `images/game/ready.png`, `set.png`, `go.png` — glitched READY / SET / GO badges, fitted inside their frames.
+* `images/game/healthBar.png` — an instrument casing; the engine draws the dynamic `FlxBar` 4 px inside it,
+  and repaints it to the new form's `iconColor` during Trollge swaps.
+* `images/game/ready.png`, `set.png`, `go.png` — matching transmission-console placards with clear, undistorted words.
 * `sounds/intro3.ogg`, `intro2.ogg`, `intro1.ogg`, `introGo.ogg` — matching countdown hits, rising in pitch
   and ending in a distorted blast.
 
-![HUD](docs/hud.png)
+![HUD mockup](docs/hud.png)
+
+This is an asset mockup, not a game screenshot: the fill colours are simulated.
 
 ### Positioning and camera
 
@@ -313,7 +329,7 @@ The stage is not hand-placed and hoped for: `tools/make_stage_preview.py` re-imp
 
 ![Engine framing, both camera sides](docs/stage.png)
 
-It prints the clear space around the two idle characters at the stage zoom and a modelled tier zoom of 1.03,
+It prints the clear space around the two idle characters at the stage zoom and a modelled zoom of 1.05,
 and fails if those idle poses are clipped, if their feet are more than 2 px apart, or if the backdrop does not
 cover what the camera can see. The numbers it validates:
 
@@ -324,17 +340,26 @@ cover what the camera can see. The numbers it validates:
 | camera offsets | dad `+20, +75`; boyfriend `-80, +75` | keeps wide poses and feet within the modelled camera frame |
 | `zoom` | 0.95 → 1.026 | the stage's 0.95 plus 0.0095 per scare step: song 1 is framed loose, song 5 is pressed in |
 
-Camera work lives in `data/stages/trollge.hx` and scales with the scare tier, so the last two songs physically feel
-different from the first one:
+Camera work lives in `data/stages/trollge.hx` and scales with the scare tier:
 
-* a **zoom pulse** on every beat (`0.0022 + 0.0004 × tier`), pulled back by the engine's own lerp to `defaultCamZoom`;
-* a **push on every fourth measure** and a **tiny push on every correct note** — a clean section visibly breathes;
-* **screen shake** from 6/10 up on every beat, plus a 4 px slam every fourth beat at 10/10, on top of the scripted
-  event shakes (which already scaled with the tier).
+* restrained pushes on beats, every fourth measure and non-sustain note hits;
+* this stage's impulses are capped at `defaultCamZoom + 0.018` and the engine
+  lerps back toward the base. Engine or chart zooms may exceed that cap;
+* game-camera shake on every fourth beat from tier 6, plus scripted event
+  shakes. Story-event shakes no longer shake the HUD;
+* soft, fixed world-space contact shadows sit behind both characters. They do
+  not follow animation poses or dynamic character movement.
+
+The expanded frame model checks all 800 projected battle frames at 0.95 and
+1.05 zoom; its narrowest margin is 48.8 px. It does not model camera motion,
+other scripts' zooms, HUD overlap, shaders or actual in-engine rendering.
 
 ### Note-hit voices
 
-The stage script plays short character-specific samples on note hits, in addition to the song's `Voices.ogg`. Sample pitch follows the arrow — up is highest, down is lowest:
+The shipped songs have `needsVoices: true` and use their chart-matched
+`Voices.ogg` without layering an extra syllable over every note. For songs
+whose metadata explicitly says `needsVoices: false`, the stage can fall back
+to short character-specific samples. Their pitch follows the arrow:
 
 | Side | Sound | Files |
 | --- | --- | --- |
@@ -342,8 +367,9 @@ The stage script plays short character-specific samples on note hits, in additio
 | Opponent | low growling syllable | `sounds/trollge_note_{up,down,left,right}.ogg` |
 
 They are synthesised in `tools/make_audio.py` (`render_note_voices()`), triggered from the stage script's
-`onNoteHit` hook, and skipped for sustain ticks so holds do not machine-gun. The sing poses themselves are the
-engine's own (`singLEFT`…), so a correct arrow gives you **the pose and the voice** for whichever side is singing.
+`onNoteHit` hook only in that fallback case, and skipped for sustain ticks. The
+engine controls the sing poses and vocal playback; actual timing and mix still
+need listening tests.
 
 ### Audio
 
@@ -383,6 +409,11 @@ On top of that: snare fills and a riser + crash into every section that gets big
 (dread drone → tape hiss → whisper swells → a breathing, detuned tritone → heartbeat, whispers and a choir root),
 scripted stingers behind every `HScript Call` event, and a **real ending**
 — the instruments stop two beats early so the last chord, crash and sub drop ring out (no lazy fade-out).
+
+**Vocals.** Both voices are pitched and enveloped from Bart Massey’s CC0 sung
+note, not the official Boyfriend chromatic or a Trollge actor. The opponent sings
+an octave below the written melody. Repeated short vowel chops are deliberately
+stylized and may not sound like the original characters; please audition them.
 
 **Mixing and mastering.** Instruments and voices are generated as separate stereo
 tracks. The instrumental uses EQ, sidechain, compression and stereo widening;
@@ -454,24 +485,23 @@ TitleState="funkin.menus.MainMenuState"
 
 `GlobalScript`'s `preStateSwitch` hook resolves that value with `Type.resolveClass`, so it has to be the **full class
 path** — a short name like `MainMenuState` does not resolve, and the engine would then look for a
-`data/states/MainMenuState/LIB_<mod>.hx` script that cannot exist under every install name (folder vs zip), leaving you
-on a black screen. Prefer landing in the song list instead? Point it at `"funkin.menus.FreeplayState"`.
+`data/states/MainMenuState/LIB_<mod>.hx` state loader, which is not a replacement for the class itself and can vary
+with the mod library name, leaving you on a black screen. Prefer landing in the song list instead? Point it at `"funkin.menus.FreeplayState"`.
 
-The menu itself is the mod's: `tools/make_menu.py` draws the four buttons the engine builds
-(`menus/mainmenu/<option>` with `<option> basic` / `<option> white` animations, idle ~122 px tall, selected ~172 px,
-items at `60 + i * 160`), the backdrop, and `docs/menu_preview.png` as a preview of the result.
+The cinematic menu uses an original AI-generated Trollge hallway scene inspired
+by the supplied reference image: a shadowed left column, distressed title,
+minimal stacked navigation and a red-and-teal scene. The actual four choices and
+navigation remain in the engine. `tools/make_menu.py` builds the artwork from
+`art_src/menu_scene.png`; the layout script is
+`data/states/MainMenuState/LIB_TrollgeMod.hx`.
 
-**The backdrop** is the scary stage defocused and desaturated, graded toward maroon, with the Trollge standing in the
-dark on the right. The Trollge art is black ink on a white card, so the menu treats it as *ink*, not as a sprite: the
-strokes are grown into a solid mass, tinted near-black, given a cold rim light, and only the bright linework of the
-face blooms red. It reads as a figure standing in a doorway rather than a smudge. Over it: a left-to-right grade so
-the type always has somewhere quiet to sit, an elliptical vignette, a doorway glow, CRT rows and light grain.
-
-**The type** has a hierarchy the old menu did not: the selected row is taller, brighter and offset 22 px from the
-ragged stack (each item indented 18 px further than the one above it), the face is condensed to 84 %, everything is
-filled with a bone → ash vertical gradient, the selected row carries a one-pixel dark keyline so it survives a
-backdrop that brightens, and the fringe is a restrained 1 px of red/cyan misregistration rather than a halo. Blood
-still runs off the descenders and the selection still has its jagged crimson slash.
+Install as **TrollgeMod** and use a Codename build with state scripts enabled for
+the left-aligned layout. If the script does not load or cannot access the engine's
+menu group, the stock engine layout remains usable but the layout and title can
+be different. The preview is a static approximation; it does not show engine
+camera parallax, version text, actual transitions or prove the script runs.
+The menu uses raster text, which is not resizable or screen-reader accessible.
+See [UI research](docs/ui-research.md) for references and limitations.
 
 ![The main menu](docs/menu_preview.png)
 
@@ -496,7 +526,7 @@ in `destroy()`, and everything draws on its own camera so the stage keeps animat
 
 **In-song captions.** The story does not stop when the countdown does: each song carries three to five caption beats
 (`"captions"` in `tools/song_layout.py`) that are emitted as chart events and typed across the bottom of the screen
-while you play — `don't look back`, `you looked`, `the first scream`, `goodbye`. They use the HUD camera, never block
+while you play — `don't look back`, `you looked`, `the first scream`, `goodbye`. They use the HUD camera; their placement and possible overlap still need engine testing. They don't block
 input, and fade themselves out.
 
 The outro runs after the last note. For songs 1–4 it is one line of falling action; **The Incident** gets the real
@@ -616,17 +646,18 @@ python3 tools/make_chart.py       # meta.json, events.json, charts {easy,normal,
 python3 tools/make_cutscenes.py   # cutscene scripts + their frames/letterbox art (~2 s)
 python3 tools/make_menu.py        # main menu buttons + backdrop (~1 s)
 python3 tools/make_promo.py       # docs/banner.jpg from the real stage art (~1 s)
+python3 tools/make_contact_shadow.py # regenerate the fixed ground shadow
 python3 tools/make_stage_preview.py  # approximate idle framing -> docs/stage.png + margin report
 python3 tools/test_stage_bounds.py   # projected bounds for all battle animation frames
 python3 tools/test_glsl_compile.py   # needs glslangValidator; minimal-preamble GLSL compile
 python3 tools/make_grade_preview.py  # re-renders the shader maths in numpy -> docs/grade.png
-python3 tools/validate_mod.py     # 2378 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
+python3 tools/validate_mod.py     # 2386 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
 python3 tools/melody_report.py    # hard-chart melody metrics (--strict for CI)
 python3 tools/test_music.py       # pitch, harmony, arrangement and stem-gain regressions
 python3 tools/check_stem_mix.py  # decoded equal-gain stem-sum peak estimate
 python3 tools/dread_report.py     # dread-band spectral proxy with 3 dB tolerance (--strict for CI)
-python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v3.9.0.zip
+python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v4.0.0.zip
                                   # (175 files, includes shaders/ + music/; install the TrollgeMod one)
 ```
 
@@ -660,7 +691,8 @@ follow.
 * **Boyfriend / stage audio-engine conventions:** Friday Night Funkin' by Funkin' Crew.
 * **Trollge and Boyfriend art (`art_src/`):** drawn by the project owner and imported unchanged by
   `tools/make_characters.py` — credited to them, not covered by this repo's MIT licence.
-* **Charts, music, scripts, backdrops, overlays, tooling:** made for this repo (MIT, see `LICENSE`).
+* **Sung-vowel source:** [Bart Massey, voice-note.wav](https://github.com/pdx-cs-sound/wavs/blob/main/voice-note.wav) (CC0); modified through trimming, filtering, looping, pitch shifting and envelopes for the song vocals.
+* **Charts, original compositions, scripts, backdrops, overlays, tooling:** made for this repo (MIT, see `LICENSE`); the recorded vocal source is separately licensed as noted above.
 * **Stage backdrops:** graded from a horror backdrop image in `art_src/scary_bg.png`.
 
 Trollge is an internet meme of unknown origin; this mod is a non-commercial fan project.

@@ -1,7 +1,8 @@
 # Music research and implementation notes
 
 These are selected sources, not a complete survey. They informed independent
-changes to the existing generators; no source recordings or melodies were copied.
+changes to the existing generators. The current vocals use the separately
+credited recorded vowel described below; no external melodies were copied.
 
 - [Zoe Sones, Music and Horror: What Makes Music Sound Scary](https://www.premiumbeat.com/blog/what-makes-music-sound-scary/): contrast, dissonance, low drones and pulsating rhythms. The arrangements already use quiet/loud section roles, horror layers and chart-timed events; v3.8 corrects which chart bars receive those roles and tunes the continuous drone to the song's tonic. It preserves intentionally chromatic written pitches rather than silently snapping them.
 - [Northern Film Orchestra, 5 Tips for Writing Horror Music](https://www.northernfilmorchestra.com/post/film-composers-5-tips-for-writing-horror-music): dissonant intervals, unfamiliar treatments of familiar sounds and space. The five pieces retain different instrumental palettes and scale colours; the glitch bass no longer makes uncontrolled random tritone jumps that can fight the melody.
@@ -12,3 +13,25 @@ changes to the existing generators; no source recordings or melodies were copied
 
 Every track still needs a human listening test, including vocals and instrumental
 together, and gameplay needs testing in the actual Codename Engine build.
+
+## Recorded voice and redistribution
+
+[Bart Massey's voice-note.wav](https://github.com/pdx-cs-sound/wavs) is a
+single sung note, identified in that repository as CC0. Both characters use
+retuned versions of this one recording, with crossfaded looping and short
+note envelopes; it is not an official BF or Trollge recording. The vocal stem
+is less aggressively boosted, with less artificial top end and reverb; the
+instrumental's chart-following lead and excessive stereo width were reduced.
+These are production decisions, not proof of quality or character accuracy.
+
+The [NyxTheShield BF soundfont](https://github.com/NyxTheShield/FNFSoundfonts)
+claims Apache-2.0, but says the samples are ripped from the original game.
+The [Funkin assets license](https://github.com/FunkinCrew/funkin.assets/blob/main/LICENSE.md)
+reserves the game's audio content, distinct from the code license. Those samples
+were therefore not incorporated.
+
+The instrumental audit's minimum air and width thresholds were adjusted for the
+intentional darker, narrower mix; it still checks air, width and side/mid energy.
+The melody-band mix report now measures the decoded equal-gain **sum** of both
+stems instead of treating the quietened instrumental lead as the whole melody.
+It does not model the engine muting vocals on misses or its actual gain settings.

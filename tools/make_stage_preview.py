@@ -46,9 +46,9 @@ MIN_MARGIN = 45
 #: Both pairs of feet must sit within this many pixels of each other.
 GROUND_TOLERANCE = 2
 
-#: The stage script pushes defaultCamZoom up to this for the worst songs, so the
-#: framing has to hold at the tightest zoom as well as the stage's own.
-MAX_TIER_ZOOM = 1.03
+#: Covers the maximum tier base zoom (1.026) plus this stage's capped 0.018
+#: impulse with a little headroom. External chart/engine zooms can exceed it.
+MAX_TIER_ZOOM = 1.05
 
 
 def read_stage():
@@ -58,6 +58,7 @@ def read_stage():
         "startCamX": float(root.get("startCamPosX", SCREEN_W / 2)),
         "startCamY": float(root.get("startCamPosY", SCREEN_H / 2)),
         "bg": None,
+        "shadows": [],
         "chars": {},
     }
     for node in root:
@@ -68,6 +69,9 @@ def read_stage():
                 "scale": float(node.get("scale", 1.0)),
                 "file": node.get("sprite", "bg"),
             }
+        elif node.tag == "sprite" and node.get("sprite") == "contact_shadow":
+            stage["shadows"].append({"x": float(node.get("x", 0)),
+                                     "y": float(node.get("y", 0))})
         elif node.tag in ("dad", "opponent", "boyfriend", "bf"):
             key = "opponent" if node.tag in ("dad", "opponent") else "player"
             stage["chars"][key] = {
@@ -180,6 +184,15 @@ def main():
             bx = (bg["x"] - cam["scrollX"]) * cam["zoom"] + SCREEN_W * (1 - cam["zoom"]) / 2.0
             by = (bg["y"] - cam["scrollY"]) * cam["zoom"] + SCREEN_H * (1 - cam["zoom"]) / 2.0
             tile.alpha_composite(img, (int(round(bx)), int(round(by))))
+
+        # XML places these after the background and before the characters.
+        shadow = Image.open(os.path.join(IMG_STAGES, "contact_shadow.png")).convert("RGBA")
+        shadow = shadow.resize((round(shadow.width * cam["zoom"]),
+                                round(shadow.height * cam["zoom"])), Image.Resampling.LANCZOS)
+        for pos in stage["shadows"]:
+            sx = (pos["x"] - cam["scrollX"]) * cam["zoom"] + SCREEN_W * (1 - cam["zoom"]) / 2
+            sy = (pos["y"] - cam["scrollY"]) * cam["zoom"] + SCREEN_H * (1 - cam["zoom"]) / 2
+            tile.alpha_composite(shadow, (round(sx), round(sy)))
 
         boxes = {}
         for key, xml in (("opponent", "trollge"), ("player", "bf_blue")):

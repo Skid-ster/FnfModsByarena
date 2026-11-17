@@ -17,6 +17,7 @@ Run with:  python3 tools/make_audio.py
 """
 
 import math
+from functools import lru_cache
 import os
 import shutil
 import sys
@@ -899,7 +900,7 @@ def render_song(song):
         target = lead_p if note["side"] == "player" else lead_o
         # The glitch arrangement's root bass is deliberately restrained so its
         # written b5 hook can speak through the broken percussion.
-        lead_level = 0.80 if style == "glitch" else 0.64
+        lead_level = 0.52 if style == "glitch" else 0.42
         add_at(target, sig, at, lead_level * accent * velocity * (0.75 + 0.35 * ROLE_GAIN[role]))
         # Finale: octave doubling makes the last act feel bigger.
         if role == "finale" and note["side"] == "player":
@@ -1092,10 +1093,10 @@ def render_song(song):
         "pad_r": (pad_r, 0.18, 0.48),
         # The finale's dense double-kick and FX mask its tune unless the
         # lead is pushed harder than in the earlier arrangements.
-        "lead_o": (lead_o, 1.65 if style == "finale" else 0.88,
+        "lead_o": (lead_o, 1.12 if style == "finale" else 0.88,
                    0.92 if style == "finale" else 0.49),
         "lead_p": (lead_p, 0.92 if style == "finale" else 0.49,
-                   1.65 if style == "finale" else 0.88),
+                   1.12 if style == "finale" else 0.88),
         "fx": (fx_s, 0.28, 0.28),
         "wet_l": (wet_l, 0.42, 0.05),
         "wet_r": (wet_r, 0.05, 0.42),
@@ -1118,7 +1119,7 @@ def render_song(song):
     # A quiet deterministic tape-hiss bed restores texture without exaggerating
     # transient hats; it is filtered and goes through the same master chain.
     if style == "trap":
-        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.055
+        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.012
         left += hiss
         right += np.roll(hiss, int(0.013 * SR))
         del hiss
@@ -1147,7 +1148,7 @@ def render_song(song):
     crushed = compress(0.5 * (left + right), threshold_db=-28.0, ratio=5.0, makeup_db=7.0)
     left = left + crushed * 0.16
     right = right + crushed * 0.16
-    left, right = widen(left, right, amount=2.2 + 0.2 * tier)
+    left, right = widen(left, right, amount=1.35 + 0.05 * tier)
 
     if style == "glitch":
         # Make the glitch song's breakdowns genuinely breathe: gently pull the
@@ -1182,6 +1183,54 @@ def render_song(song):
     return left, right
 
 
+@lru_cache(maxsize=128)
+def _recorded_vowel(midi):
+    """Pitch a CC0 sung vowel; filter before resampling to reduce aliasing.
+
+    The source is a sung A3 near 216 Hz.  The sample includes a gentle natural
+    pitch variation. Keep that performance rather than synthesizing formants.
+    """
+    import soundfile as sf
+    path = os.path.join(ROOT, "audio_src", "voices", "massey-sung-note.wav")
+    raw, sr = sf.read(path, dtype="float64")
+    if raw.ndim != 1 or sr != 48000:
+        raise ValueError("unexpected sung-vowel source format")
+    # Discard the initial pitch scoop and unvoiced end. Normalize only once,
+    # before pitching; the envelope below handles note boundaries.
+    raw = raw[int(.12 * sr):int(1.03 * sr)]
+    ratio = midi_to_hz(midi) / 216.0
+    raw = lowpass(raw, min(7500.0, SR * .43 / max(ratio, 1.0)), sr=sr)
+    raw = raw / max(np.max(np.abs(raw)), 1e-9)
+    # Crossfade into the next copy so sustained high notes have no abrupt seam.
+    overlap = int(.045 * sr)
+    stride = len(raw) - overlap
+    tiled = np.zeros(len(raw) + stride * 8)
+    for i in range(9):
+        part = raw.copy()
+        if i:
+            part[:overlap] *= np.linspace(0, 1, overlap)
+        if i < 8:
+            part[-overlap:] *= np.linspace(1, 0, overlap)
+        tiled[i * stride:i * stride + len(raw)] += part
+    # Pitch via resampling. The playback rate includes conversion from 48 kHz.
+    positions = np.arange(int(len(tiled) / (ratio * sr / SR))) * (ratio * sr / SR)
+    return np.interp(positions, np.arange(len(tiled)), tiled)
+
+
+def sampled_voice_note(midi, dur, dark=False):
+    """A playable, short sung chop with soft ends and a dry centre image."""
+    n = max(1, int((dur + .05) * SR))
+    src = _recorded_vowel(midi)
+    if len(src) < n:
+        raise ValueError("recorded vowel loop too short for note")
+    out = src[:n].copy()
+    attack = min(n // 3, int((.012 if dark else .008) * SR))
+    release = min(n // 3, int(.05 * SR))
+    out[:attack] *= np.linspace(0.0, 1.0, attack)
+    out[-release:] *= np.linspace(1.0, 0.0, release)
+    return out
+
+
 def render_vocals(song):
     """The characters' vocal track -- `song/Voices.ogg`.
 
@@ -1191,10 +1240,9 @@ def render_vocals(song):
     (PlayState -> Paths.voices), so without this file the characters mouth the
     lyrics in silence.
 
-    Both characters are formant voices (`voice_note`): the player bright and
-    clean, the Trollge with shifted-down formants, sub-harmonic weight and a
-    controlled growl. The vowel changes note to note, and the two characters use
-    different vowel sets, which is most of what makes this read as singing.
+    Both singers use differently pitched versions of a CC0 recorded sung
+    vowel, rather than the old synthetic formant and growl voices. They are
+    original approximations, not the official character voice samples.
     """
     total = L.length(song)
     n_total = int(round(total * SR))
@@ -1207,17 +1255,12 @@ def render_vocals(song):
         dur = max(0.20, note["sLen"] / 1000.0 if note["sLen"] else step * 2.2)
         midi = L.note_pitch(song, note["measure"], note["id"], semi=note.get("semi"))
         if note["side"] == "player":
-            vowel = PLAYER_VOWELS[note["id"] % len(PLAYER_VOWELS)]
-            add_at(player, voice_note(midi, dur, dark=False, vowel=vowel,
-                                      seed=index, scoop=0.030, vibrato=0.011), at, 1.0)
+            add_at(player, sampled_voice_note(midi, dur), at, 1.0)
         else:
-            vowel = TROLLGE_VOWELS[note["id"] % len(TROLLGE_VOWELS)]
-            add_at(opponent, voice_note(midi - 12, dur * 1.02, dark=True, vowel=vowel,
-                                        seed=index + 17, scoop=0.040, vibrato=0.0085,
-                                        growl=0.55), at, 1.0)
+            add_at(opponent, sampled_voice_note(midi - 12, dur, dark=True), at, 1.0)
 
     # One plate for both singers, spread with a few ms of side delay.
-    wet = reverb(0.35 * (player + opponent), wet=0.24, size=0.72)
+    wet = reverb(0.22 * (player + opponent), wet=0.18, size=0.55)
     wet_l, wet_r = haas(wet, 0.016)
     del wet
 
@@ -1235,8 +1278,8 @@ def render_vocals(song):
     # The vocal bus is finished with a presence lift and a de-harshed top: the
     # voices have to cut through the 1-4 kHz pocket the instrumental leaves open
     # (see render_song), not fight the cymbals above it.
-    vocal_eq = [(90.0, -6.0), (180.0, -1.0), (400.0, 1.5), (1100.0, 2.5),
-                (2600.0, 3.0), (4200.0, 1.5), (7000.0, -1.5), (10000.0, -4.0), (16000.0, -6.0)]
+    vocal_eq = [(90.0, -6.0), (180.0, -1.0), (400.0, 0.0), (1100.0, 0.0),
+                (2600.0, -1.0), (4200.0, -2.0), (7000.0, -3.0), (10000.0, -5.0), (16000.0, -7.0)]
     left = eq_curve(left, vocal_eq)
     right = eq_curve(right, vocal_eq)
     # Soft knee: tame the peaks the formant bank leaves, keep the body.
@@ -1244,10 +1287,9 @@ def render_vocals(song):
                     release_ms=90.0, makeup_db=1.5)
     right = compress(right, threshold_db=-18.0, ratio=2.2, attack_ms=6.0,
                      release_ms=90.0, makeup_db=1.5)
-    # -7.5 dBFS RMS against the instrumental's -14: the voice sits clearly on
-    # top, which audit_songs.py measures rather than assumes.
+    # Leave the vocal in the mix rather than forcing it 6.5 dB above the band.
     rms = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))
-    target = TARGET_RMS * 10.0 ** (6.5 / 20.0)
+    target = TARGET_RMS * 10.0 ** (-2.0 / 20.0)
     scale = target / max(rms, 1e-9)
     left, right = limiter(left * scale, 0.86), limiter(right * scale, 0.86)
     peak = max(float(np.max(np.abs(left))), float(np.max(np.abs(right))), 1e-9)

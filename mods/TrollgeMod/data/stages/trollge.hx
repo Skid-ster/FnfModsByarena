@@ -295,47 +295,51 @@ function camShake(pixels:Float, seconds:Float) {
 function zoomPunch(amount:Float) {
 	var cam = PlayState.instance != null ? PlayState.instance.camGame : null;
 	if (cam == null) return;
-	cam.zoom += amount;
+	// Dense chords and engine beat bops can overlap. Never let our impulses
+	// stack without bound or pull down a larger zoom set by another script.
+	var ceiling:Float = PlayState.instance.defaultCamZoom + 0.018;
+	if (cam.zoom < ceiling) cam.zoom = Math.min(ceiling, cam.zoom + amount);
 }
 
 // --------------------------------------------------------------------------- #
-//  Note-hit voices
+//  Hit response
 //
-//  The engine plays nothing when a note is hit (only miss sounds), so both sides
-//  were silently miming. Every hit now plays that character's own syllable, and
-//  the pitch follows the arrow: up highest, down lowest. The player's hit also
-//  gives the camera a tiny push in, which is what makes a clean section feel
-//  like it is being played rather than watched.
+//  Shipped songs already contain chart-matched Voices.ogg. Doubling them with
+//  a second syllable on every hit crowds the mix and undermines miss muting;
+//  retain the old samples only as a fallback for songs without a vocal stem.
+//  A restrained, capped camera response makes a hit feel physical without
+//  making fast patterns zoom indefinitely or changing note timing.
 // --------------------------------------------------------------------------- #
 
 var NOTE_DIRS:Array<String> = ['left', 'down', 'up', 'right'];
 
 function onNoteHit(event) {
-	if (event == null || event.note == null) return;
-	if (event.note.isSustainNote) return;          // holds are not new notes
+	if (event == null || event.note == null || event.cancelled) return;
+	if (event.note.isSustainNote) return;
 
-	var dir:String = NOTE_DIRS[event.direction % 4];
-	if (event.player) {
-		FlxG.sound.play(Paths.sound('bf_note_' + dir), 0.55);
-		zoomPunch(0.0035);
-	} else {
-		FlxG.sound.play(Paths.sound('trollge_note_' + dir), 0.50);
-		zoomPunch(0.0015);
+	var meta = PlayState.SONG != null ? PlayState.SONG.meta : null;
+	if (meta != null && !meta.needsVoices) {
+		var dir:String = NOTE_DIRS[event.direction % 4];
+		if (event.player) FlxG.sound.play(Paths.sound('bf_note_' + dir), 0.32);
+		else FlxG.sound.play(Paths.sound('trollge_note_' + dir), 0.28);
 	}
+	zoomPunch(event.player ? 0.0022 : 0.0008);
 }
 
-/** The camera breathes in on every fourth measure. */
+/** A small camera breath every fourth measure, bounded by zoomPunch. */
 function measureHit(curMeasure) {
-	if (curMeasure % 4 == 0) zoomPunch(0.004 + 0.001 * scareTier);
+	if (curMeasure % 4 == 0) zoomPunch(0.003 + 0.0005 * scareTier);
 }
 
 function beatHit(curBeat) {
 	// Camera: a small push on every beat once the song is properly scary, and a
-	// barely-there shake from 6/10 up. Everything scales with the tier, so the
+	// restrained downbeat shake from 6/10 up. Everything scales with the tier, so the
 	// last two songs physically feel different from the first one.
 	if (scareTier >= 4) zoomPunch(0.0022 + 0.0004 * scareTier);
-	if (scareTier >= 6) camShake(1.2 + 0.35 * scareTier, 0.09);
-	if (scareTier >= 10 && curBeat % 4 == 0) camShake(4.0, 0.22);
+	// Reserve shake for downbeats: the contrast makes the impact more legible
+	// than a constantly vibrating camera, especially in dense note sections.
+	if (scareTier >= 6 && curBeat % 4 == 0)
+		camShake(1.0 + 0.22 * scareTier, 0.10);
 
 	// FlxRandom.bool takes a percentage in the range 0..100.
 	if (staticSpr == null) return;
