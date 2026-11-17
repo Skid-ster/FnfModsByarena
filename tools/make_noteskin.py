@@ -30,7 +30,7 @@ import os
 import random
 import sys
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD = os.path.join(ROOT, "mods", "TrollgeMod")
@@ -197,10 +197,15 @@ def ink_drips(canvas, mask, colour, seed, count=3, size=1.0):
     return out
 
 
+def seeded_noise(size, seed):
+    """Stable per-frame texture; Image.effect_noise ignores our RNG seed."""
+    return Image.frombytes("L", size, random.Random(seed).randbytes(size[0] * size[1]))
+
+
 def jagged_edge(mask, width, seed, density=0.55):
     """A broken, static-eaten rim instead of a clean vector outline."""
     ring = edge_of(mask, width)
-    noise = Image.effect_noise(mask.size, 110).convert("L")
+    noise = seeded_noise(mask.size, seed)
     cut = noise.point(lambda v: 255 if v > int(255 * (1.0 - density)) else 0)
     out = ImageChops.multiply(ring, cut)
     # keep the ring continuous enough to still read as an arrow
@@ -373,7 +378,7 @@ def corrupt(image, seed):
 
     # static speckle, clipped to the sprite so the atlas stays light
     original_alpha = image.getchannel("A")
-    noise = Image.effect_noise((w, h), 60).convert("L")
+    noise = seeded_noise((w, h), seed)
     red = Image.new("RGBA", (w, h), (255, 40, 60))
     red.putalpha(ImageChops.multiply(noise.point(lambda v: int(v * 0.16)), original_alpha))
     out_img.alpha_composite(red)
@@ -389,9 +394,15 @@ def torn(image, seed):
     size looked like unreadable micro-text inside the arrow. This one uses bold
     marks only: a heavy red/cyan fringe, scanlines, ink runs and a burnt edge.
     """
-    grey = image.convert("L")
-    ember = ImageOps.colorize(grey, black=(10, 2, 3), mid=(126, 18, 12), white=(240, 64, 42))
-    out_img = ember.convert("RGBA")
+    # Retain the lane colours: turning every arrow dark red makes fast patterns
+    # indistinguishable against the finale's red-black stage. A restrained ember
+    # tint and brighter centres keep the distressed look without hiding inputs.
+    rgb = image.convert("RGB")
+    ember = ImageOps.colorize(rgb.convert("L"), black=(10, 2, 3),
+                              mid=(126, 18, 12), white=(245, 104, 82))
+    rgb = Image.blend(rgb, ember, 0.28)
+    rgb = ImageEnhance.Brightness(rgb).enhance(1.24)
+    out_img = rgb.convert("RGBA")
     mask = image.getchannel("A")
     out_img.putalpha(mask)
 
@@ -400,7 +411,7 @@ def torn(image, seed):
     out_img = ink_drips(out_img, mask, (28, 2, 4), seed=seed, count=5, size=1.8)
 
     # burnt edge: alpha chewed in horizontal tears, never into detached specks
-    noise = Image.effect_noise(image.size, 90).convert("L")
+    noise = seeded_noise(image.size, seed)
     tears = noise.point(lambda v: 255 if v > 96 else 210)
     out_img.putalpha(ImageChops.multiply(out_img.getchannel("A"), tears))
     return out_img
@@ -555,7 +566,7 @@ def drained(image, seed):
     out_img.alpha_composite(coloured(ImageChops.multiply(spec, mask), (255, 255, 255), 105))
 
     # static: fine speckle clipped to the sprite
-    noise = Image.effect_noise(image.size, 70).convert("L")
+    noise = seeded_noise(image.size, seed)
     speck = coloured(ImageChops.multiply(noise.point(lambda v: int(v * 0.14)), mask), (230, 240, 255), 190)
     out_img.alpha_composite(speck)
     return out_img

@@ -17,8 +17,8 @@
 //      6. corner vignette
 //
 //  OpenFL/Flixel conventions: `#pragma header` pulls in the shader preamble,
-//  `bitmap` is the sampler, `flixel_texture2D` is the texture fetch, and
-//  `openfl_Alphav` is the sprite alpha the engine expects us to multiply by.
+//  `bitmap` is the sampler; camera filters fetch with `textureCam`, and
+//  `textureCam` already applies `openfl_Alphav` and returns premultiplied colour.
 //
 //  Uniforms are written from HScript with `setFloat`:
 //      uTime       seconds since the song started
@@ -49,7 +49,8 @@ void main()
 {
     float t = max(uTime, iTime);
 
-    vec2 uv = openfl_TextureCoordv;
+    // All warp maths must be in camera space, just like textureCam expects.
+    vec2 uv = getCamPos(openfl_TextureCoordv);
     vec2 centred = uv - vec2(0.5);
     float r2 = dot(centred, centred);
 
@@ -59,7 +60,9 @@ void main()
     vec2 warped = uv + centred * r2 * uCurvature * 4.0;
     if (warped.x < 0.0 || warped.x > 1.0 || warped.y < 0.0 || warped.y > 1.0)
     {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, openfl_Alphav);
+        // The HUD camera is transparent: opaque black here would mask the
+        // game underneath the curved corners.
+        gl_FragColor = vec4(0.0);
         return;
     }
 
@@ -76,10 +79,10 @@ void main()
     float gr = 0.0;
 
     vec4 col;
-    col.r = flixel_texture2D(bitmap, suv + vec2(ab, 0.0)).r;
-    col.g = flixel_texture2D(bitmap, suv).g;
-    col.b = flixel_texture2D(bitmap, suv - vec2(ab, 0.0)).b;
-    col.a = flixel_texture2D(bitmap, suv).a;
+    col.r = textureCam(bitmap, suv + vec2(ab, 0.0)).r;
+    col.g = textureCam(bitmap, suv).g;
+    col.b = textureCam(bitmap, suv - vec2(ab, 0.0)).b;
+    col.a = textureCam(bitmap, suv).a;
 
     // 4. Scanlines: one dark row every ~2.5 pixels of the *output*, which keeps
     //    the pattern stable no matter how the game is scaled.
@@ -89,14 +92,16 @@ void main()
 
     // 5. Static grain, animated per frame.
     gr = hash(uv * openfl_TextureSize + vec2(t * 91.7, t * 37.3));
-    col.rgb += (gr - 0.5) * uStatic * 0.55;
+    col.rgb += (gr - 0.5) * uStatic * 0.55 * col.a;
 
     // 6. Vignette, on top of the curvature so the corners go first.
     float vig = 1.0 - uVignette * smoothstep(0.12, 0.75, r2 * 2.0);
     col.rgb *= vig;
 
-    col.rgb = clamp(col.rgb, vec3(0.0), vec3(1.0));
-    col.a = clamp(col.a, 0.0, 1.0) * openfl_Alphav;
+    // textureCam returns premultiplied pixels with alpha already applied.
+    // Clamp colour to alpha so grain and RGB split cannot light transparent HUD.
+    col.a = clamp(col.a, 0.0, 1.0);
+    col.rgb = clamp(col.rgb, vec3(0.0), vec3(col.a));
 
     gl_FragColor = col;
 }

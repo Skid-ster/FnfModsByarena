@@ -6,11 +6,11 @@
 [![Release](https://img.shields.io/github/v/release/Skid-ster/FnfModsByarena?label=release)](../../releases/latest)
 ![Engine](https://img.shields.io/badge/engine-Codename-9C35D5)
 ![Songs](https://img.shields.io/badge/songs-5-C4101E)
-![Checks](https://img.shields.io/badge/validator-2361%20checks%20%C2%B7%200%20warnings-3A7D44)
+![Checks](https://img.shields.io/badge/validator-2378%20checks%20%C2%B7%200%20warnings-3A7D44)
 
 ![Super Scary Trollge](docs/banner.jpg)
 
-A complete, playable [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) mod where the horror escalates
+A [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) mod where the horror escalates
 song by song: **2/10 → 4/10 → 6/10 → 8/10 → 10/10** — and the characters, the arrows, the camera, the menus and the
 HUD mutate with it. Five charted, sung, themed songs with hand-written cutscenes, a real ending, and a menu that
 looks back at you.
@@ -18,41 +18,23 @@ looks back at you.
 **Launch it and you land in the mod's own menu** — no vanilla "press enter" screen, no base-game death theme, no
 default arrows, no default shaders.
 
-**[⬇ Download the latest release](../../releases/latest)** · [install in four steps](#install) · [see what's inside](#whats-inside)
+**[⬇ Download v3.9.0](../../releases/tag/v3.9.0)** · [install in four steps](#install) · [see what's inside](#whats-inside)
 
-## What's new in v3.7.0
+## v3.9.0 — release and testing status
 
-* **The tunes are real tunes now.** The previous phrase library was eight bars of eighth-note arpeggios that never
-  repeated, which is why it sounded like "a bunch of random numbers". Every song has been rewritten as ABA‑C material
-  — a riff, its answer, the riff again, a cadence — and the harmony is now *derived from the melody* instead of being a
-  fixed loop the melody had to fight. Measured before → after on the notes actually played (`tools/melody_report.py`):
-  strong-beat chord fit **29–40 % → 80–85 %**, chord-tone share of all notes **20–38 % → 85–92 %**, bar-level
-  repetition **0 % → 75–90 %**, leaps left hanging **46–100 % → 0–35 %**, and every song now sits inside an octave and
-  a half. The chart is generated from the same phrases, so the tune you play is the tune you hear.
-* **Freeplay actually lists the mod.** `LIB_` is a redirect in this engine, not a file name: the request for
-  `data/config/freeplaySonglist/LIB_TrollgeMod.txt` is rewritten to `data/config/freeplaySonglist.txt`. v3.6.0 shipped
-  only the `LIB_` name, so there was no list to read and the mod fell back to scanning `songs/` alphabetically. Both
-  files now ship, and the validator asserts the *resolved* path (see [Freeplay](#freeplay-contains-only-these-five-songs)).
-* **The scare ladder is in the audio, not only in the labels.** A detuned sub-octave drone (two oscillators a few cents
-  apart, so it beats slowly against itself), a tritone added from tier 4, and band-passed breath gated on a slow
-  envelope — all scaled by the scare rating. `tools/dread_report.py` measures the result on the shipped `Inst.ogg`
-  files and fails if a higher-rated song is a brighter mix than a lower-rated one.
-* **The voices are voices.** A glottal source with a spectral tilt, a short pitch scoop, vibrato that widens through
-  a long note and a parallel bank of vowel formants (`ah`/`oh`/`ee`/`oo`), tuned per character: Boyfriend bright and
-  smooth, the Trollge a low baritone with sub-harmonic weight and controlled drive. The master carves a 1–4 kHz
-  pocket for them — measured, the vocal sits 8–10 dB above the instrumental in that band.
-* **A mix you can leave on.** Kicks are a 90 → 55 Hz pitch envelope with a smooth attack (no click), snares are tuned
-  to 180–220 Hz with a plate tail, hats are swung and shelved instead of brick-walled, and the 250–800 Hz mud that
-  made everything read as a blur is 2.6–3.4 dB down. Instrumental centroid moved 571 → 867–1523 Hz.
-* **Freeplay shows only this mod's five songs.** `SONGS_LIST_MOD_MODE="override"` is pinned, so Codename scans
-  `LIB_TrollgeMod.txt` *instead of* the base list, and the validator fails if the list is not exactly those five ids
-  in scare order. → [details](#freeplay-contains-only-these-five-songs)
-* **It installs, and freeplay stays fixed on a real install.** The shipped archive is now `TrollgeMod.zip`.
-  Codename names a mod after the file it loads, so the old versioned file name meant the freeplay list was never
-  found *and* the engine forgot your mod choice on every launch — see [the note under Install](#the-zips-file-name-is-the-mods-name--this-matters).
-* **A menu that reads.** Bone type with a real hierarchy — a taller, brighter selected row offset from the stack, a
-  one-pixel keyline, condensed medium weight, a graded fill — over a backdrop where the Trollge finally looks like a
-  figure standing in a doorway rather than a smudge.
+The CRT shader now performs its warping in camera coordinates and preserves
+transparent, premultiplied HUD pixels; the VHS pass also preserves alpha. The
+stage preserves other camera filters and removes its own on teardown. Camera
+targets have been adjusted after a framing model found a wide singing pose
+clipped on the player turn. Captions follow the virtual screen height.
+
+Both shaders compile under desktop GLSL 330/410 and GLES 300 with a **minimal
+Flixel-compatible test preamble**; 800 projected character frames clear the
+modelled static camera. These are not actual Codename Engine or GPU tests. The
+music has not been auditioned in this environment, so please test the songs,
+Freeplay, shaders, positioning and effects in your engine build. See the
+[development status](docs/development-status.md) and
+[music research notes](docs/music-research.md).
 
 ## At a glance
 
@@ -61,18 +43,18 @@ default arrows, no default shaders.
 | **Engine** | Codename Engine 1.x (HScript behaviours, `chartVersion 1.6.0`) — *not* Psych or YoshiCrafter |
 | **Content** | 5 songs × 3 difficulties (easy / normal / hard), story week + freeplay, 5 Trollge phases, 5 Boyfriend skins |
 | **Custom everything** | arrow skins ×4, splashes, HUD, health bar, countdown badges, note-hit voices, cutscene art, main menu, death screen, two shaders |
-| **Verified** | `tools/validate_mod.py` — **2361 checks, 0 errors, 0 warnings**; `tools/audit_songs.py --strict` — every mix and chart metric inside its window |
-| **Reproducible** | every chart, note, sound, backdrop and preview is generated by `tools/` from `tools/song_layout.py` |
+| **Verified** | `tools/validate_mod.py` — **2378 checks, 0 errors, 0 warnings**; `tools/audit_songs.py --strict` — every mix and chart metric inside its window |
+| **Sources** | charts and audio use `tools/song_layout.py` and `tools/phrases.py`; art generators also use the existing `art_src/` assets |
 
 ## The five songs
 
 | Song | Folder | Key | Scare | BPM | Sound | Length | Notes EZ/NM/HARD | Boyfriend | Trollge | Story beats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **1. Trolling** | `trolling` | D minor | 2/10 | 140 | 8-bit **bounce** | 1:44 | 117 / 162 / 204 | `bf_blue` | `trollge` | 3 |
-| **2. It's Getting Dark** | `getting-dark` | C minor | 4/10 | 150 | half-time **trap** | 1:43 | 138 / 197 / 253 | `bf_smiler` | `trollge` → `trollge_glitch` | 7 |
-| **3. Don't Look Back** | `dont-look-back` | C# minor | 6/10 | 152 | **glitch** | 1:51 | 194 / 287 / 360 | `bf_glitched` | `trollge_glitch` → `trollge_static` | 10 |
-| **4. Super Scary Trollge** | `super-scary` | B minor | 8/10 | 160 | **industrial** | 1:43 | 239 / 346 / 462 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
-| **5. The Incident** | `the-incident` | A minor | 10/10 | 170 | **finale** | 1:48 | 293 / 430 / 547 | `bf_damned` | `trollge_final` → `trollge_sad` | 16 |
+| **1. Trolling** | `trolling` | D minor | 2/10 | 140 | 8-bit **bounce** | 1:44 | 80 / 108 / 130 | `bf_blue` | `trollge` | 3 |
+| **2. It's Getting Dark** | `getting-dark` | C minor | 4/10 | 150 | half-time **trap** | 1:43 | 97 / 131 / 159 | `bf_smiler` | `trollge` → `trollge_glitch` | 7 |
+| **3. Don't Look Back** | `dont-look-back` | C# minor | 6/10 | 152 | **glitch** | 1:51 | 119 / 161 / 191 | `bf_glitched` | `trollge_glitch` → `trollge_static` | 10 |
+| **4. Super Scary Trollge** | `super-scary` | B minor | 8/10 | 160 | **industrial** | 1:43 | 124 / 170 / 222 | `bf_super_scary` | `trollge_static` → `trollge_final` → `trollge_sad` | 13 |
+| **5. The Incident** | `the-incident` | A minor | 10/10 | 170 | **finale** | 1:48 | 140 / 196 / 249 | `bf_damned` | `trollge_final` → `trollge_sad` | 16 |
 
 Each song also ships its own **arrow skin**, from bright violet/mint to a corrupted glitch atlas:
 
@@ -87,19 +69,19 @@ Each song also ships its own **arrow skin**, from bright violet/mint to a corrup
 ![Arrow skins](docs/noteskin.png)
 
 All three base-game difficulties — **easy, normal, hard** — are charted for every song, with scroll speed rising per
-difficulty (1.25 → 2.45 across the pack). Easy and normal are strided subsets of the hard chart (every second / two in
-three notes), so nothing can drift: sustains and the finale's **two-lane chords** exist on hard only.
+difficulty (1.25 → 2.45 across the pack). Easy and normal follow the same material with fewer notes; notes can be restored to prevent an empty bar.
+The finale's **two-lane chords** exist on hard only; easy has no sustains.
 
 Charts are built the way the base game builds them: **one bar (16 steps) belongs to one character**, phrase blocks of
 2–4 bars alternate `dad → bf`, the player sings the last phrase, every song opens with an intro block and breathes on
-two breakdowns, and note density climbs 1.6 → 2.3 notes/second on the hard charts (118 → 249 notes) instead of 2.5 → 8.5. Song 5 is the longest and hardest.
+two breakdowns, and note density climbs approximately 1.25 → 2.29 notes/second on the hard charts (130 → 249 notes). Song 5 has the most notes and highest tempo.
 The full reasoning, the base-game reference numbers and the engine citations are in **[docs/charting.md](docs/charting.md)**.
 
-### Freeplay contains **only** these five songs
+### Intended Freeplay list: five songs
 
-Launch the mod, pick **Freeplay**, and the list is the five Trollge songs in scare order — `trolling`,
-`getting-dark`, `dont-look-back`, `super-scary`, `the-incident` — with the base game's list gone. That is a
-*replacement*, not a merge:
+The intended Freeplay list is the five Trollge songs in scare order — `trolling`,
+`getting-dark`, `dont-look-back`, `super-scary`, `the-incident` — replacing the base game list.
+The compatibility paths below are checked statically; actual menu behavior still needs testing on the target engine build:
 
 * the engine asks for `Paths.txt('config/freeplaySonglist/LIB_$modName')`
   (`FreeplayState.hx` → `FreeplaySonglist.getSongsFromSource()`), where `$modName` is the mod's folder name;
@@ -108,18 +90,15 @@ Launch the mod, pick **Freeplay**, and the list is the five Trollge songs in sca
   **`data/config/freeplaySonglist.txt`** — and that file is what the engine actually opens;
 * so the list ships as `data/config/freeplaySonglist.txt`, and `data/config/freeplaySonglist/LIB_TrollgeMod.txt`
   ships alongside it as a synced compat copy for engine builds that read the prefix literally,
+* the older paths `data/freeplaySonglist.txt` and `data/freeplaySonglist/LIB_TrollgeMod.txt` also ship with the same order;
 * `modpack.ini` pins `[Flags] SONGS_LIST_MOD_MODE="override"`, the mode that scans this mod's list *instead of* the
   base game's rather than appending to it,
 * `tools/validate_mod.py` fails the build if the redirect target is missing, if it is not exactly those five ids in
   scare order, if an id from outside the mod appears, or if the `LIB_` copy ever disagrees with the real list.
 
-This is worth spelling out because the previous release shipped *only* the `LIB_` name. Since the engine never opens
-that file, there was no freeplay list, `override` found nothing to override with, and the mod fell back to scanning
-`songs/` — which is alphabetical (`dont-look-back`, `getting-dark`, `super-scary`, `the-incident`, `trolling`), not
-scare order. That is exactly the symptom the owner reported. Story mode looked fine throughout because the same
-redirect rule turns the shipped `data/weeks/weeks/LIB_TrollgeMod.txt` into `data/weeks/weeks.txt`, which did exist.
-
-Story mode is unaffected: the week plays the same five songs back to back.
+These paths are based on source inspection and an archive-level lookup model.
+Library naming and scan order vary by engine build, so check both Story and
+Freeplay in your Codename installation; the intended order is not guaranteed.
 
 ## Previews
 
@@ -136,7 +115,7 @@ Story mode is unaffected: the week plays the same five songs back to back.
 
 ## Contents
 
-[What's new](#whats-new-in-v370) · [The five songs](#the-five-songs) · [Previews](#previews) · [Install](#install) · [What's inside](#whats-inside) · [The menus](#the-menus) · [Cutscenes and the ending](#cutscenes-and-the-ending) · [The death screen](#the-death-screen) · [How the charts work](#how-the-charts-work) · [Rebuilding the assets](#rebuilding-the-assets) · [CI](#ci) · [Credits](#credits)
+[What's new](#v390--release-and-testing-status) · [The five songs](#the-five-songs) · [Previews](#previews) · [Install](#install) · [What's inside](#whats-inside) · [The menus](#the-menus) · [Cutscenes and the ending](#cutscenes-and-the-ending) · [The death screen](#the-death-screen) · [How the charts work](#how-the-charts-work) · [Rebuilding the assets](#rebuilding-the-assets) · [CI](#ci) · [Credits](#credits)
 
 ---
 
@@ -144,24 +123,19 @@ Story mode is unaffected: the week plays the same five songs back to back.
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
 2. Grab **`TrollgeMod.zip`** from the [releases page](../../releases). There is also
-   `SuperScaryTrollge-v3.7.0.zip` — identical contents, but **install from `TrollgeMod.zip`** (see the warning below).
+   `SuperScaryTrollge-v3.9.0.zip` — identical contents, but **install from `TrollgeMod.zip`** (see the warning below).
 3. Drop that **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **TrollgeMod**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
 
-### The zip's file name is the mod's name — this matters
+### Installing the zip
 
-> Codename does not read the mod name out of `mod.json`. `MainState` loads the mod with
-> `loadLib(path, ModsFolder.currentModFolder)`, that name is lowercased into `ModsFolderLibrary.modName`, and freeplay
-> then looks for `config/freeplaySonglist/LIB_<modName>.txt`. So a zip called `TrollgeMod.zip` names the mod
-> `TrollgeMod` and finds `LIB_TrollgeMod.txt`; a zip called `SuperScaryTrollge-v3.7.0.zip` names it
-> `superscarytrollge-v3.7.0`, and this mod's freeplay list is then never read.
->
-> The same name is stored in your save, and `ModsFolder.init()` compares it against the `mods/` listing on every
-> launch — so under a versioned file name the engine silently forgets your mod choice and you re-pick it every time.
->
-> If you build the zip yourself, `python3 tools/package_mod.py` produces both names; install `dist/TrollgeMod.zip`.
-> `tools/validate_mod.py` fails the build if the installable name, the mod folder and the `LIB_` file ever disagree.
+Use `TrollgeMod.zip` (or the extracted `TrollgeMod` folder) to match the literal
+`LIB_TrollgeMod` compatibility copies. The library name passed by Codename can
+vary between engine builds; rewriting builds can resolve single-component names
+to the plain list, whereas a path-like name may trigger the engine's song-folder
+scan. The scan can find the songs but does not guarantee scare order. These cases
+are simulated by `tools/check_freeplay_zip.py`; they still require in-engine tests.
 
 ```
 mods/
@@ -309,8 +283,8 @@ disappeared on the darker stages:
   1.55× scale and lost its wings. The ring now renders on a 1.7× canvas and is resized down, and every confirm frame
   gets a white-hot inner flash that decays across the four frames.
 * **the shadow skin** gets a cold metallic rim, a specular streak and a little static instead of being a flat desaturate.
-* **the torn skin** lost the fine speckle that read as unreadable micro-text inside the arrow; it now uses bold marks
-  only — a heavy red/cyan fringe, CRT rows, ink runs and a burnt edge.
+* **the torn skin** retains the four lane colours beneath its ember tint, with a brighter centre, red/cyan fringe,
+  CRT rows, ink runs and burnt edges. This avoids the old near-monochrome red arrows on the final dark stage.
 * **holds** get the same treatment (a brighter centre rail plus the shared fringe/scanline/ink pass) so a sustained note
   reads at a glance too.
 
@@ -325,7 +299,7 @@ The HUD is themeable by filename alone, so `tools/make_hud.py` ships:
 
 * `images/game/healthBar.png` — a bolted steel frame with a red inner shadow (the `FlxBar` is drawn 4 px
   inside it, and it repaints to the new form's `iconColor` when the Trollge swaps at 60 s / 96 s).
-* `images/game/ready.png`, `set.png`, `go.png` — glitched READY / SET / GO badges.
+* `images/game/ready.png`, `set.png`, `go.png` — glitched READY / SET / GO badges, fitted inside their frames.
 * `sounds/intro3.ogg`, `intro2.ogg`, `intro1.ogg`, `introGo.ogg` — matching countdown hits, rising in pitch
   and ending in a distorted blast.
 
@@ -339,15 +313,15 @@ The stage is not hand-placed and hoped for: `tools/make_stage_preview.py` re-imp
 
 ![Engine framing, both camera sides](docs/stage.png)
 
-It prints the clear space around each character at the stage zoom **and** at the tightest zoom any song reaches,
-and fails if anything is clipped, if the two pairs of feet are more than 2 px apart, or if the backdrop does not
+It prints the clear space around the two idle characters at the stage zoom and a modelled tier zoom of 1.03,
+and fails if those idle poses are clipped, if their feet are more than 2 px apart, or if the backdrop does not
 cover what the camera can see. The numbers it validates:
 
 | Setting | Value | Why |
 | --- | --- | --- |
 | ground line | Trollge `y=60`, Boyfriend `y=82` | the two atlases have different canvas heights (600 vs 560), so the y offset is exactly their baseline difference — the feet land on the same line to the pixel |
-| character gap | 520 px | the camera swings between the two strumlines; this is the widest gap that still keeps both characters in frame with at least 45 px of clear space on the tightest zoom |
-| `camyoffset` | 60 | without it the Trollge's feet sit on the bottom edge whenever the camera is on his side |
+| character gap | 520 px | camera offsets keep the projected animation frames in view at the modelled zooms |
+| camera offsets | dad `+20, +75`; boyfriend `-80, +75` | keeps wide poses and feet within the modelled camera frame |
 | `zoom` | 0.95 → 1.026 | the stage's 0.95 plus 0.0095 per scare step: song 1 is framed loose, song 5 is pressed in |
 
 Camera work lives in `data/stages/trollge.hx` and scales with the scare tier, so the last two songs physically feel
@@ -360,8 +334,7 @@ different from the first one:
 
 ### Note-hit voices
 
-The engine plays nothing when a note is hit (only miss sounds), so both sides used to mime silently. Now every hit
-plays **that character's own syllable**, and the pitch follows the arrow — up is highest, down is lowest:
+The stage script plays short character-specific samples on note hits, in addition to the song's `Voices.ogg`. Sample pitch follows the arrow — up is highest, down is lowest:
 
 | Side | Sound | Files |
 | --- | --- | --- |
@@ -376,7 +349,7 @@ engine's own (`singLEFT`…), so a correct arrow gives you **the pose and the vo
 
 All audio is synthesised with numpy (`tools/make_audio.py`) at 44.1 kHz stereo, exported as OGG/Vorbis.
 
-**The instrumentals are built from the chart notes**, and the takes are played, not programmed: every hit gets a
+**The instrumentals are programmed from the chart notes**: hits get a
 deterministic timing nudge and velocity (swing on the off-16ths, a few milliseconds of human drift), the pads carry a
 seventh with a slowly moving filter, ghost snares and open hats fill the space between the drums, an eight-bar fill
 lands into every new role, the lead is doubled an octave down for weight, and the master runs tape saturation plus a
@@ -399,33 +372,31 @@ and groove (`"style"` in `tools/song_layout.py`, voices in `tools/make_audio.py`
 | --- | --- | --- | --- | --- |
 | `bounce` (song 1) | punchy kick, layered **clap**, open hats, woodblock answers | plucked saw, 8th-note bounce | pulse-wave **chip** lead | straight backbeat, off-beat bass |
 | `trap` (song 2) | long **808** boom, rim-shot snare, rolling/ triplet hats | sliding 808 sub, long notes | two-operator **FM bell** with a tail | half-time, reversed cymbals |
-| `glitch` (song 3) | clipped sub thump, gate-stuttered snare, hat holes and 32nd stutters | sample-and-hold octave corruption | hard-edged square lead with random dropouts | broken beat: kick on 1 and the "a" of 2 |
+| `glitch` (song 3) | clipped sub thump, gate-stuttered snare, hat holes and 32nd stutters | root-pitched rhythmic gating | hard-edged square lead with random dropouts | broken beat: kick on 1 and the "a" of 2 |
 | `industrial` (song 4) | metal beater on the kick, ghost snares, 16th ride | warm detuned saw, 16ths | screaming saw + tritone | four-on-the-floor, noise bursts |
 | `finale` (song 5) | double kick, blast-beat snares, 16th rolls, gong hits | sub + growling saw octave | choir of detuned saws with fifths | driving 8ths with a fifth stab |
 
 `tools/audit_songs.py` measures that separation too: the minimum pairwise song "fingerprint" distance (band energy +
-centroid + onset rate) has to stay above 0.10, and it currently reads **0.22**.
+centroid + onset rate) has to stay above 0.10, see the generated song report for the latest value.
 
 On top of that: snare fills and a riser + crash into every section that gets bigger, a horror layer per scare tier
 (dread drone → tape hiss → whisper swells → a breathing, detuned tritone → heartbeat, whispers and a choir root),
 scripted stingers behind every `HScript Call` event, and a **real ending**
 — the instruments stop two beats early so the last chord, crash and sub drop ring out (no lazy fade-out).
 
-**Mixing and mastering.** Parts are rendered as mono stems and placed in stereo; bass and kick stay centred, hats,
-pads and leads are panned apart, the lead reverb doubles as a snare room with a Haas delay, and the pads and bass are
-sidechained to the kick. The master chain is graphic EQ (sub and 250-800 Hz mud cut, a 1-4 kHz pocket for the vocal, air lift above 9 kHz) → gentle glue compression →
-mid/side widener with mono bass → loudness normalisation to −15.5 dBFS RMS → limiter with 2 dB of headroom, because
-Vorbis overshoots the source peak — so the encoder **decodes its own output** and re-normalises if the file clips
-(`write_song()`), and the audit reports the 4x-oversampled true peak of the shipped OGG. Nothing in the package
-peaks above −0.7 dBTP.
+**Mixing and mastering.** Instruments and voices are generated as separate stereo
+tracks. The instrumental uses EQ, sidechain, compression and stereo widening;
+then a linked gain envelope gives the decoded `Inst.ogg` + `Voices.ogg` sum
+headroom at equal playback gain without changing their relative balance. Vorbis
+encoding is checked again after decoding. `tools/check_stem_mix.py` reports a
+4× Catmull-Rom inter-sample peak **estimate**, not a standards-compliant true
+peak measurement or proof of how a particular engine mixes the stems.
 
-Every one of those claims is **measured**, not vibes: `tools/audit_songs.py` decodes the shipped `Inst.ogg` files and
-checks loudness, crest factor, section dynamics, spectral balance, stereo width, side/mid ratio, clipping and DC —
-plus chart style (off-beat ratio, same-lane runs, density curve). The results live in
-[`docs/song_report.md`](docs/song_report.md) and CI fails if a metric leaves its window.
+`tools/audit_songs.py` and the other reports check the shipped files, chart
+shape, spectral proxies and dynamics. See [`docs/song_report.md`](docs/song_report.md).
+Numbers are not a substitute for listening or gameplay.
 
-* `songs/<id>/song/Inst.ogg` — the instrumental; kick/snare/hats, sub bass, pads, and an arpeggio lead whose pitches
-  come straight from the note ids.
+* `songs/<id>/song/Inst.ogg` — programmed instrumental and lead, using the chart's written pitches.
 * `sounds/trollge_jump_scare.ogg`, `trollge_distortion.ogg`, `trollge_invert.ogg` — event stingers.
 * `sounds/trollge_hit.ogg`, `trollge_miss.ogg` — custom note feedback.
 * `sounds/trollge_theme.ogg`, `trollge_theme_scary.ogg` — 24 s music-box loops, free to use in menus/cutscenes.
@@ -443,7 +414,7 @@ plus chart style (off-beat ratio, same-lane runs, density curve). The results li
 * all sampling is **clamped to the texture**, so the offsets never pull from outside the frame — that was causing
   the edges of the screen to smear/clip on the first pass;
 * the stage script resolves `FunkinShader` and `openfl.filters.ShaderFilter` at runtime and silently disables the
-  grade if the platform has no GPU path, so the mod still runs without it.
+  grade if the platform has no GPU path; this fallback still needs an in-engine test.
 
 ![The grade, raw vs graded at each tier](docs/grade.png)
 
@@ -453,22 +424,22 @@ reviewed without launching the engine.
 
 `shaders/crt.frag` is a second, independent pass on top of it — a real CRT rather than a tape wobble:
 
-* barrel curvature (the picture bulges, and anything pushed outside the tube is written black), red/blue chromatic
+* barrel curvature (pixels outside the tube become transparent, including on the HUD), red/blue chromatic
   aberration sampled per channel, horizontal tear bands while a glitch is up, scanlines, animated static grain and a
   corner vignette, in that order;
-* it is applied **twice**: `camGame` gets `[trollge_vhs, crt]`, `camHUD` gets its own copy at roughly 60 % strength so
+* it is applied **twice**: `camGame` gets the VHS and CRT filters, `camHUD` gets its own CRT copy at roughly 60 % strength so
   score, captions and the health bar stay readable;
 * the ladder is `base = (scareTier - 2) / 8`, so 2/10 is a barely-there tube, 4/10 shows the scanlines, 6/10 starts
   splitting channels and 10/10 is a broken set — and `trollgeDistort` / `trollgeStatic` punch `uGlitch` on top;
 * uniforms are written per frame from `update(elapsed)` through one guarded setter, and every load, filter creation and
-  uniform write sits inside its own `try/catch`: a machine that cannot compile the shader loses the effect, not the song.
-  Both `uTime` and `iTime` are driven, so the shader works whichever name a port expects. (Psych mods call this
+  uniform write sits inside its own `try/catch`, intended to let the song run without the effect if compilation fails.
+  Both `uTime` and `iTime` are driven; actual shader compilation and display still require an engine test. (Psych mods call this
   `CustomShader("crt")`; in Codename the same thing is `FunkinShader.fromFile('crt')` + `openfl.filters.ShaderFilter`.)
 
 The validator checks both shader files for `#pragma header`, a `main()`, no `switch` statements, no reversed
 `smoothstep` edges, and that every uniform they declare is actually set by the stage script; for `crt.frag` it also
 requires the OpenFL conventions (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`,
-`flixel_texture2D(bitmap, …)`) and that it is attached to both cameras.
+`getCamPos` and `textureCam(bitmap, …)`); it rejects direct `flixel_texture2D` and raw bitmap fetches in the CRT camera filter, and checks attachment to both cameras. The separate GLSL test compiles each shader using a minimal interface, not OpenFL's complete runtime assembler or a GPU.
 
 ---
 
@@ -594,11 +565,11 @@ number being a semitone above the song's tonic, `.` a rest and `-` a tie. Each s
 * a build, a two-note **breakdown**, and a **finale** that restates the chorus an octave up.
 
 `tools/song_layout.py` lays those phrases over the chart's phrase blocks (`form`), so the opponent sings the
-antecedents and the player the consequents, and every fourth exchange the player's phrase comes back inverted — call
-and response, not one loop transposed.
+antecedents and the player the consequents. Every fourth exchange mirrors the
+player's **lanes**, not the melody pitches; the form uses call and response.
 
 **The harmony is derived from the melody.** `harmonise()` scores every diatonic chord (triads, then sevenths, then the
-two suspensions) against the notes each bar actually sings, weighting beats four times as heavily as off-beats and
+two suspensions) against the notes each bar actually sings, weighting beats seven times as heavily as off-beats and
 giving the bar's downbeat its own term; the song's own progression is kept as the tie-breaker, so the key still
 sounds like the song's. This is the order an arranger works in — write the tune, then harmonise it — and it replaced a
 fixed 8-bar loop that ran off the absolute bar number, which meant the same phrase came back over a different chord
@@ -607,8 +578,8 @@ each time and no melody could be *written* against it.
 Two details make it chartable:
 
 * **the lane is a degree class, the pitch is the phrase's own semitone.** A note carries `lane` (tonic / flat third /
-  fifth / flat seventh — the four arrows) and `semi` (what the singer sings). `note_pitch()` sings `semi` through the
-  bar's chord, so the melody can step by semitone while the chart stays four arrows;
+  fifth / flat seventh — the four arrows) and `semi` (what the singer sings). `note_pitch()` preserves the
+  written pitch class without snapping it to the bar's chord (the opponent vocal is an octave lower), so the melody can step by semitone while the chart stays four arrows;
 * **a phrase may not reuse a lane within two 16ths**, so an octave leap cannot turn into a jack — the note takes the
   nearest free lane and keeps its register, and `_break_jacks()` is the last guard.
 
@@ -617,13 +588,13 @@ of the bar it lands in, which is not the same thing as scoring the notation agai
 
 | song | notes | on-chord | chord tones | stepwise | leaps answered | bars restated | range |
 |---|---|---|---|---|---|---|---|
-| trolling | 198 | 85 % | 85 % | 89 % | 87 % | 76 % | 19 st |
-| getting-dark | 173 | 98 % | 83 % | 80 % | 73 % | 75 % | 19 st |
-| dont-look-back | 205 | 82 % | 84 % | 65 % | 68 % | 80 % | 20 st |
-| super-scary | 212 | 80 % | 81 % | 94 % | 62 % | 78 % | 15 st |
-| the-incident | 248 | 86 % | 87 % | 93 % | 73 % | 90 % | 18 st |
+| trolling | 130 | 100 % | 98 % | 75 % | 93 % | 32 % | 19 st |
+| getting-dark | 159 | 100 % | 92 % | 80 % | 70 % | 71 % | 19 st |
+| dont-look-back | 191 | 98 % | 96 % | 66 % | 69 % | 82 % | 20 st |
+| super-scary | 206 | 85 % | 81 % | 94 % | 62 % | 78 % | 15 st |
+| the-incident | 237 | 90 % | 81 % | 92 % | 73 % | 89 % | 18 st |
 
-Each difficulty is a strided subset of the same melody (hard 118 / 159 / 191 / 222 / 249 notes; easy keeps a stride through
+Each difficulty is a strided subset of the same melody (hard 130 / 159 / 191 / 222 / 249 notes; easy keeps a stride through
 the same notes and carries no sustains), and a stride may never empty a bar — where it did, the bar's downbeat is put
 back, because a silent bar is a hole in the song rather than an easier chart.
 
@@ -645,14 +616,18 @@ python3 tools/make_chart.py       # meta.json, events.json, charts {easy,normal,
 python3 tools/make_cutscenes.py   # cutscene scripts + their frames/letterbox art (~2 s)
 python3 tools/make_menu.py        # main menu buttons + backdrop (~1 s)
 python3 tools/make_promo.py       # docs/banner.jpg from the real stage art (~1 s)
-python3 tools/make_stage_preview.py  # engine framing check -> docs/stage.png + margin report
+python3 tools/make_stage_preview.py  # approximate idle framing -> docs/stage.png + margin report
+python3 tools/test_stage_bounds.py   # projected bounds for all battle animation frames
+python3 tools/test_glsl_compile.py   # needs glslangValidator; minimal-preamble GLSL compile
 python3 tools/make_grade_preview.py  # re-renders the shader maths in numpy -> docs/grade.png
-python3 tools/validate_mod.py     # 2361 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
+python3 tools/validate_mod.py     # 2378 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
-python3 tools/melody_report.py    # does the phrase library behave like music? (--strict for CI)
-python3 tools/dread_report.py     # does the dread ladder actually climb? (--strict for CI)
-python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v3.7.0.zip
-                                  # (172 files, includes shaders/ + music/; install the TrollgeMod one)
+python3 tools/melody_report.py    # hard-chart melody metrics (--strict for CI)
+python3 tools/test_music.py       # pitch, harmony, arrangement and stem-gain regressions
+python3 tools/check_stem_mix.py  # decoded equal-gain stem-sum peak estimate
+python3 tools/dread_report.py     # dread-band spectral proxy with 3 dB tolerance (--strict for CI)
+python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v3.9.0.zip
+                                  # (175 files, includes shaders/ + music/; install the TrollgeMod one)
 ```
 
 Two files are hand-written rather than generated — `shaders/trollge_vhs.frag` and `shaders/crt.frag`. The validator

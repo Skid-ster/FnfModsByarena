@@ -2,6 +2,9 @@
 dist/
 *.zip
 
+# Local tool caches
+.cache/
+
 # Python
 __pycache__/
 *.py[cod]

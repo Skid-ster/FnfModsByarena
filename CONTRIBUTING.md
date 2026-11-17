@@ -23,7 +23,7 @@ scripts in `tools/`, so most contributions are a code change plus a regeneration
 3. **Keep the scare tiers honest.** The ladder is 2/10 → 4/10 → 6/10 → 8/10 → 10/10, one band per song, and it
    has to stay strictly rising (`tools/audit_songs.py` fails otherwise). If you add a jumpscare to song 1, you have
    changed the design — say so in the PR.
-4. **Never hand-place the stage.** Character positions, the gap between them and `camyoffset` are validated by
+4. **Validate stage placement.** Character positions, the gap between them and camera offsets are modelled by
    `tools/make_stage_preview.py` against the engine's real framing maths; edit `data/stages/trollge.xml` and re-run
    it instead of nudging numbers until it looks right in one resolution.
 
@@ -48,25 +48,16 @@ python3 tools/make_menu.py      # main menu buttons, backdrop, docs/menu_preview
 python3 tools/make_stage_preview.py  # if you touched the stage xml
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
+python3 tools/test_polish.py    # character wiring, effect timing, HUD and notes
 python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
 ```
 
-### The zip's name is part of the contract
+### Packaging and Freeplay
 
-Do not rename the installable archive. Codename names a mod after the file it loads, not after `mod.json`:
-
-```
-MainState.loadLib(path, ModsFolder.currentModFolder)
-  -> ModsFolderLibrary.modName = libName.toLowerCase()      # the zip's file stem
-  -> FreeplayState: Paths.txt('config/freeplaySonglist/LIB_$modName')
-```
-
-So `TrollgeMod.zip` finds `LIB_TrollgeMod.txt`; `SuperScaryTrollge-v3.6.0.zip` looks for
-`LIB_superscarytrollge-v3.6.0.txt`, misses, and falls back to scanning `songs/` — which is alphabetical, not scare
-order. The saved mod name (`Options.lastLoadedMod`) is compared against the `mods/` listing by `ModsFolder.init()` on
-every launch, so a versioned file name also makes the engine forget the selection between sessions.
-`tools/package_mod.py` writes both names (same bytes) and `tools/validate_mod.py` fails if `INSTALL_NAME`, the mod
-folder and the `LIB_` file ever disagree.
+Use `TrollgeMod.zip` for installation, matching the literal `LIB_TrollgeMod`
+compatibility copies. `tools/check_freeplay_zip.py` exercises the actual archive
+against old and new lookup paths and both rewrite modes. The archive model is not
+an engine test; a path-like library name can trigger an unordered folder scan.
 
 Commit the regenerated files together with the generator change, in one commit, e.g.:
 
@@ -77,7 +68,16 @@ feat(song3): denser final section
 - regenerated charts + instrumental
 ```
 
+Both `data/config/freeplaySonglist{.txt,/LIB_TrollgeMod.txt}` and the older
+`data/freeplaySonglist{.txt,/LIB_TrollgeMod.txt}` must contain the same ordered
+song IDs. Static resolution checks do not replace testing in the engine.
+
 ## Changing the music
+
+Research references and their limitations are recorded in [music-research.md](docs/music-research.md).
+`measure_roles()` maps role changes directly to chart-bar indices; `melodic_onsets()`
+collapses unison hands. After rendering, `check_stem_mix.py` estimates the decoded
+sum at equal stem gain, not actual engine playback or standards-compliant true peak.
 
 * **The melody lives in `tools/phrases.py`, not in the renderer.** Each phrase is a block of text where one line is a
   bar of sixteen 16th steps: a number is a semitone above the song's tonic (`12` is the octave, `15` the minor third
@@ -90,7 +90,9 @@ feat(song3): denser final section
   phrase longer than itself plays a window of it; a block that names a shorter one repeats it.
 * **Lanes vs pitches.** A phrase note carries both: `lane` is the arrow the player hits (the note's degree class --
   tonic, flat third, fifth, flat seventh) and `semi` is the pitch the singer sings. That is why the chart can stay
-  playable while the tune steps and leaps: `note_pitch()` sings `semi`, and the chart only needs the lane.
+  playable while the tune steps and leaps: `note_pitch()` preserves `semi` without chord snapping, and the chart only needs the lane.
+  Harmony and `melody_report.py` use the thinned hard chart, counting doubled hands once; run `python3 tools/test_music.py`
+  after touching pitch, chord voicings or the bass. Listening still decides whether it works.
 * **Arrangement** is by section role, not by hand: `section_roles()` in `tools/song_layout.py` labels every phrase
   block (`intro`, `verse`, `build`, `drop`, `break`, `finale`) from its position and rhythm cell, and `ROLE_GAIN`
   sets how hard each role pushes. The chart writer reads the same list, so a `break` block drops its drums *and*
@@ -104,7 +106,7 @@ feat(song3): denser final section
 * **Cutscene copy** lives in `song_layout.py` too (`"cutscene": {"tag", "lines", "outro"}`). Edit the words there and
   run `tools/make_cutscenes.py`: it rewrites `songs/<song>/cutscene.hx`, `songs/<song>/cutscene-end.hx` and the frames
   in `images/ui/`. Never hand-edit the `.hx` files, CI diffs them.
-* **Difficulties** come from `notes(song, difficulty)`: hard keeps every note, normal two in three, easy every second.
+* **Difficulties** come from `notes(song, difficulty)`: hard applies tier spacing, normal drops one in four of those notes, and easy keeps every second.
   Do not hand-write an easy chart — it is a strided subset, so the three charts can never disagree about timing.
 * **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `glitch`, `industrial`, `finale`). Each style
   picks its own kit,
@@ -130,6 +132,13 @@ feat(song3): denser final section
 * **Do not chase loudness by squashing.** The audit enforces a crest factor window (7-20 dB) and 5+ dB of section
   dynamics on purpose: a wall of sound fails the build.
 
+The current Codename dependency list uses `CodenameCrew/cne-openfl` branch `cne`.
+At commit `74f5f97242fa31150d525559e514743398abd8f1`,
+`GLSLSourceAssembler.getDefaultVersion()` returns `300 es` on web/mobile,
+`410 core` on macOS and `330 core` elsewhere. Its default compatibility pass
+rewrites `gl_FragColor` and `texture2D` for modern GLSL. This is source evidence,
+not proof of compilation on a particular driver or engine version.
+
 ## Changing the screen grade
 
 Two shaders ship, and they stack:
@@ -143,12 +152,21 @@ Both are loaded by `data/stages/trollge.hx` with `FunkinShader.fromFile('<name>'
 `CustomShader`), wrapped in filters with `openfl.filters.ShaderFilter`, and driven from `update(elapsed)`. Rules for
 touching them:
 
+* run `python3 tools/test_glsl_compile.py` with `glslangValidator` installed: its minimal preamble catches GLSL syntax/type errors but does not simulate OpenFL or a GPU;
+* preserve existing camera filters and remove only this stage's filters during teardown; keep HUD output premultiplied and transparent outside the CRT tube;
 * every load, filter creation and `setFloat` stays inside its own `try/catch`, and every shader variable is null-checked
   -- a driver that cannot compile a shader should cost you the effect, never the song;
 * a new uniform has to be declared in the `.frag` **and** set by the stage script; `validate_mod.py` cross-checks both
   directions and fails on a mismatch, because `setFloat` on a uniform that does not exist fails silently;
-* use the OpenFL names (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`, `flixel_texture2D(bitmap, uv)`),
+* use the OpenFL names (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`, `textureCam(bitmap, getCamPos(uv))` for camera filters),
   and never `switch` -- it breaks on macOS GL drivers.
+
+The current Codename dependency list uses `CodenameCrew/cne-openfl` branch `cne`.
+At commit `74f5f97242fa31150d525559e514743398abd8f1`,
+`GLSLSourceAssembler.getDefaultVersion()` returns `300 es` on web/mobile,
+`410 core` on macOS and `330 core` elsewhere. Its default compatibility pass
+rewrites `gl_FragColor` and `texture2D` for modern GLSL. This is source evidence,
+not proof of compilation on a particular driver or engine version.
 
 ## Changing the screen grade
 
@@ -161,12 +179,13 @@ no `switch`, no reversed `smoothstep`, `#pragma header` at the top, and float li
 
 The rule the noteskin lives by: **a note must be brighter than the receptor it lands on.** The interiors are lifted
 towards white around a blurred core (`hot_core` in `tools/make_noteskin.py`) and the receptors stay dark with a hot rim,
-a static edge and a keyline. Measured on the shipped atlas, note interiors sit at 116-154 mean luminance and receptors at
-~72; if a change inverts that relationship, the arrows stop reading at high scroll speed. Holds get the same fringe,
+a static edge and a keyline. `tools/test_polish.py` checks the finale's four note/receptor pairs and the separation
+between lane colours; a change that inverts that relationship can make arrows hard to read at speed. Holds get the same fringe,
 scanline and ink pass as the notes so a sustain is legible too.
 
 * **Arrow colours** live in `LANES` / `SHADOW_LANES` in `tools/make_noteskin.py`; each skin is drawn from that
-  palette, so changing one RGB triple re-skins a whole lane. Re-run the script, then
+  palette, so changing one RGB triple re-skins a whole lane. Texture passes use seeded noise; preserve this so the
+  atlases can be regenerated. Re-run the script, then
   `python3 tools/make_chart.py` if you renamed a skin.
 * **Which song uses which skin** is `song_layout.py` -> `"noteskin"` (`None`, `"shadow"`, `"corrupt"`). The
   chart's `noteTypes` carries it to the notes; `data/stages/trollge.hx` mirrors it onto the strums through

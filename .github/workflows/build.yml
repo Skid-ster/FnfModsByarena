@@ -27,12 +27,36 @@ jobs:
       - name: Validate charts, configs, atlases and audio
         run: python3 tools/validate_mod.py
 
+      - name: Test shader validator regressions
+        run: python3 tools/test_shader_validation.py
+
+      - name: Compile shader sources with minimal Flixel interface
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y glslang-tools
+          python3 tools/test_glsl_compile.py
+
+      - name: Test battle presentation regressions
+        run: |
+          python3 tools/test_polish.py
+          python3 tools/test_stage_bounds.py
+          python3 tools/make_stage_preview.py
+
+      - name: Test music rendering regressions
+        run: python3 tools/test_music.py
+
       - name: Audit the mix and the chart style
         run: python3 tools/audit_songs.py --strict
 
       # Two claims that used to be labels rather than properties of the shipped
       # build: that the melodies are written music, and that the songs actually
       # get scarier. Both are measured on the files in the repo.
+      - name: Measure melody-band mix balance
+        run: python3 tools/mix_report.py --strict
+
+      - name: Check decoded instrumental and vocal sums
+        run: python3 tools/check_stem_mix.py
+
       - name: Measure the melodies
         run: python3 tools/melody_report.py --strict
 
@@ -41,6 +65,9 @@ jobs:
 
       - name: Package mod archive
         run: python3 tools/package_mod.py
+
+      - name: Model Freeplay lookups on the built zip
+        run: python3 tools/check_freeplay_zip.py
 
       - name: Upload packaged mod
         uses: actions/upload-artifact@v4
@@ -89,7 +116,29 @@ jobs:
       - name: Package mod archive
         run: python3 tools/package_mod.py
 
+      # Keep the testing limitations and full notes intact on this release.
+      - name: Attach v3.8.0 testing archives
+        if: github.ref == 'refs/tags/v3.8.0'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v3.8.0.zip
+          body_path: docs/releases/v3.8.0.md
+          fail_on_unmatched_files: true
+
+      - name: Attach v3.9.0 release archives
+        if: github.ref == 'refs/tags/v3.9.0'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v3.9.0.zip
+          body_path: docs/releases/v3.9.0.md
+          fail_on_unmatched_files: true
+
       - name: Create release
+        if: github.ref != 'refs/tags/v3.8.0' && github.ref != 'refs/tags/v3.9.0'
         uses: softprops/action-gh-release@v2
         with:
           # TrollgeMod.zip is the installable one: Codename names a mod after the
@@ -106,11 +155,9 @@ jobs:
             2. Drop it into Codename Engine's `mods/` folder — or extract it so you get `mods/TrollgeMod/`.
             3. Launch the engine, open **Mods**, pick **TrollgeMod**.
 
-            **Install from `TrollgeMod.zip`, not the versioned file.** Codename takes a mod's name from the file it
-            loads (`MainState` → `loadLib(path, currentModFolder)` → `ModsFolderLibrary.modName`), and freeplay then
-            reads `config/freeplaySonglist/LIB_<modName>.txt`. Under the versioned name the mod is called
-            `superscarytrollge-v3.6.0`, so this mod's freeplay list is not found and the engine forgets your mod
-            choice on the next launch. The two zips contain exactly the same files.
+            Install from **`TrollgeMod.zip`** to match the literal `LIB_TrollgeMod`
+            compatibility lists. The versioned archive contains the same files.
+            Freeplay behavior can vary with the engine build and library name.
 
             Requires [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) — this is not a Psych or
             YoshiCrafter mod.

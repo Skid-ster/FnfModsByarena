@@ -1,5 +1,6 @@
 <!DOCTYPE codename-engine-character>
 <character sprite="Trollge_final" icon="trollge_final" color="#E01B24" flipX="false" isPlayer="false" holdTime="6">
+    <extension script="trollge_behavior"/>
     <anim name="idle" anim="TrollgeF idle" x="0" y="0" fps="9" loop="true"/>
     <anim name="singUP" anim="TrollgeF sUP" x="0" y="0" fps="24" loop="false"/>
     <anim name="singDOWN" anim="TrollgeF sDOWN" x="0" y="0" fps="24" loop="false"/>

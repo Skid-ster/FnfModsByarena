@@ -22,6 +22,7 @@ var caption:FlxTypeText = null;
 var captionBand:FlxSprite = null;
 var captionIn:FlxTween = null;
 var captionOut:FlxTween = null;
+var captionBandIn:FlxTween = null;
 var captionBandOut:FlxTween = null;
 
 /** Camera shake helper (FlxCamera.shake is the only reliable way to do this). */
@@ -44,6 +45,9 @@ function swapTrollge(name:String, icon:String):Character {
 	newChar.x = old.x;
 	newChar.y = old.y;
 	newChar.scrollFactor.set(old.scrollFactor.x, old.scrollFactor.y);
+	// Stage placement applied its camera offset to the original character.
+	// Preserve it on a phase swap so the camera does not jump vertically.
+	newChar.cameraOffset.set(old.cameraOffset.x, old.cameraOffset.y);
 
 	ps.insert(ps.members.indexOf(old), newChar);
 	ps.remove(old);
@@ -145,14 +149,14 @@ function trollgeCaption(a = null, b = null, c = null):Void {
 	if (ps == null) return;
 
 	if (caption == null) {
-		captionBand = new FlxSprite(0, 524);
+		captionBand = new FlxSprite(0, FlxG.height - 196);
 		captionBand.makeGraphic(FlxG.width, 84, 0xC0000000);
 		captionBand.scrollFactor.set(0, 0);
 		captionBand.cameras = [ps.camHUD];
 		captionBand.alpha = 0.0;
 		ps.add(captionBand);
 
-		caption = new FlxTypeText(0, 550, FlxG.width, "", 30);
+		caption = new FlxTypeText(0, FlxG.height - 170, FlxG.width, "", 30);
 		caption.font = Paths.font("vcr.ttf");
 		caption.size = 30;
 		caption.color = 0xFFF1F1F5;
@@ -166,6 +170,7 @@ function trollgeCaption(a = null, b = null, c = null):Void {
 
 	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
 	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+	if (captionBandIn != null) { captionBandIn.cancel(); captionBandIn = null; }
 	if (captionBandOut != null) { captionBandOut.cancel(); captionBandOut = null; }
 
 	caption.resetText(line);
@@ -180,7 +185,7 @@ function trollgeCaption(a = null, b = null, c = null):Void {
 
 	if (captionBand != null) {
 		captionBand.alpha = 0.0;
-		FlxTween.tween(captionBand, {alpha: 1.0}, 0.30);
+		captionBandIn = FlxTween.tween(captionBand, {alpha: 1.0}, 0.30);
 		captionBandOut = FlxTween.tween(captionBand, {alpha: 0.0}, 0.9, {startDelay: 3.8});
 	}
 }
@@ -249,9 +254,11 @@ function trollgeInvert(a = null):Void {
 		invertSpr.visible = false;
 		ps.add(invertSpr);
 	}
+	// An older fade must not hide a new inversion when events overlap.
+	FlxTween.cancelTweensOf(invertSpr);
 	invertSpr.visible = true;
-	invertSpr.alpha = 0.92;
-	FlxTween.tween(invertSpr, {alpha: 0.0}, 1.1, {
+	invertSpr.alpha = 0.58;
+	FlxTween.tween(invertSpr, {alpha: 0.0}, 0.7, {
 		onComplete: function(_) invertSpr.visible = false
 	});
 	FlxG.sound.play(Paths.sound('trollge_invert'), 0.8);
@@ -300,6 +307,7 @@ function update(elapsed) {
 function destroy() {
 	if (captionIn != null) { captionIn.cancel(); captionIn = null; }
 	if (captionOut != null) { captionOut.cancel(); captionOut = null; }
+	if (captionBandIn != null) { captionBandIn.cancel(); captionBandIn = null; }
 	if (captionBandOut != null) { captionBandOut.cancel(); captionBandOut = null; }
 	if (caption != null) { caption.destroy(); caption = null; }
 	if (captionBand != null) { captionBand.destroy(); captionBand = null; }

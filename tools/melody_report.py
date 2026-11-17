@@ -4,7 +4,7 @@
 This is deliberately *not* a gate on taste -- taste is the owner's call. What it
 counts are the things that separate a written melody from a random walk, and it
 counts them on the notes that are actually played: the chart notes
-`song_layout.sections()` produces, each scored against the chord under the bar
+`song_layout.notes()` produces after hard-chart thinning, each scored against the chord under the bar
 it lands in. Before this measured the phrase text against an assumed bar offset,
 which is why it could report a healthy number for music that did not fit -- the
 phrase is windowed into blocks, so the note you hear in bar 5 is not the note at
@@ -49,18 +49,36 @@ def chord_pcs(song, measure):
 
 
 def melody_lines(song):
-    """The melody as it is played: one list of notes per section, in time order.
+    """Actual hard-chart melody, grouped into phrases after difficulty thinning.
 
-    Only one side sings a melody at a time (the other answers it), so splitting
-    per section keeps leaps honest -- a phrase boundary is not a melodic leap.
+    `sections()` alone includes notes that the hard-chart spacing filter drops.
+    Simultaneous chart hands sharing one pitch are one melodic onset, not a leap.
     """
-    lines = []
-    for section in L.sections(song):
-        notes = [n for n in section["notes"] if n.get("semi") is not None]
-        notes.sort(key=lambda n: n["time"])
-        if notes:
-            lines.append(notes)
-    return lines
+    sections = L.sections(song)
+    # section time includes the song's intro offset, whereas measure indices do
+    # not; accumulate bar counts rather than converting absolute timestamps.
+    starts = []
+    position = 0
+    for section in sections:
+        starts.append(position)
+        position += section["measures"]
+    lines = [[] for _ in sections]
+    seen = set()
+    for note in L.notes(song, "hard"):
+        if note.get("semi") is None:
+            continue
+        key = (round(note["time"], 3), note["side"], note["semi"])
+        if key in seen:
+            continue
+        seen.add(key)
+        for i in range(len(starts) - 1, -1, -1):
+            if note["measure"] >= starts[i]:
+                item = dict(note)
+                item.setdefault("offset", int(round((note["time"] - L.measure_time(song, note["measure"]))
+                                                    / (L.step(song) * 1000.0))))
+                lines[i].append(item)
+                break
+    return [sorted(line, key=lambda note: note["time"]) for line in lines if line]
 
 
 def analyse(song):

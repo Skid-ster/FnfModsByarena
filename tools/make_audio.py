@@ -282,17 +282,16 @@ def bass_for(style, midi, dur, tier):
         out = lowpass(voice * env, 1300.0)
         return soft_clip(out * 1.1, 1.2)
     if style == "glitch":
-        # Sample-and-hold octave corruption, but filtered warm so it cuts
-        # rhythmically instead of adding fizz.
+        # Rhythmic dropouts give the glitch bass its broken-tape character
+        # without randomly jumping pitch by a tritone every 60 ms. The bass
+        # holds the chord root and the written b5 melody supplies the tension.
         rng = np.random.RandomState(abs(int(midi * 7 + dur * 1000)) % 2 ** 31)
-        steps = max(2, int(dur / 0.06))
-        holds = np.repeat(rng.choice([0.5, 0.7071, 1.0, 1.0, 1.4142, 2.0], size=steps),
-                          int(np.ceil(n / steps)))[:n]
-        freq = f * holds
-        phase = 2 * np.pi * np.cumsum(freq) / SR
-        voice = np.sin(phase) * 0.62 + np.sin(phase * 2.0) * 0.14
+        steps = max(2, int(np.ceil(n / (SR * 0.06))))
+        gates = rng.choice([0.62, 0.80, 1.0, 1.0], size=steps)
+        mask = np.repeat(gates, int(np.ceil(n / steps)))[:n]
+        voice = sine(f, n) * 0.62 + sine(f * 2.0, n) * 0.14
         env = adsr(n, attack=0.003, decay=0.06, sustain=0.55, release=0.05)
-        return soft_clip(lowpass(voice * env, 1500.0), 1.15)
+        return soft_clip(lowpass(voice * env * mask, 1500.0), 1.15)
     if style == "finale":
         sub = sine(f, n) * 0.80 + sine(f * 2.0, n) * 0.12
         grunt = _analog_stack(f * 2.0, n, detune=0.005)
@@ -464,20 +463,24 @@ def voice_note(midi, dur, dark=False, vowel=None, seed=0, scoop=0.028,
     return out * (0.5 if dark else 0.55)
 
 
-#: How an analogue pad is voiced. A minor ninth is the sound of the whole mod:
-#: it adds one note a ninth above the triad and one a flat seventh below, so the
-#: chord breathes without ever becoming a plain triads-and-octaves stack.
-def pad_voicing(root_midi, tones, tier):
-    """Triad + 9th (+ sus4 above tier 3), voiced low-to-high without mud."""
-    chord = [root_midi + t for t in tones]
-    top = max(chord)
-    ninth = top + (10 if (root_midi + 2) % 12 in (1, 3, 6, 8, 10, 11) else 2)
-    voiced = sorted(chord + [ninth])
-    if tier >= 3:
-        voiced = sorted(voiced + [chord[0] + 5])          # sus4 colour
-    if tier >= 4:
-        voiced = sorted(voiced + [chord[-1] + 3])          # a sour added fourth
-    return voiced
+def pad_voicing(root_midi, tones, tier, tonic, scale):
+    """Chord with an optional diatonic add-nine, above the underlying voicing.
+
+    The previous extension used the absolute key and `top + 2` (or `top + 10`),
+    so it was often a sixth or chromatic tone, not a ninth. Keep the pad clear;
+    dissonance belongs to the written melody, drone and timed horror layers.
+    """
+    chord = sorted(root_midi + t for t in tones)
+    root_pc = (root_midi - tonic) % 12
+    if root_pc in scale:
+        degree = scale.index(root_pc)
+        interval = (scale[(degree + 1) % len(scale)] - root_pc) % 12
+        ninth = root_midi + 12 + interval
+        # Do not duplicate a chord tone at another octave. An add-nine is a
+        # colour, not a reason to make every sustained chord a dense cluster.
+        if interval not in {t % 12 for t in tones}:
+            chord.append(ninth)
+    return sorted(chord)
 
 
 def pad_chord(midis, dur, gain=0.075, cutoff=1500.0, seed=0):
@@ -577,11 +580,7 @@ def render_song(song):
 
     secs = L.sections(song)
     roles = section_roles(song)
-    measure_role = {}
-    for section, role in zip(secs, roles):
-        m0 = int(round(section["time"] / 1000.0 / measure))
-        for m in range(m0, m0 + section["measures"]):
-            measure_role[m] = role
+    measure_role = L.measure_roles(song)
     total_measures = L.measures(song)
 
     # ---- pads ------------------------------------------------------------- #
@@ -594,7 +593,7 @@ def render_song(song):
                   "drop": 2400.0, "break": 900.0, "finale": 2700.0}[role]
         # Minor-ninth / sus voicing: the pad is a chord, not a power chord
         # (see pad_voicing). Slow filter movement keeps bar-to-bar fresh.
-        chord = pad_voicing(song["tonic"] + root, tones, tier)
+        chord = pad_voicing(song["tonic"] + root, tones, tier, song["tonic"], L.SCALES[song["id"]])
         cutoff *= 0.86 + 0.28 * (0.5 + 0.5 * math.sin(m * 0.9 + song["scare"]))
         gain = 0.085 * ROLE_GAIN[role]
         sig = pad_chord(chord, measure * 1.04, gain=gain, cutoff=cutoff, seed=m * 0.7)
@@ -664,9 +663,13 @@ def render_song(song):
                 pattern = [(i * beat / 2.0, -12 if i % 4 == 0 else 0,
                             beat / 2.0 * (0.92 if i % 2 else 1.05)) for i in range(8)]
 
-        level = 0.46 * (0.5 + 0.5 * ROLE_GAIN[role]) * (0.9 if style == "industrial" else 1.0)
+        bass_level = {"trap": 0.46, "glitch": 0.16}.get(style, 0.25)
+        level = bass_level * (0.5 + 0.5 * ROLE_GAIN[role]) * (0.9 if style == "industrial" else 1.0)
         for offset_s, octave, dur in pattern:
-            add_at(bass_s, bass_for(style, base + octave, dur, tier), t0 + offset_s, level)
+            # Lift sub-octave notes by a whole octave, never a tritone. Trap
+            # deliberately keeps its 808 register.
+            pitch = octave + 12 if octave == -12 and style != "trap" else octave
+            add_at(bass_s, bass_for(style, base + pitch, dur, tier), t0 + offset_s, level)
 
     # ---- drums ------------------------------------------------------------ #
     def drum_fill(at, length, loudness=1.0, seed=40):
@@ -873,13 +876,12 @@ def render_song(song):
 
     # ---- lead: literally the chart notes ---------------------------------- #
     lead_index = []
-    for note in L.notes(song):
+    for note in L.melodic_onsets(song):
         at = note["time"] / 1000.0
         role = measure_role.get(note["measure"], "verse")
         dur = max(0.16, note["sLen"] / 1000.0 if note["sLen"] else step * 2.4)
-        # The lead sings the chart's own note: same phrase, same octave, same
-        # pitch the vocal track uses. The last act is lifted an octave by the
-        # form (see song_layout.sections), not again here.
+        # The lead uses the chart's written pitch class. The opponent vocal is
+        # voiced an octave lower; the form may also lift its last bar.
         midi = L.note_pitch(song, note["measure"], note["id"], semi=note.get("semi"))
         accent = 1.0 if note["time"] % (beat * 1000.0) < 1.0 else 0.85
         if style == "trap":
@@ -895,7 +897,10 @@ def render_song(song):
         sub = np.pad(sub, (0, max(0, len(sig) - len(sub))))[:len(sig)]
         sig = sig + sub * 0.22
         target = lead_p if note["side"] == "player" else lead_o
-        add_at(target, sig, at, 0.64 * accent * velocity * (0.75 + 0.35 * ROLE_GAIN[role]))
+        # The glitch arrangement's root bass is deliberately restrained so its
+        # written b5 hook can speak through the broken percussion.
+        lead_level = 0.80 if style == "glitch" else 0.64
+        add_at(target, sig, at, lead_level * accent * velocity * (0.75 + 0.35 * ROLE_GAIN[role]))
         # Finale: octave doubling makes the last act feel bigger.
         if role == "finale" and note["side"] == "player":
             add_at(target, lead_for(style, midi + 12, dur * 0.8, tier, note["id"]), at,
@@ -912,7 +917,12 @@ def render_song(song):
             ambient[start:end] = 0.35 + 0.65 * ROLE_GAIN.get(measure_role.get(m), 0.7)
 
     if tier >= 1:
-        drone = lowpass(sine(43.0, n_total) * 0.030 * tier + saw(29.0, n_total) * 0.012 * tier, 150.0)
+        # A tonal bed belongs to this song's key, not a fixed 43 Hz that
+        # clashes with four of the five tonics.
+        drone_root = midi_to_hz(song["tonic"] - 12)
+        drone_gain = {1: 0.022, 2: 0.16, 3: 0.035}.get(tier, 0.030 * tier)
+        drone = lowpass(sine(drone_root, n_total) * drone_gain +
+                        sine(drone_root * 0.5, n_total) * 0.4 * drone_gain, 150.0)
         fx_s += drone * ambient
 
     if tier >= 2:
@@ -929,7 +939,7 @@ def render_song(song):
         breath = bandpass(noise(n_total, seed=65), 300.0, 1800.0)
         blfo = np.sin(2 * np.pi * 0.19 * np.arange(n_total) / SR)
         fx_s += breath * np.maximum(0.0, blfo) * 0.045 * ambient
-        tritone = sine(43.0 * 1.4142, n_total) * 0.020 + sine(43.0, n_total) * 0.018
+        tritone = sine(drone_root * 2 ** 0.5, n_total) * 0.020 + sine(drone_root, n_total) * 0.018
         trem = 0.6 + 0.4 * np.sin(2 * np.pi * 5.6 * np.arange(n_total) / SR)
         fx_s += lowpass(tritone * trem, 220.0) * ambient
 
@@ -1073,16 +1083,20 @@ def render_song(song):
 
     # Pan table (left, right). Wide parts differ per side; the kick stays dead centre.
     stems = {
-        "kick": (kick_s, 0.66, 0.66),
+        "kick": (kick_s, 0.40, 0.40),
         "snare": (snare_s, 0.60, 0.60),
         "hat_l": (hat_l, 0.54, 0.18),
         "hat_r": (hat_r, 0.18, 0.54),
         "bass": (bass_s, 0.56, 0.56),
         "pad_l": (pad_l, 0.48, 0.18),
         "pad_r": (pad_r, 0.18, 0.48),
-        "lead_o": (lead_o, 0.54, 0.30),
-        "lead_p": (lead_p, 0.30, 0.54),
-        "fx": (fx_s, 0.50 if tier >= 2 else 0.42, 0.50 if tier >= 2 else 0.42),
+        # The finale's dense double-kick and FX mask its tune unless the
+        # lead is pushed harder than in the earlier arrangements.
+        "lead_o": (lead_o, 1.65 if style == "finale" else 0.88,
+                   0.92 if style == "finale" else 0.49),
+        "lead_p": (lead_p, 0.92 if style == "finale" else 0.49,
+                   1.65 if style == "finale" else 0.88),
+        "fx": (fx_s, 0.28, 0.28),
         "wet_l": (wet_l, 0.42, 0.05),
         "wet_r": (wet_r, 0.05, 0.42),
         "echo_l": (echo_l, 0.32, 0.05),
@@ -1100,17 +1114,24 @@ def render_song(song):
         right += signal * gr
         del signal
 
+    # Trap's sparse hats have too little sustained high-frequency energy.
+    # A quiet deterministic tape-hiss bed restores texture without exaggerating
+    # transient hats; it is filtered and goes through the same master chain.
+    if style == "trap":
+        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.055
+        left += hiss
+        right += np.roll(hiss, int(0.013 * SR))
+        del hiss
+
     # Master EQ: the audit target is a mix with a top end, not a sub wall.
-    # The 1-4 kHz pocket: a dip through the band the vocal formants occupy, so
-    # Voices.ogg sits *on top of* the instrumental instead of competing with it.
-    # Everything above 5 kHz is pulled back rather than lifted -- the old 4-6 dB
-    # air boost was the main source of the "shrill, fatiguing" top end.
+    # Preserve the melody register instead of scooping it out. Keep the
+    # sub roll-off and use a modest presence lift rather than a harsh air boost.
     master_points = [(26.0, -22.0), (40.0, -16.0), (55.0, -12.5), (70.0, -9.5),
-                     (90.0, -7.5), (120.0, -5.0), (180.0, -2.5), (250.0, -2.6),
-                     (320.0, -3.4), (450.0, -2.8), (650.0, -1.4), (800.0, 0.2),
-                     (1400.0, -1.5), (2000.0, -2.2), (3000.0, -1.8), (4000.0, -0.8),
-                     (6000.0, 1.6), (8000.0, 3.6), (10000.0, 5.2), (12000.0, 5.4),
-                     (15000.0, 4.0), (18000.0, 1.6)]
+                     (90.0, -7.5), (120.0, -5.0), (180.0, -2.5), (250.0, -1.0),
+                     (320.0, -0.5), (450.0, 0.0), (650.0, 0.0), (800.0, 0.0),
+                     (1400.0, 0.0), (2000.0, 0.0), (3000.0, 0.5), (4000.0, 0.8),
+                     (6000.0, 1.0), (8000.0, 1.0), (10000.0, 1.0), (12000.0, 1.0),
+                     (15000.0, 0.5), (18000.0, 0.0)]
     left = eq_curve(left, master_points)
     right = eq_curve(right, master_points)
     # Tape: a touch of harmonic grit and a soft top-end, so the stems glue
@@ -1127,6 +1148,25 @@ def render_song(song):
     left = left + crushed * 0.16
     right = right + crushed * 0.16
     left, right = widen(left, right, amount=2.2 + 0.2 * tier)
+
+    if style == "glitch":
+        # Make the glitch song's breakdowns genuinely breathe: gently pull the
+        # whole instrumental back, then return without an abrupt amplitude edge.
+        contrast = np.ones(n_total)
+        for section in secs:
+            if section["role"] not in ("intro", "break"):
+                continue
+            start = max(0, int(section["time"] / 1000.0 * SR))
+            end = min(n_total, start + int(section["measures"] * measure * SR))
+            if end <= start:
+                continue
+            contrast[start:end] = 0.60
+            fade_n = min(int(0.10 * SR), (end - start) // 2)
+            if fade_n:
+                contrast[start:start + fade_n] = np.linspace(1.0, 0.60, fade_n)
+                contrast[end - fade_n:end] = np.linspace(0.60, 1.0, fade_n)
+        left *= contrast
+        right *= contrast
 
     loudness = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))
     scale = TARGET_RMS / max(loudness, 1e-9)
@@ -1162,7 +1202,7 @@ def render_vocals(song):
     player = empty(total)
     opponent = empty(total)
 
-    for index, note in enumerate(L.notes(song)):
+    for index, note in enumerate(L.melodic_onsets(song)):
         at = note["time"] / 1000.0
         dur = max(0.20, note["sLen"] / 1000.0 if note["sLen"] else step * 2.2)
         midi = L.note_pitch(song, note["measure"], note["id"], semi=note.get("semi"))
@@ -1447,6 +1487,76 @@ def render_countdown():
     return out
 
 
+def linked_mix_gain(inst_l, inst_r, voice_l, voice_r, ceiling=0.85, block_ms=10):
+    """One smooth gain curve for both stems to give their sum headroom.
+
+    Peek one block ahead for an attack and release over roughly 120 ms. The
+    relative balance of the two files is preserved at every sample. This only
+    models equal-gain summation; an engine or its volume settings can differ.
+    """
+    length = len(inst_l)
+    if any(len(x) != length for x in (inst_r, voice_l, voice_r)):
+        raise ValueError("stem lengths differ")
+    block = max(1, int(SR * block_ms / 1000.0))
+    count = (length + block - 1) // block
+    peaks = np.zeros(count)
+    for i in range(count):
+        sl = slice(i * block, min(length, (i + 1) * block))
+        peaks[i] = max(np.max(np.abs(inst_l[sl] + voice_l[sl])),
+                       np.max(np.abs(inst_r[sl] + voice_r[sl])))
+    target = np.minimum(1.0, ceiling / np.maximum(peaks, 1e-12))
+    # Anticipate one block, then recover gradually without gain discontinuities.
+    target[:-1] = np.minimum(target[:-1], target[1:])
+    gains = np.empty(count)
+    current = 1.0
+    release = np.exp(-block / (0.12 * SR))
+    for i in range(count):
+        current = min(target[i], 1.0 - (1.0 - current) * release)
+        gains[i] = current
+    # A block's gain must not exceed its target: a smooth release is allowed,
+    # and the anticipated attack is held through the preceding block.
+    gain = np.repeat(gains, block)[:length]
+    return gain
+
+
+def write_song_pair(inst_path, voice_path, inst_l, inst_r, voice_l, voice_r):
+    """Master the two synchronised files against their decoded equal-gain sum."""
+    import soundfile as sf
+    gain = linked_mix_gain(inst_l, inst_r, voice_l, voice_r)
+    # Ramp down before a falling edge, up after a rising edge. The ramp is
+    # never above the held gain of its block, so it cannot undo peak control.
+    edge = max(1, int(0.005 * SR))
+    block = max(1, int(.01 * SR))
+    for i in range(block, len(gain), block):
+        before, after = gain[i - 1], gain[i]
+        if after < before:
+            n = min(edge, i)
+            gain[i - n:i] = np.linspace(before, after, n)
+        elif after > before:
+            n = min(edge, len(gain) - i)
+            gain[i:i + n] = np.linspace(before, after, n)
+    inst_l *= gain
+    inst_r *= gain
+    voice_l *= gain
+    voice_r *= gain
+    del gain
+    scale = 1.0
+    for attempt in range(4):
+        write_ogg(inst_path, (inst_l * scale, inst_r * scale))
+        write_ogg(voice_path, (voice_l * scale, voice_r * scale))
+        inst, sr = sf.read(inst_path, always_2d=True)
+        voice, vr = sf.read(voice_path, always_2d=True)
+        if sr != vr or inst.shape != voice.shape:
+            raise ValueError("encoded stem formats do not match")
+        mix = inst + voice
+        peak = max(true_peak(mix[:, 0]), true_peak(mix[:, 1]))
+        if peak <= 0.95:
+            print("     combined decoded peak estimate %.2f dBFS" % (20 * np.log10(max(peak, 1e-12))))
+            return
+        scale *= 0.94 / peak
+    raise RuntimeError("encoded stem sum exceeds safe peak after retries")
+
+
 def main():
     os.makedirs(SFX_DIR, exist_ok=True)
 
@@ -1457,12 +1567,11 @@ def main():
               % (song["display"], L.length(song), song["bpm"], song["scare"]))
         left, right = render_song(song)
         path = os.path.join(song_dir, "Inst.ogg")
-        write_song(path, left, right)
-        print("  -> %-44s %6.1f KB" % (os.path.relpath(path, ROOT), os.path.getsize(path) / 1024))
-        del left, right
         vleft, vright = render_vocals(song)
         vpath = os.path.join(song_dir, "Voices.ogg")
-        write_song(vpath, vleft, vright)
+        write_song_pair(path, vpath, left, right, vleft, vright)
+        print("  -> %-44s %6.1f KB" % (os.path.relpath(path, ROOT), os.path.getsize(path) / 1024))
+        del left, right, vleft, vright
         print("  -> %-44s %6.1f KB" % (os.path.relpath(vpath, ROOT), os.path.getsize(vpath) / 1024))
 
     print("Rendering the game-over theme...")
