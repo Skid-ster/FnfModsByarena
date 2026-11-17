@@ -101,6 +101,33 @@ jobs:
             exit 1
           fi
 
+  attach-testing-release:
+    # One-off attachment for the v4.0.0 prerelease tag created through the API.
+    # Package the tagged commit itself, not this workflow's branch checkout.
+    name: Attach v4.0.0 testing archive
+    needs: [validate, charts-in-sync]
+    if: github.ref == 'refs/heads/arena/0840e676-fnfmodsbyarena'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v4.0.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Package tagged mod
+        run: python3 tools/package_mod.py
+      - name: Attach testing archives
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v4.0.0
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v4.0.0.zip
+          body_path: docs/releases/v4.0.0.md
+          prerelease: true
+          fail_on_unmatched_files: true
+
   release:
     name: Publish release
     needs: [validate, charts-in-sync]
