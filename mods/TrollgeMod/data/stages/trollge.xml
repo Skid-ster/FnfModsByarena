@@ -6,8 +6,8 @@
 	     is 560 px with its feet at y+539, so his y is always the Trollge's + 22.
 	     The gap is 520 px: wide enough that they do not overlap, and tight
 	     enough that the camera (which swings between the two strumlines) keeps
-	     both of them in frame. camyoffset drops the camera so the feet are not
-	     on the bottom edge in the loudest, most zoomed-in songs. -->
-	<dad x="200" y="60" camyoffset="60"/>
-	<boyfriend x="720" y="82" camyoffset="60"/>
+	     both of them in frame. The horizontal camera offsets keep the wider sing
+	     poses in view; camyoffset keeps the feet above the bottom edge. -->
+	<dad x="200" y="60" camxoffset="20" camyoffset="75"/>
+	<boyfriend x="720" y="82" camxoffset="-80" camyoffset="75"/>
 </stage>

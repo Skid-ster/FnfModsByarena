@@ -30,8 +30,17 @@ jobs:
       - name: Test shader validator regressions
         run: python3 tools/test_shader_validation.py
 
+      - name: Compile shader sources with minimal Flixel interface
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y glslang-tools
+          python3 tools/test_glsl_compile.py
+
       - name: Test battle presentation regressions
-        run: python3 tools/test_polish.py
+        run: |
+          python3 tools/test_polish.py
+          python3 tools/test_stage_bounds.py
+          python3 tools/make_stage_preview.py
 
       - name: Test music rendering regressions
         run: python3 tools/test_music.py
@@ -118,8 +127,18 @@ jobs:
           body_path: docs/releases/v3.8.0.md
           fail_on_unmatched_files: true
 
+      - name: Attach v3.9.0 release archives
+        if: github.ref == 'refs/tags/v3.9.0'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v3.9.0.zip
+          body_path: docs/releases/v3.9.0.md
+          fail_on_unmatched_files: true
+
       - name: Create release
-        if: github.ref != 'refs/tags/v3.8.0'
+        if: github.ref != 'refs/tags/v3.8.0' && github.ref != 'refs/tags/v3.9.0'
         uses: softprops/action-gh-release@v2
         with:
           # TrollgeMod.zip is the installable one: Codename names a mod after the

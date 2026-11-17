@@ -23,7 +23,7 @@ scripts in `tools/`, so most contributions are a code change plus a regeneration
 3. **Keep the scare tiers honest.** The ladder is 2/10 → 4/10 → 6/10 → 8/10 → 10/10, one band per song, and it
    has to stay strictly rising (`tools/audit_songs.py` fails otherwise). If you add a jumpscare to song 1, you have
    changed the design — say so in the PR.
-4. **Never hand-place the stage.** Character positions, the gap between them and `camyoffset` are validated by
+4. **Validate stage placement.** Character positions, the gap between them and camera offsets are modelled by
    `tools/make_stage_preview.py` against the engine's real framing maths; edit `data/stages/trollge.xml` and re-run
    it instead of nudging numbers until it looks right in one resolution.
 
@@ -152,6 +152,8 @@ Both are loaded by `data/stages/trollge.hx` with `FunkinShader.fromFile('<name>'
 `CustomShader`), wrapped in filters with `openfl.filters.ShaderFilter`, and driven from `update(elapsed)`. Rules for
 touching them:
 
+* run `python3 tools/test_glsl_compile.py` with `glslangValidator` installed: its minimal preamble catches GLSL syntax/type errors but does not simulate OpenFL or a GPU;
+* preserve existing camera filters and remove only this stage's filters during teardown; keep HUD output premultiplied and transparent outside the CRT tube;
 * every load, filter creation and `setFloat` stays inside its own `try/catch`, and every shader variable is null-checked
   -- a driver that cannot compile a shader should cost you the effect, never the song;
 * a new uniform has to be declared in the `.frag` **and** set by the stage script; `validate_mod.py` cross-checks both

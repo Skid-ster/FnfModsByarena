@@ -48,6 +48,7 @@ void main() {
 
 	// Chromatic aberration, radial, also clamped at the borders.
 	vec2 dir = (uv - vec2(0.5)) * (uAberration / 480.0) * (1.0 + uGlitch * 2.0);
+	float alpha = sampleClamped(uv).a;
 	vec3 col;
 	col.r = sampleClamped(uv + dir).r;
 	col.g = sampleClamped(uv).g;
@@ -85,5 +86,6 @@ void main() {
 	float dropoutLine = step(0.985, hash21(vec2(floor(uv.y * 180.0), floor(uTime * 12.0)))) * uGlitch;
 	col = mix(col, vec3(0.85, 0.9, 1.0), dropoutLine * 0.5);
 
-	gl_FragColor = vec4(clamp(col, vec3(0.0), vec3(1.0)), 1.0);
+	// textureCam already applied the camera alpha and premultiplied RGB.
+	gl_FragColor = vec4(clamp(col, vec3(0.0), vec3(alpha)), alpha);
 }

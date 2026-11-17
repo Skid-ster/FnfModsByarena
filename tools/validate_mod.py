@@ -248,7 +248,7 @@ def check_crt():
     ok("void main()" in source, "crt.frag has no main()")
     ok("openfl_TextureCoordv" in source, "crt.frag never samples openfl_TextureCoordv")
     ok("openfl_TextureSize" in source, "crt.frag never uses openfl_TextureSize")
-    ok("openfl_Alphav" in source, "crt.frag must multiply by openfl_Alphav for sprite alpha")
+    ok("openfl_Alphav" in source, "crt.frag should document OpenFL alpha handling")
     shader_code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     ok(not re.search(r"\bflixel_texture2D\s*\(", shader_code),
        "crt.frag calls unsupported flixel_texture2D")

@@ -99,8 +99,10 @@ function create() {
 }
 
 function setupShaders() {
-	var shaderClass = Type.resolveClass('funkin.backend.shaders.FunkinShader');
-	var filterClass = Type.resolveClass('openfl.filters.ShaderFilter');
+	var shaderClass = null;
+	var filterClass = null;
+	try { shaderClass = Type.resolveClass('funkin.backend.shaders.FunkinShader'); } catch (e) {}
+	try { filterClass = Type.resolveClass('openfl.filters.ShaderFilter'); } catch (e) {}
 	if (shaderClass == null || filterClass == null) return;
 
 	// 1. VHS grade (shaders/trollge_vhs.frag).
@@ -150,21 +152,42 @@ function setupShaders() {
 
 	// Filters are attached last, and only if at least one survived: a chip that
 	// cannot compile the shader should cost the effect, never the song.
-	if (ps.camGame != null) {
-		var gameFilters = [];
-		if (vhsFilter != null) gameFilters.push(vhsFilter);
-		if (crtFilter != null) gameFilters.push(crtFilter);
-		if (gameFilters.length > 0) {
-			try {
-				ps.camGame.filters = gameFilters;
-			} catch (e) {}
-		}
+	if (ps.camGame != null && (vhsFilter != null || crtFilter != null)) {
+		try {
+			var gameFilters = ps.camGame.filters != null ? ps.camGame.filters.copy() : [];
+			if (vhsFilter != null) gameFilters.push(vhsFilter);
+			if (crtFilter != null) gameFilters.push(crtFilter);
+			ps.camGame.filters = gameFilters;
+		} catch (e) {}
 	}
 	if (ps.camHUD != null && crtHudFilter != null) {
 		try {
-			ps.camHUD.filters = [crtHudFilter];
+			var hudFilters = ps.camHUD.filters != null ? ps.camHUD.filters.copy() : [];
+			hudFilters.push(crtHudFilter);
+			ps.camHUD.filters = hudFilters;
 		} catch (e) {}
 	}
+}
+
+// Remove only filters created by this stage; other scripts may share cameras.
+function destroy() {
+	var ps = PlayState.instance;
+	if (ps == null) return;
+	try {
+		if (ps.camGame != null && ps.camGame.filters != null) {
+			var filters = ps.camGame.filters.copy();
+			if (vhsFilter != null) filters.remove(vhsFilter);
+			if (crtFilter != null) filters.remove(crtFilter);
+			ps.camGame.filters = filters;
+		}
+	} catch (e) {}
+	try {
+		if (ps.camHUD != null && ps.camHUD.filters != null) {
+			var filters = ps.camHUD.filters.copy();
+			if (crtHudFilter != null) filters.remove(crtHudFilter);
+			ps.camHUD.filters = filters;
+		}
+	} catch (e) {}
 }
 
 function shaderFloat(name:String, value:Float) {

@@ -149,14 +149,14 @@ function trollgeCaption(a = null, b = null, c = null):Void {
 	if (ps == null) return;
 
 	if (caption == null) {
-		captionBand = new FlxSprite(0, 524);
+		captionBand = new FlxSprite(0, FlxG.height - 196);
 		captionBand.makeGraphic(FlxG.width, 84, 0xC0000000);
 		captionBand.scrollFactor.set(0, 0);
 		captionBand.cameras = [ps.camHUD];
 		captionBand.alpha = 0.0;
 		ps.add(captionBand);
 
-		caption = new FlxTypeText(0, 550, FlxG.width, "", 30);
+		caption = new FlxTypeText(0, FlxG.height - 170, FlxG.width, "", 30);
 		caption.font = Paths.font("vcr.ttf");
 		caption.size = 30;
 		caption.color = 0xFFF1F1F5;

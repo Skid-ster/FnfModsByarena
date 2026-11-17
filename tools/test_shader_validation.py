@@ -9,6 +9,31 @@ import validate_mod as validator
 
 
 class CRTValidationTest(unittest.TestCase):
+    def test_camera_coordinates_and_premultiplied_hud_alpha(self):
+        shader = os.path.join(validator.MOD, 'shaders', 'crt.frag')
+        with open(shader, encoding='utf-8') as handle:
+            source = handle.read()
+        self.assertIn('vec2 uv = getCamPos(openfl_TextureCoordv);', source)
+        self.assertIn('vec2 suv = warped + vec2(slide, 0.0);', source)
+        self.assertIn('gl_FragColor = vec4(0.0);', source)
+        self.assertIn('vec3(col.a)', source)
+        self.assertNotIn('col.a = clamp(col.a, 0.0, 1.0) * openfl_Alphav', source)
+        vhs = os.path.join(validator.MOD, 'shaders', 'trollge_vhs.frag')
+        with open(vhs, encoding='utf-8') as handle:
+            source = handle.read()
+        self.assertIn('float alpha = sampleClamped(uv).a;', source)
+        self.assertIn('vec3(alpha)), alpha)', source)
+
+    def test_stage_preserves_existing_filters_and_cleans_up(self):
+        stage = os.path.join(validator.MOD, 'data', 'stages', 'trollge.hx')
+        with open(stage, encoding='utf-8') as handle:
+            source = handle.read()
+        self.assertIn('ps.camGame.filters.copy()', source)
+        self.assertIn('ps.camHUD.filters.copy()', source)
+        self.assertIn('filters.remove(vhsFilter)', source)
+        self.assertIn('filters.remove(crtFilter)', source)
+        self.assertIn('filters.remove(crtHudFilter)', source)
+
     def test_invalid_fetches_are_rejected(self):
         original_mod = validator.MOD
         shader = os.path.join(original_mod, 'shaders', 'crt.frag')

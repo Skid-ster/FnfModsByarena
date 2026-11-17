@@ -1,7 +1,6 @@
-# v3.8.0 testing release status
+# v3.9.0 release status
 
-This is a testing release, not an engine-verified release. No Codename Engine runtime, GLSL
-compiler, or playback/listening test was available in this environment.
+This is a testing release, not an engine-verified release. No Codename Engine runtime, GPU rendering test, or playback/listening test was available in this environment. A standalone GLSL compiler was used with a minimal preamble.
 
 ## Checks run on this checkout
 
@@ -14,6 +13,8 @@ compiler, or playback/listening test was available in this environment.
 - `python3 tools/check_stem_mix.py`: decoded equal-gain stem-sum peak estimates.
 - `python3 tools/dread_report.py --strict`: dread ladder within its tolerance.
 - `python3 tools/test_polish.py`: character wiring, chart timing, note contrast, countdown bounds and seeded texture checks pass.
+- `python3 tools/test_stage_bounds.py`: 800 projected battle frames pass; minimum modelled margin 60.1 px at two static zooms.
+- `python3 tools/test_glsl_compile.py`: both shaders compile for desktop GLSL 330/410 and ES 300 with a minimal Flixel-compatible preamble.
 - `python3 tools/test_shader_validation.py`: unsupported and wrong-camera
   sampling mutations rejected; current CRT accepted.
 - `python3 tools/check_freeplay_zip.py`: built archive passes old/new path and
@@ -47,7 +48,7 @@ still need to be assessed with the actual instrumental and voices together.
   web/mobile, 410 core on macOS and 330 core elsewhere. Its default source
   compatibility pass translates `gl_FragColor` and `texture2D`. This is not a
   driver compilation test, and other engine builds may use other dependencies.
-- CRT camera sampling now follows the engine's camera helper convention, but
+- CRT warping uses camera coordinates and both passes preserve premultiplied transparency. Stage teardown preserves unrelated filters. The standalone compiler does not reproduce the full OpenFL pipeline;
   shader initialization, filter survival and the actual rendered frame must be
   checked in-engine, including a machine without shader support.
 - The five backgrounds and menu were visually reviewed. The last backdrop was

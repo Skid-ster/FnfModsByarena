@@ -18,20 +18,23 @@ looks back at you.
 **Launch it and you land in the mod's own menu** — no vanilla "press enter" screen, no base-game death theme, no
 default arrows, no default shaders.
 
-**[⬇ Download v3.8.0 testing release](../../releases/tag/v3.8.0)** · [install in four steps](#install) · [see what's inside](#whats-inside)
+**[⬇ Download v3.9.0](../../releases/tag/v3.9.0)** · [install in four steps](#install) · [see what's inside](#whats-inside)
 
-## v3.8.0 — testing release
+## v3.9.0 — release and testing status
 
-This release rebuilds the five procedurally synthesised songs with chart-matched
-pitches, corrected harmony and song-section timing, keyed drones and linked
-instrumental/vocal headroom. It also includes Freeplay compatibility files,
-shader compatibility work and battle-presentation polish.
+The CRT shader now performs its warping in camera coordinates and preserves
+transparent, premultiplied HUD pixels; the VHS pass also preserves alpha. The
+stage preserves other camera filters and removes its own on teardown. Camera
+targets have been adjusted after a framing model found a wide singing pose
+clipped on the player turn. Captions follow the virtual screen height.
 
-**Please test it:** this build has not been auditioned by the developer or run
-in Codename Engine in this environment. Automated tests do not establish that it
-sounds scary or catchy, that Freeplay opens, or that shaders work on your GPU.
-See [development status](docs/development-status.md) and the
-[music research notes](docs/music-research.md). No existing music was sampled.
+Both shaders compile under desktop GLSL 330/410 and GLES 300 with a **minimal
+Flixel-compatible test preamble**; 800 projected character frames clear the
+modelled static camera. These are not actual Codename Engine or GPU tests. The
+music has not been auditioned in this environment, so please test the songs,
+Freeplay, shaders, positioning and effects in your engine build. See the
+[development status](docs/development-status.md) and
+[music research notes](docs/music-research.md).
 
 ## At a glance
 
@@ -112,7 +115,7 @@ Freeplay in your Codename installation; the intended order is not guaranteed.
 
 ## Contents
 
-[What's new](#v380--testing-release) · [The five songs](#the-five-songs) · [Previews](#previews) · [Install](#install) · [What's inside](#whats-inside) · [The menus](#the-menus) · [Cutscenes and the ending](#cutscenes-and-the-ending) · [The death screen](#the-death-screen) · [How the charts work](#how-the-charts-work) · [Rebuilding the assets](#rebuilding-the-assets) · [CI](#ci) · [Credits](#credits)
+[What's new](#v390--release-and-testing-status) · [The five songs](#the-five-songs) · [Previews](#previews) · [Install](#install) · [What's inside](#whats-inside) · [The menus](#the-menus) · [Cutscenes and the ending](#cutscenes-and-the-ending) · [The death screen](#the-death-screen) · [How the charts work](#how-the-charts-work) · [Rebuilding the assets](#rebuilding-the-assets) · [CI](#ci) · [Credits](#credits)
 
 ---
 
@@ -120,7 +123,7 @@ Freeplay in your Codename installation; the intended order is not guaranteed.
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
 2. Grab **`TrollgeMod.zip`** from the [releases page](../../releases). There is also
-   `SuperScaryTrollge-v3.8.0.zip` — identical contents, but **install from `TrollgeMod.zip`** (see the warning below).
+   `SuperScaryTrollge-v3.9.0.zip` — identical contents, but **install from `TrollgeMod.zip`** (see the warning below).
 3. Drop that **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **TrollgeMod**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
@@ -310,15 +313,15 @@ The stage is not hand-placed and hoped for: `tools/make_stage_preview.py` re-imp
 
 ![Engine framing, both camera sides](docs/stage.png)
 
-It prints the clear space around each character at the stage zoom **and** at the tightest zoom any song reaches,
-and fails if anything is clipped, if the two pairs of feet are more than 2 px apart, or if the backdrop does not
+It prints the clear space around the two idle characters at the stage zoom and a modelled tier zoom of 1.03,
+and fails if those idle poses are clipped, if their feet are more than 2 px apart, or if the backdrop does not
 cover what the camera can see. The numbers it validates:
 
 | Setting | Value | Why |
 | --- | --- | --- |
 | ground line | Trollge `y=60`, Boyfriend `y=82` | the two atlases have different canvas heights (600 vs 560), so the y offset is exactly their baseline difference — the feet land on the same line to the pixel |
-| character gap | 520 px | the camera swings between the two strumlines; this is the widest gap that still keeps both characters in frame with at least 45 px of clear space on the tightest zoom |
-| `camyoffset` | 60 | without it the Trollge's feet sit on the bottom edge whenever the camera is on his side |
+| character gap | 520 px | camera offsets keep the projected animation frames in view at the modelled zooms |
+| camera offsets | dad `+20, +75`; boyfriend `-80, +75` | keeps wide poses and feet within the modelled camera frame |
 | `zoom` | 0.95 → 1.026 | the stage's 0.95 plus 0.0095 per scare step: song 1 is framed loose, song 5 is pressed in |
 
 Camera work lives in `data/stages/trollge.hx` and scales with the scare tier, so the last two songs physically feel
@@ -421,10 +424,10 @@ reviewed without launching the engine.
 
 `shaders/crt.frag` is a second, independent pass on top of it — a real CRT rather than a tape wobble:
 
-* barrel curvature (the picture bulges, and anything pushed outside the tube is written black), red/blue chromatic
+* barrel curvature (pixels outside the tube become transparent, including on the HUD), red/blue chromatic
   aberration sampled per channel, horizontal tear bands while a glitch is up, scanlines, animated static grain and a
   corner vignette, in that order;
-* it is applied **twice**: `camGame` gets `[trollge_vhs, crt]`, `camHUD` gets its own copy at roughly 60 % strength so
+* it is applied **twice**: `camGame` gets the VHS and CRT filters, `camHUD` gets its own CRT copy at roughly 60 % strength so
   score, captions and the health bar stay readable;
 * the ladder is `base = (scareTier - 2) / 8`, so 2/10 is a barely-there tube, 4/10 shows the scanlines, 6/10 starts
   splitting channels and 10/10 is a broken set — and `trollgeDistort` / `trollgeStatic` punch `uGlitch` on top;
@@ -436,7 +439,7 @@ reviewed without launching the engine.
 The validator checks both shader files for `#pragma header`, a `main()`, no `switch` statements, no reversed
 `smoothstep` edges, and that every uniform they declare is actually set by the stage script; for `crt.frag` it also
 requires the OpenFL conventions (`openfl_TextureCoordv`, `openfl_TextureSize`, `openfl_Alphav`,
-`getCamPos` and `textureCam(bitmap, …)`); it rejects unsupported `flixel_texture2D` and raw bitmap fetches in the CRT camera filter, and checks attachment to both cameras. These are static checks, not proof of a successful GPU compile or in-engine rendering.
+`getCamPos` and `textureCam(bitmap, …)`); it rejects direct `flixel_texture2D` and raw bitmap fetches in the CRT camera filter, and checks attachment to both cameras. The separate GLSL test compiles each shader using a minimal interface, not OpenFL's complete runtime assembler or a GPU.
 
 ---
 
@@ -613,7 +616,9 @@ python3 tools/make_chart.py       # meta.json, events.json, charts {easy,normal,
 python3 tools/make_cutscenes.py   # cutscene scripts + their frames/letterbox art (~2 s)
 python3 tools/make_menu.py        # main menu buttons + backdrop (~1 s)
 python3 tools/make_promo.py       # docs/banner.jpg from the real stage art (~1 s)
-python3 tools/make_stage_preview.py  # engine framing check -> docs/stage.png + margin report
+python3 tools/make_stage_preview.py  # approximate idle framing -> docs/stage.png + margin report
+python3 tools/test_stage_bounds.py   # projected bounds for all battle animation frames
+python3 tools/test_glsl_compile.py   # needs glslangValidator; minimal-preamble GLSL compile
 python3 tools/make_grade_preview.py  # re-renders the shader maths in numpy -> docs/grade.png
 python3 tools/validate_mod.py     # 2378 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
@@ -621,7 +626,7 @@ python3 tools/melody_report.py    # hard-chart melody metrics (--strict for CI)
 python3 tools/test_music.py       # pitch, harmony, arrangement and stem-gain regressions
 python3 tools/check_stem_mix.py  # decoded equal-gain stem-sum peak estimate
 python3 tools/dread_report.py     # dread-band spectral proxy with 3 dB tolerance (--strict for CI)
-python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v3.8.0.zip
+python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v3.9.0.zip
                                   # (175 files, includes shaders/ + music/; install the TrollgeMod one)
 ```
 
