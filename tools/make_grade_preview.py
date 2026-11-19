@@ -34,7 +34,7 @@ STAGES = [
      0.7 + 1.3 * min(1.0, 0.35 + (tier - 2) * 0.08),
      0.25 + 0.45 * min(1.0, 0.35 + (tier - 2) * 0.08),
      0.2 + 0.5 * min(1.0, 0.35 + (tier - 2) * 0.08),
-     0.35 + 0.45 * min(1.0, 0.35 + (tier - 2) * 0.08))
+     0.25 + 0.22 * min(1.0, 0.35 + (tier - 2) * 0.08))
     for name, tier in TIERS
 ]
 
@@ -93,7 +93,7 @@ def grade(image, intensity, aberration, scanline, grain, vignette, seed=0):
         + out * cast * ((1.0 - vig)[..., None] * intensity * 0.7)
 
     # contrast + saturation lift
-    out = (out - 0.5) * (1.0 + 0.12 * intensity) + 0.5
+    out = (out - 0.5) * (1.0 + 0.04 * intensity) + 0.5
     luma = out @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
     out = luma[..., None] + (out - luma[..., None]) * (1.0 + 0.22 * intensity)
 

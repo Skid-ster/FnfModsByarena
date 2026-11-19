@@ -8,8 +8,8 @@
 //
 //  It also owns both full-screen shaders: the VHS grade (shaders/trollge_vhs.frag)
 //  on camGame, and the CRT pass (shaders/crt.frag) on camGame *and* camHUD at a
-//  weaker strength. Both are cranked up per scare tier and punched by the story
-//  events. Alongside them: the camera work (zoom, shake) and the per-character
+//  subtle, stable strength. The game-camera effects rise per scare tier and
+//  are punched by story events. Alongside them: the camera work (zoom, shake) and the per-character
 //  note-hit voices.
 // ===========================================================================
 
@@ -85,9 +85,9 @@ function create() {
 		}
 	}
 
-	// Full-screen static that the song script can flare up.
+	// Beat flicker is separate from song-event static, but both stay under HUD.
 	staticSpr = new FlxSprite(0, 0).loadGraphic(Paths.image('trollge_static'));
-	staticSpr.cameras = [PlayState.instance.camHUD];
+	staticSpr.cameras = [PlayState.instance.camGame];
 	staticSpr.scrollFactor.set();
 	staticSpr.setGraphicSize(FlxG.width, FlxG.height);
 	staticSpr.updateHitbox();
@@ -96,6 +96,7 @@ function create() {
 	staticSpr.blend = BlendMode.ADD;
 	staticSpr.antialiasing = false;
 	PlayState.instance.add(staticSpr);
+
 }
 
 function setupShaders() {
@@ -242,7 +243,7 @@ function update(elapsed:Float) {
 		shaderFloat('uAberration', 0.7 + 1.3 * vhsIntensity + 3.0 * glitch);
 		shaderFloat('uScanline', 0.25 + 0.45 * vhsIntensity);
 		shaderFloat('uGrain', 0.2 + 0.5 * vhsIntensity + 0.3 * glitch);
-		shaderFloat('uVignette', 0.35 + 0.45 * vhsIntensity);
+		shaderFloat('uVignette', 0.25 + 0.22 * vhsIntensity);
 		shaderFloat('uGlitch', glitch);
 	}
 
@@ -254,7 +255,7 @@ function update(elapsed:Float) {
 	var scan:Float = 0.12 + 0.12 * base;
 	var grain:Float = 0.02 + 0.06 * base + 0.20 * glitch;
 	var curve:Float = 0.018 + 0.022 * base;
-	var vig:Float = 0.34 + 0.26 * base;
+	var vig:Float = 0.22 + 0.14 * base;
 
 	setFloatOn(crt, 'uTime', songClock);
 	setFloatOn(crt, 'iTime', songClock);
@@ -265,16 +266,16 @@ function update(elapsed:Float) {
 	setFloatOn(crt, 'uVignette', vig);
 	setFloatOn(crt, 'uGlitch', glitch);
 
-	// HUD: about 60% of it, and a much smaller channel split, so a combobreak
-	// message never becomes the hard part of reading the screen.
+	// HUD is intentionally spatially stable: no curvature or horizontal tears.
+	// Subtle scanlines only, so note timing and edge-lane silhouettes stay clear.
 	setFloatOn(crtHud, 'uTime', songClock);
 	setFloatOn(crtHud, 'iTime', songClock);
-	setFloatOn(crtHud, 'uAberration', aber * 0.45);
-	setFloatOn(crtHud, 'uScanline', scan * 0.6);
-	setFloatOn(crtHud, 'uStatic', grain * 0.5);
-	setFloatOn(crtHud, 'uCurvature', curve * 0.5);
-	setFloatOn(crtHud, 'uVignette', vig * 0.55);
-	setFloatOn(crtHud, 'uGlitch', glitch * 0.5);
+	setFloatOn(crtHud, 'uAberration', 0.0);
+	setFloatOn(crtHud, 'uScanline', scan * 0.35);
+	setFloatOn(crtHud, 'uStatic', 0.0);
+	setFloatOn(crtHud, 'uCurvature', 0.0);
+	setFloatOn(crtHud, 'uVignette', 0.0);
+	setFloatOn(crtHud, 'uGlitch', 0.0);
 }
 
 function onStrumCreation(event) {
@@ -295,47 +296,51 @@ function camShake(pixels:Float, seconds:Float) {
 function zoomPunch(amount:Float) {
 	var cam = PlayState.instance != null ? PlayState.instance.camGame : null;
 	if (cam == null) return;
-	cam.zoom += amount;
+	// Dense chords and engine beat bops can overlap. Never let our impulses
+	// stack without bound or pull down a larger zoom set by another script.
+	var ceiling:Float = PlayState.instance.defaultCamZoom + 0.018;
+	if (cam.zoom < ceiling) cam.zoom = Math.min(ceiling, cam.zoom + amount);
 }
 
 // --------------------------------------------------------------------------- #
-//  Note-hit voices
+//  Hit response
 //
-//  The engine plays nothing when a note is hit (only miss sounds), so both sides
-//  were silently miming. Every hit now plays that character's own syllable, and
-//  the pitch follows the arrow: up highest, down lowest. The player's hit also
-//  gives the camera a tiny push in, which is what makes a clean section feel
-//  like it is being played rather than watched.
+//  Shipped songs already contain chart-matched Voices.ogg. Doubling them with
+//  a second syllable on every hit crowds the mix and undermines miss muting;
+//  retain the old samples only as a fallback for songs without a vocal stem.
+//  A restrained, capped camera response makes a hit feel physical without
+//  making fast patterns zoom indefinitely or changing note timing.
 // --------------------------------------------------------------------------- #
 
 var NOTE_DIRS:Array<String> = ['left', 'down', 'up', 'right'];
 
 function onNoteHit(event) {
-	if (event == null || event.note == null) return;
-	if (event.note.isSustainNote) return;          // holds are not new notes
+	if (event == null || event.note == null || event.cancelled) return;
+	if (event.note.isSustainNote) return;
 
-	var dir:String = NOTE_DIRS[event.direction % 4];
-	if (event.player) {
-		FlxG.sound.play(Paths.sound('bf_note_' + dir), 0.55);
-		zoomPunch(0.0035);
-	} else {
-		FlxG.sound.play(Paths.sound('trollge_note_' + dir), 0.50);
-		zoomPunch(0.0015);
+	var meta = PlayState.SONG != null ? PlayState.SONG.meta : null;
+	if (meta != null && !meta.needsVoices) {
+		var dir:String = NOTE_DIRS[event.direction % 4];
+		if (event.player) FlxG.sound.play(Paths.sound('bf_note_' + dir), 0.32);
+		else FlxG.sound.play(Paths.sound('trollge_note_' + dir), 0.28);
 	}
+	zoomPunch(event.player ? 0.0022 : 0.0008);
 }
 
-/** The camera breathes in on every fourth measure. */
+/** A small camera breath every fourth measure, bounded by zoomPunch. */
 function measureHit(curMeasure) {
-	if (curMeasure % 4 == 0) zoomPunch(0.004 + 0.001 * scareTier);
+	if (curMeasure % 4 == 0) zoomPunch(0.003 + 0.0005 * scareTier);
 }
 
 function beatHit(curBeat) {
 	// Camera: a small push on every beat once the song is properly scary, and a
-	// barely-there shake from 6/10 up. Everything scales with the tier, so the
+	// restrained downbeat shake from 6/10 up. Everything scales with the tier, so the
 	// last two songs physically feel different from the first one.
 	if (scareTier >= 4) zoomPunch(0.0022 + 0.0004 * scareTier);
-	if (scareTier >= 6) camShake(1.2 + 0.35 * scareTier, 0.09);
-	if (scareTier >= 10 && curBeat % 4 == 0) camShake(4.0, 0.22);
+	// Reserve shake for downbeats: the contrast makes the impact more legible
+	// than a constantly vibrating camera, especially in dense note sections.
+	if (scareTier >= 6 && curBeat % 4 == 0)
+		camShake(1.0 + 0.22 * scareTier, 0.10);
 
 	// FlxRandom.bool takes a percentage in the range 0..100.
 	if (staticSpr == null) return;

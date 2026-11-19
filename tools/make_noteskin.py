@@ -54,10 +54,10 @@ LANES = [
 ]
 
 SHADOW_LANES = [
-    ("left", "purple", (108, 118, 156)),    # steel violet
-    ("down", "blue", (52, 78, 122)),        # deep water
-    ("up", "green", (74, 104, 116)),        # corpse teal
-    ("right", "red", (138, 40, 54)),        # dried blood
+    ("left", "purple", (139, 105, 205)),    # steel violet
+    ("down", "blue", (67, 132, 201)),       # deep water
+    ("up", "green", (68, 175, 148)),       # corpse teal
+    ("right", "red", (203, 69, 76)),        # dried blood
 ]
 
 ARROW_UP = [(50, 5), (88, 43), (64, 43), (64, 93), (36, 93), (36, 43), (12, 43)]
@@ -121,7 +121,7 @@ def scratch(mask, seed, count=9, strength=40):
         length = rng.randrange(size // 6, size // 2)
         draw.line([(x0, y0), (x0 + rng.randint(-8, 8), y0 - length)],
                   fill=rng.randint(30, strength), width=rng.choice([1, 1, 2]))
-    return ImageChops.multiply(mask, marks.point(lambda v: 255 - v))
+    return ImageChops.multiply(mask, marks)
 
 
 def erode(mask, amount):
@@ -250,8 +250,11 @@ def arrow_frame(size, rgb, mode, rotate=0, scale=1.0, frame_index=0):
     highlight = tuple(min(255, int(c * 0.45 + 255 * 0.55)) for c in rgb)
 
     if mode in ("note", "press", "confirm"):
-        canvas.alpha_composite(glow(mask, rgb, size * 0.055, 190))
-        canvas.alpha_composite(glow(mask, rgb, size * 0.14, 80))
+        # Tight glow behind a strong dark outline: readable on pale as well as
+        # black backgrounds, without the halo hiding neighbouring lanes.
+        canvas.alpha_composite(glow(mask, rgb, size * 0.06, 100))
+    outline = mask.filter(ImageFilter.MaxFilter(max(3, (size // 20) | 1)))
+    canvas.alpha_composite(coloured(outline, (6, 8, 14), 230))
 
     if mode == "strum":
         # Receptor. It used to be near-black with a hairline of colour, which
@@ -269,7 +272,7 @@ def arrow_frame(size, rgb, mode, rotate=0, scale=1.0, frame_index=0):
         canvas.alpha_composite(body_fill(mask, rgb, dark, top_light=60, tint=1.0))
         # Bright interior core: the whole point of this pass is that a note is
         # readable at 2.4 scroll speed on a black background.
-        canvas.alpha_composite(hot_core(mask, rgb, size))
+        canvas.alpha_composite(hot_core(mask, rgb, size, alpha=180, blur=0.035))
         canvas.alpha_composite(coloured(edge_of(mask, max(2, size // 40)), mix(rgb, (255, 255, 255), 0.25), 255))
         canvas.alpha_composite(coloured(edge_of(mask, max(1, size // 80)), (255, 255, 255), 150))
         # bright spine down the shaft so the note reads at speed
@@ -305,10 +308,9 @@ def arrow_frame(size, rgb, mode, rotate=0, scale=1.0, frame_index=0):
     # same treatment now -- red/cyan fringe, CRT rows and a couple of ink runs --
     # instead of only the two "special" skins at the end of the atlas.
     if mode in ("note", "press"):
-        canvas = chroma_edge(canvas, dx=max(1, size // 80), amount=0.5)
-        canvas = scanlines(canvas, mask, step=4, strength=36)
+        canvas = scanlines(canvas, mask, step=5, strength=19)
         canvas = ink_drips(canvas, mask, (12, 6, 14), seed=size + int(scale * 100) + frame_index,
-                           count=3, size=size / 90.0)
+                           count=2, size=size / 90.0)
 
     canvas.alpha_composite(coloured(scratch(mask, seed=size + int(scale * 100) + frame_index),
                                     (0, 0, 0), 45))
@@ -318,37 +320,34 @@ def arrow_frame(size, rgb, mode, rotate=0, scale=1.0, frame_index=0):
 
 
 def hold_piece(rgb, height):
+    """A continuous vertical rail; adjacent sustain tiles have matching edges."""
     image = Image.new("RGBA", (HOLD_W, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    radius = 10
-    draw.rounded_rectangle([0, 0, HOLD_W - 1, height - 1], radius=radius,
-                           fill=(14, 14, 20, 255))
-    for y in range(height):
-        t = y / float(height - 1)
-        colour = tuple(int(20 + (rgb[i] - 20) * (0.35 + 0.65 * (1 - abs(t - 0.5) * 2))) for i in range(3))
-        draw.line([(3, y), (HOLD_W - 4, y)], fill=colour + (255,))
-    draw.rounded_rectangle([0, 0, HOLD_W - 1, height - 1], radius=radius,
-                           outline=rgb + (235,), width=3)
-    # arrow chevrons down the strip
-    for i in range(height // 22):
-        cy = 14 + i * 22
-        draw.line([(10, cy), (HOLD_W // 2, cy + 7), (HOLD_W - 10, cy)], fill=(255, 255, 255, 90), width=2)
-    # brighter rail than before, so a held note still glows on a black stage
-    draw.line([(HOLD_W // 2, 3), (HOLD_W // 2, height - 3)],
-              fill=mix(rgb, (255, 255, 255), 0.45) + (110,), width=3)
-    return dress(image, seed=int(sum(rgb)) + height, drips=1)
+    # No rounded top/bottom: the engine stacks these pieces for a hold.
+    draw.rectangle([2, 0, HOLD_W - 3, height - 1], fill=(9, 10, 17, 242))
+    draw.rectangle([6, 0, HOLD_W - 7, height - 1], fill=mix(rgb, (10, 12, 18), .54) + (255,))
+    draw.line([(6, 0), (6, height - 1)], fill=rgb + (255,), width=3)
+    draw.line([(HOLD_W - 7, 0), (HOLD_W - 7, height - 1)], fill=rgb + (255,), width=3)
+    draw.line([(HOLD_W // 2, 0), (HOLD_W // 2, height - 1)],
+              fill=mix(rgb, (255, 255, 255), .48) + (255,), width=3)
+    # The 88px piece contains exactly four 22px chevrons, leaving the tile
+    # boundary clean even when a sustain is scaled by the engine.
+    for y in range(5, height - 8, 22):
+        draw.line([(12, y), (HOLD_W // 2, y + 6), (HOLD_W - 13, y)],
+                  fill=mix(rgb, (255, 255, 255), .68) + (190,), width=2)
+    return image
 
 
 def hold_end(rgb):
-    image = Image.new("RGBA", (HOLD_W, HOLD_END_H), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle([0, 0, HOLD_W - 1, HOLD_END_H - 1], radius=18,
-                           fill=(16, 16, 24, 255), outline=rgb + (255,), width=3)
-    draw.rounded_rectangle([6, HOLD_END_H - 22, HOLD_W - 7, HOLD_END_H - 5], radius=9,
-                           fill=rgb + (230,))
-    draw.line([(HOLD_W // 2, 10), (HOLD_W // 2, HOLD_END_H - 26)],
-              fill=mix(rgb, (255, 255, 255), 0.5) + (120,), width=2)
-    return dress(image, seed=int(sum(rgb)) + 41, drips=1)
+    # Match the upper edge of the straight body; taper only at the free end.
+    body = hold_piece(rgb, HOLD_END_H)
+    mask = Image.new("L", body.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rectangle((0, 0, HOLD_W - 1, HOLD_END_H - 20), fill=255)
+    draw.rounded_rectangle((2, HOLD_END_H - 38, HOLD_W - 3, HOLD_END_H - 1),
+                           radius=18, fill=255)
+    body.putalpha(ImageChops.multiply(body.getchannel("A"), mask))
+    return body
 
 
 # --------------------------------------------------------------------------- #
@@ -360,21 +359,16 @@ def corrupt(image, seed):
     out_img = image.copy()
 
     # horizontal slice displacement
-    for _ in range(6):
+    for _ in range(3):
         y0 = rng.randrange(h)
         band = rng.randint(2, max(3, h // 14))
-        dx = rng.randint(-w // 12, w // 12)
+        dx = rng.randint(-w // 30, w // 30)
         strip = out_img.crop((0, y0, w, min(h, y0 + band)))
         out_img.paste(strip, (dx, y0))
 
-    # RGB split
-    r, g, b, a = out_img.split()
-    shifted = Image.merge("RGBA", (r, g, b, a))
-    out_img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    out_img.alpha_composite(Image.merge("RGBA", (r, g, b, a)), (0, 0))
-    out_img.alpha_composite(Image.merge("RGBA", (r.point(lambda v: v // 2), g, b.point(lambda v: v // 3), a)),
-                            (4, 0))
-    out_img.alpha_composite(Image.merge("RGBA", (r, g.point(lambda v: v // 2), b, a)), (-3, 0))
+    # Fringes belong behind the original colour, not painted over the whole
+    # face: otherwise blue and green lanes both collapse towards purple.
+    out_img = chroma_edge(out_img, dx=2, amount=0.45)
 
     # static speckle, clipped to the sprite so the atlas stays light
     original_alpha = image.getchannel("A")
@@ -382,9 +376,10 @@ def corrupt(image, seed):
     red = Image.new("RGBA", (w, h), (255, 40, 60))
     red.putalpha(ImageChops.multiply(noise.point(lambda v: int(v * 0.16)), original_alpha))
     out_img.alpha_composite(red)
-
-    r, g, b, a = out_img.split()
-    return Image.merge("RGBA", (r, g, b, ImageChops.multiply(a, original_alpha)))
+    # Keep displaced slices inside the original safe frame. Preserve opaque
+    # colour without multiplying alpha twice along antialiased edges.
+    out_img.putalpha(ImageChops.darker(out_img.getchannel("A"), original_alpha))
+    return out_img
 
 
 def torn(image, seed):
@@ -400,15 +395,15 @@ def torn(image, seed):
     rgb = image.convert("RGB")
     ember = ImageOps.colorize(rgb.convert("L"), black=(10, 2, 3),
                               mid=(126, 18, 12), white=(245, 104, 82))
-    rgb = Image.blend(rgb, ember, 0.28)
+    rgb = Image.blend(rgb, ember, 0.18)
     rgb = ImageEnhance.Brightness(rgb).enhance(1.24)
     out_img = rgb.convert("RGBA")
     mask = image.getchannel("A")
     out_img.putalpha(mask)
 
     out_img = chroma_edge(out_img, dx=max(2, image.size[0] // 54), amount=0.8)
-    out_img = scanlines(out_img, mask, step=5, strength=72)
-    out_img = ink_drips(out_img, mask, (28, 2, 4), seed=seed, count=5, size=1.8)
+    out_img = scanlines(out_img, mask, step=5, strength=38)
+    out_img = ink_drips(out_img, mask, (28, 2, 4), seed=seed, count=3, size=1.8)
 
     # burnt edge: alpha chewed in horizontal tears, never into detached specks
     noise = seeded_noise(image.size, seed)
@@ -529,8 +524,8 @@ def build_skin(sprite_path, lanes=None, transform=None):
 
         piece = hold_piece(rgb, HOLD_PIECE_H)
         end = hold_end(rgb)
-        if transform:
-            piece, end = transform(piece, 500 + index), transform(end, 600 + index)
+        # Sustain bodies and end caps stay unwarped so adjoining edges match.
+        # The lane palette still changes with each skin.
         frames.append(("%s hold piece0000" % colour_name, piece))
         frames.append(("%s hold end0000" % colour_name, end))
 
@@ -548,8 +543,8 @@ def drained(image, seed):
     """
     rgb = image.convert("RGB")
     grey = rgb.convert("L").convert("RGB")
-    mixed = Image.blend(rgb, grey, 0.55)
-    mixed = Image.blend(mixed, Image.new("RGB", image.size, (16, 20, 28)), 0.18)
+    mixed = Image.blend(rgb, grey, 0.25)
+    mixed = Image.blend(mixed, Image.new("RGB", image.size, (16, 20, 28)), 0.10)
     out_img = mixed.convert("RGBA")
     mask = image.getchannel("A")
     out_img.putalpha(mask)

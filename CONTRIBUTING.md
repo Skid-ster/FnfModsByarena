@@ -38,17 +38,21 @@ python3 tools/make_art.py      # only if you touched trollge_art.py / make_art.p
                                 #  one makes the shipped art differ on every run)
 python3 tools/make_audio.py    # only if you touched song_layout.py / make_audio.py
 python3 tools/make_noteskin.py # only if you touched make_noteskin.py (arrow skins + splashes)
-python3 tools/make_hud.py      # only if you touched make_hud.py (health bar + countdown)
+python3 tools/make_hud.py      # health bar + countdown (preview uses a simulated fill)
 python3 tools/make_chart.py    # if you touched song_layout.py (charts)
 python3 tools/make_cutscenes.py # if you touched the cutscene lines or their art
 python3 tools/make_promo.py     # docs/banner.jpg (only after a version bump)
 python3 tools/make_menu.py      # main menu buttons, backdrop, docs/menu_preview.png
-                                # (committed, not diffed in CI: the atlas sizes come
-                                #  from font metrics, which drift between Pillow builds)
+                                # (committed; frame geometry is checked, but text pixels can
+                                #  vary with installed fonts and Pillow versions)
+python3 tools/make_contact_shadow.py # if you touched the ground-shadow generator
 python3 tools/make_stage_preview.py  # if you touched the stage xml
+python3 tools/test_stage_bounds.py   # model every battle frame at both zooms
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
 python3 tools/test_polish.py    # character wiring, effect timing, HUD and notes
+python3 tools/test_battle_visuals.py # atlas bounds, hold seams and HUD routing
+python3 tools/make_battle_preview.py # approximate static atlas composite
 python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
 ```
 
@@ -108,20 +112,25 @@ sum at equal stem gain, not actual engine playback or standards-compliant true p
   in `images/ui/`. Never hand-edit the `.hx` files, CI diffs them.
 * **Difficulties** come from `notes(song, difficulty)`: hard applies tier spacing, normal drops one in four of those notes, and easy keeps every second.
   Do not hand-write an easy chart — it is a strided subset, so the three charts can never disagree about timing.
+* **Story arrangements** use `STORY_ARCS`, `PIANO_PATTERNS`, `piano_events()`
+  and `piano_answers()` in `make_audio.py`: original chord-based parts and
+  smooth intensity curves follow each song's chart/harmony without modifying
+  note timings. The upright samples under `audio_src/piano/` are CC0 Meta
+  Piano recordings. Keep sample provenance and audition stems together.
 * **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `glitch`, `industrial`, `finale`). Each style
   picks its own kit,
   bass and lead voice from `kick_for` / `snare_for` / `hat_for` / `bass_for` / `lead_for` and its own groove in
   `render_song()`. Add a style, not a special case.
 * **Mix balance** lives in the pan table near the end of `render_song()` (stem -> left/right gains), the master EQ
   breakpoints and the loudness target `TARGET_RMS`. Change them and `tools/audit_songs.py` tells you what it did to
-  the spectrum, width and dynamics — it is the same script CI runs with `--strict`. The master EQ thins 1–4 kHz on
-  purpose: that is the vocal formant band, and the instrumental leaves it to `Voices.ogg`.
-* **Voices are formant voices, not buzzers.** `voice_note()` in `tools/make_audio.py` builds a glottal source with a
-  spectral tilt, a pitch scoop, vibrato that grows through the note, and a parallel bank of resonances from `VOWELS`
-  (`ah`/`oh`/`ee`/`oo`, first two formants decide the vowel). Boyfriend shifts the formants up and sings bright vowels;
-  the Trollge shifts them down, adds sub-harmonic weight and a controlled saturation. If you change a formant, measure
-  the vowel again: filter white noise through `lib_dsp.formant_bank()` and check the energy sits in the right band
-  (e.g. `ee` should peak at 2.2–3 kHz, `oo` below 1 kHz).
+  the spectrum, width and dynamics — it is the same script CI runs with `--strict`. The instrumental keeps its melodic midrange while the lead and vocal gains
+  are balanced separately.
+* **Song vocals use a recording.** `sampled_voice_note()` retunes the CC0 sung
+  vowel in `audio_src/voices/massey-sung-note.wav`. Both characters use it; the
+  opponent is an octave lower. The source is filtered before resampling and the
+  loop and note edges are crossfaded. It is not an official FNF voice sample.
+  `voice_note()` remains in use for fallback note-hit SFX, not song stems. Run
+  the music tests and audition the full mix after changing the sampler.
 * **Drums are tuned and warm.** Kicks are a 90 → 55 Hz pitch envelope with a smooth amplitude attack (no click, no
   drive by default); snares carry a tuned 180–220 Hz body under band-limited noise and get their tail from the plate in
   the mix; hats are soft-filtered noise with a shelf instead of a hard 6.5 kHz highpass. Harsh 3–8 kHz content is what
@@ -277,3 +286,15 @@ they are invisible until the text is actually drawn:
 
 Use the issue templates. For crashes, attach the engine log and say **which song, which difficulty and roughly
 which timestamp** — the story events are time-based, so "right after the 32 s jumpscare" is genuinely useful.
+
+### Horror UI references
+
+See `docs/ui-research.md` for the source material, decisions and accessibility
+limitations. Keep the left side of the cinematic menu background dark, the
+selected state recognisable without colour alone, and countdown words undistorted.
+The AI-generated scene in `art_src/menu_scene.png` is an input, not rebuilt by
+`make_menu.py`. `LIB_TrollgeMod.hx` positions the native engine menu; its
+behaviour and install-name assumptions must be checked in Codename. The engine
+draws its health fill over the four-pixel inset of `healthBar.png`; don't put
+critical markings there. Run `python3 tools/test_polish.py` and verify with
+real players and the target engine; static contrast pairs are not certification.

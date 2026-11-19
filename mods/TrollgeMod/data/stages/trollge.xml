@@ -1,6 +1,9 @@
 <!DOCTYPE codename-engine-stage>
 <stage name="trollge" folder="stages/trollge/" zoom="0.95" startCamPosX="610" startCamPosY="470">
 	<sprite name="bg" x="-420" y="-250" scale="1.75" sprite="bg" scroll="1" antialiasing="true"/>
+	<!-- Static contact shadows sit behind both character markers on the ground. -->
+	<sprite name="dadShadow" x="260" y="592" sprite="contact_shadow" scroll="1" antialiasing="true"/>
+	<sprite name="bfShadow" x="750" y="592" sprite="contact_shadow" scroll="1" antialiasing="true"/>
 	<!-- Both characters share one ground line (see tools/make_stage_preview.py):
 	     the Trollge's canvas is 600 px tall with its feet at y+561, Boyfriend's
 	     is 560 px with its feet at y+539, so his y is always the Trollge's + 22.

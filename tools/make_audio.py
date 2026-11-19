@@ -17,6 +17,7 @@ Run with:  python3 tools/make_audio.py
 """
 
 import math
+from functools import lru_cache
 import os
 import shutil
 import sys
@@ -520,6 +521,200 @@ def music_box(midi, dur=1.6):
     return out * 0.6
 
 
+# The original score is an emotional arc, not a wall of maximum-intensity
+# drums. These are *new* accompaniment patterns, not Trollge Files melodies.
+# (beat within bar, chord-tone index, octave lift, duration in beats, velocity)
+PIANO_PATTERNS = {
+    'trolling': ((0, 0, 0, 1.7, .80), (1.5, 1, 0, 1.2, .55), (3, 2, 0, 1.4, .66)),
+    'getting-dark': ((0, 0, 0, 2.0, .78), (2, 2, 0, 1.7, .55), (3.5, 1, 0, 1.0, .45)),
+    'dont-look-back': ((0, 0, 0, 1.4, .75), (1.25, 2, 0, 1.0, .46), (2.5, 1, 0, 1.2, .58)),
+    'super-scary': ((0, 0, 0, 1.5, .78), (1.25, 2, 0, 1.0, .52), (2.75, 1, 0, 1.1, .53)),
+    'the-incident': ((0, 0, 0, 2.1, .86), (1, 2, 0, 1.7, .53), (2.5, 1, 0, 1.5, .65)),
+}
+
+# Hand-shaped dramatic landmarks in SECTION coordinates, not wall-clock
+# percentages: the musical retreat happens with the chart's actual breakdown.
+# Each final point is the end of the song, after the last section.
+STORY_ARCS = {
+    'trolling':       ((0,.48),(3,.67),(6,.88),(7,.45),(8,.38),(11,.83),(12,.42),(14,1.0),(16,.48)),
+    'getting-dark':   ((0,.42),(4,.67),(8,.90),(9,.42),(10,.32),(13,.83),(16,.38),(18,1.0),(20,.46)),
+    'dont-look-back': ((0,.48),(4,.70),(8,.93),(9,.40),(10,.34),(14,.91),(16,.40),(18,1.0),(20,.55)),
+    'super-scary':    ((0,.55),(4,.76),(8,.95),(9,.42),(10,.35),(14,.93),(16,.43),(18,1.0),(20,.64)),
+    'the-incident':   ((0,.43),(6,.77),(10,.97),(13,.42),(14,.34),(19,.94),(22,.38),(25,1.0),(28,.53)),
+}
+
+
+def story_level(song, fraction):
+    # Section starts include the lead-in offset, just like the charts. Use the
+    # end as the last landmark so this also works with scalar and vector input.
+    starts = [s['time'] / 1000.0 for s in L.sections(song)] + [L.length(song)]
+    knots = STORY_ARCS[song['id']]
+    positions = [starts[index] / L.length(song) for index, _ in knots]
+    return np.interp(np.clip(fraction, 0.0, 1.0), positions, [v for _, v in knots])
+
+
+@lru_cache(maxsize=96)
+def _piano_pitch(midi):
+    """Retune the closest recorded upright-piano note, with antialias filtering."""
+    import soundfile as sf
+    samples = ((48, 'C3'), (55, 'G3'), (60, 'C4'), (67, 'G4'),
+               (72, 'C5'), (79, 'G5'), (84, 'C6'))
+    root, name = min(samples, key=lambda item: abs(item[0] - midi))
+    raw, sr = sf.read(os.path.join(ROOT, 'audio_src', 'piano', name + '.ogg'), dtype='float64')
+    if sr != 48000 or raw.ndim != 1:
+        raise ValueError('unexpected piano source format')
+    # Match the first half second across the source notes, not their decay.
+    level = np.sqrt(np.mean(raw[:sr // 2] ** 2))
+    raw = raw / max(level, 1e-8) * .10
+    ratio = 2.0 ** ((midi - root) / 12.0)
+    if ratio > 1:
+        raw = lowpass(raw, min(17000., .43 * SR / ratio), sr=sr)
+    count = min(int(len(raw) / (ratio * sr / SR)), int(3.5 * SR))
+    positions = np.arange(count) * ratio * sr / SR
+    return np.interp(positions, np.arange(len(raw)), raw)
+
+
+def piano_note(midi, duration):
+    """Recorded piano note with a soft release (no abrupt note-off)."""
+    sample = _piano_pitch(int(midi))
+    n = min(len(sample), max(1, int((duration + .15) * SR)))
+    result = sample[:n].copy()
+    attack = min(n // 3, int(.004 * SR))
+    release = min(n // 3, int(.15 * SR))
+    if attack:
+        result[:attack] *= np.linspace(0., 1., attack)
+    if release:
+        result[-release:] *= np.linspace(1., 0., release)
+    return result
+
+
+def piano_events(song):
+    """Harmonised broken chords with a distinct rhythm and evolving register.
+
+    The existing melody/chart and its bar harmony stay authoritative. A sparse
+    original chord pattern supports it; breaks expose the instrument, and busy
+    sections leave gaps so it does not double every sung syllable.
+    """
+    beat = L.beat(song)
+    roles = L.measure_roles(song)
+    for bar in range(L.measures(song)):
+        role = roles.get(bar, 'verse')
+        root, tones = L.chord_for_measure(song, bar)
+        chord = sorted(song['tonic'] + root + t + 12 for t in tones)
+        pattern = PIANO_PATTERNS[song['id']]
+        for i, (offset, tone, lift, length, velocity) in enumerate(pattern):
+            # In the loud battle passages, the middle accent is absent every
+            # other bar; quiet sections play the whole human-scale figure.
+            if role in ('drop', 'finale') and i == 1 and bar % 2:
+                continue
+            midi = chord[tone % len(chord)] + lift
+            if bar % 8 == 7 and i == len(pattern) - 1:
+                midi += 12  # a question rather than identical loop endings
+            variation = .9 + .1 * ((bar * 3 + i * 7) % 5) / 4.0
+            level = velocity * variation * (1.15 if role in ('intro', 'break') else .78)
+            yield (L.measure_time(song, bar) / 1000.0 + offset * beat,
+                   midi, length * beat, level)
+
+
+
+# Five original three-note gestures, voiced against the local chord. Each is a
+# recognizable contour rather than a random run; later appearances answer a
+# singer's actual rest. Times are in beats after the first answer note.
+ANSWER_MOTIFS = {
+    'trolling':       ((0.0, 0), (.45, 4), (1.0, 0)),       # playful question
+    'getting-dark':   ((0.0, 0), (.55, -3), (1.05, -5)),    # a quiet descent
+    'dont-look-back': ((0.0, 0), (.38, 6), (.90, 3)),      # a fractured reach
+    'super-scary':    ((0.0, 0), (.35, -5), (.95, 2)),     # fall and recoil
+    'the-incident':   ((0.0, 0), (.60, 3), (1.15, -2)),   # a fragile return
+}
+
+
+def piano_answers(song):
+    """A composed gesture in genuine vocal rests, never under a sung onset."""
+    notes = list(vocal_performance(song))
+    beat = L.beat(song)
+    motif = ANSWER_MOTIFS[song['id']]
+    last_bar = -100
+    for (note, at, dur, _), (following, next_at, _, _) in zip(notes, notes[1:]):
+        bar = note['measure']
+        if bar - last_bar < 4:
+            continue
+        # The sampler's 50 ms release is included. Leave an extra margin on
+        # both sides so the answer does not smear into the next chart note.
+        start = at + dur + .05 + .12 * beat
+        end = next_at - .12 * beat
+        last_end = start + (motif[-1][0] + .32) * beat + .15
+        if last_end > end:
+            continue
+        anchor = L.note_pitch(song, bar, note['id'], semi=note.get('semi')) - 12
+        anchor = max(55, min(79, anchor))
+        previous = None
+        result = []
+        for index, (offset, interval) in enumerate(motif):
+            when = start + offset * beat
+            current_bar = min(L.measures(song) - 1, max(0, int((when - song['offset']) / L.measure(song))))
+            root, tones = L.chord_for_measure(song, current_bar)
+            candidates = [song['tonic'] + root + tone + octave
+                          for tone in tones for octave in (0, 12, 24, 36)
+                          if 45 <= song['tonic'] + root + tone + octave <= 88]
+            target = anchor + interval
+            # On a changed contour prefer a different chord tone if available.
+            if previous is not None and interval != motif[index - 1][1]:
+                direction = 1 if interval > motif[index - 1][1] else -1
+                directed = [p for p in candidates if (p - previous) * direction > 0]
+                if directed:
+                    candidates = directed
+            pitch = min(candidates, key=lambda p: abs(p - target))
+            result.append((when, pitch, .32 * beat, (.60, .46, .52)[index]))
+            previous = pitch
+        yield from result
+        last_bar = bar
+
+
+def rhythm_landmarks(song, part):
+    """Shape four-bar phrases; make a small breath before a major return.
+
+    These are mixer movements, not note-time changes. The gentle transitions are
+    deterministic and keep kick, snare and hats together as a played kit.
+    """
+    if part not in ('drums', 'bass'):
+        raise ValueError('unknown rhythm part')
+    sections = L.sections(song)
+    measure = L.measure(song)
+    beat = L.beat(song)
+    total = L.length(song)
+    points = [(0.0, .88 if part == 'drums' else .92)]
+    for i, sec in enumerate(sections):
+        start = sec['time'] / 1000.0
+        for bar in range(sec['measures']):
+            # Unequal weights make each four-bar period breathe rather than
+            # repeating the exact same mixer level from one bar to the next.
+            shape = (.82, .96, .89, 1.0)[bar % 4]
+            if sec['role'] in ('drop', 'finale'):
+                shape = .9 + .1 * shape
+            if part == 'bass':
+                shape = .55 + .45 * shape
+            points.append((start + bar * measure, shape))
+        if i + 1 < len(sections):
+            nxt = sections[i + 1]
+            boundary = nxt['time'] / 1000.0
+            if nxt['role'] in ('drop', 'finale') and sec['role'] not in ('intro', 'break'):
+                depth = .40 if part == 'drums' else .72
+                points.append((boundary - .65 * beat, 1.0))
+                points.append((boundary - .22 * beat, depth))
+    points.append((total, .92))
+    return sorted(points)
+
+
+def shape_rhythm(song, signals, part):
+    points = rhythm_landmarks(song, part)
+    n = len(signals[0])
+    curve = np.interp(np.arange(n) / SR,
+                      [time for time, _ in points], [level for _, level in points])
+    for signal in signals:
+        signal *= curve
+
+
 # --------------------------------------------------------------------------- #
 # The instrumentals
 # --------------------------------------------------------------------------- #
@@ -577,6 +772,7 @@ def render_song(song):
     pad_l, pad_r = empty(total), empty(total)
     lead_o, lead_p = empty(total), empty(total)
     fx_s = empty(total)
+    piano_l, piano_r = empty(total), empty(total)
 
     secs = L.sections(song)
     roles = section_roles(song)
@@ -600,6 +796,20 @@ def render_song(song):
         # Wide: one take per side, the right side delayed a few ms.
         add_at(pad_l, sig, t0, 0.62)
         add_at(pad_r, sig, t0 + 0.011, 0.62)
+
+    # A recorded upright piano gives the harmony a human, fragile centre. The
+    # notes are new chord-based accompaniment; the vocals retain chart timing.
+    answers = list(piano_answers(song))
+    # Let an answer speak: remove accompaniment attacks immediately around it.
+    accompaniment = [event for event in piano_events(song)
+                     if all(abs(event[0] - answer[0]) > .55 * beat for answer in answers)]
+    for i, (at, midi, dur, velocity) in enumerate(accompaniment + answers):
+        note = piano_note(midi, dur)
+        # Alternate gently across the room; never hard-pan the core instrument.
+        pan_pos = (-.20 if i % 2 else .20)
+        l, r = pan(note, pan_pos)
+        add_at(piano_l, l, at, velocity * .95)
+        add_at(piano_r, r, at + .008, velocity * .95)
 
     # ---- bass ------------------------------------------------------------- #
     for m in range(total_measures):
@@ -874,6 +1084,11 @@ def render_song(song):
         if (m + 1) % 8 == 0:
             drum_fill(t0 + 3 * beat + nudge, beat, loudness=0.55 + 0.35 * tier, seed=500 + m)
 
+    # The kit breathes at phrase boundaries and eases back before major
+    # returns; no note or chart timestamps are shifted.
+    shape_rhythm(song, (kick_s, snare_s, hat_l, hat_r), 'drums')
+    shape_rhythm(song, (bass_s,), 'bass')
+
     # ---- lead: literally the chart notes ---------------------------------- #
     lead_index = []
     for note in L.melodic_onsets(song):
@@ -899,7 +1114,7 @@ def render_song(song):
         target = lead_p if note["side"] == "player" else lead_o
         # The glitch arrangement's root bass is deliberately restrained so its
         # written b5 hook can speak through the broken percussion.
-        lead_level = 0.80 if style == "glitch" else 0.64
+        lead_level = 0.52 if style == "glitch" else 0.42
         add_at(target, sig, at, lead_level * accent * velocity * (0.75 + 0.35 * ROLE_GAIN[role]))
         # Finale: octave doubling makes the last act feel bigger.
         if role == "finale" and note["side"] == "player":
@@ -1004,9 +1219,13 @@ def render_song(song):
     sting = pad_chord(final_chord, max(0.4, total - end_at), gain=0.16, cutoff=2600.0)
     add_at(pad_l, sting, end_at, 0.8)
     add_at(pad_r, sting, end_at, 0.8)
-    add_at(fx_s, crash(2.0, seed=91), end_at, 0.32)
-    add_at(fx_s, sub_drop(1.8, 150.0, 26.0), end_at, 0.42)
-    add_at(kick_s, kick(drive=2.0), end_at, 0.8)
+    # Early songs end with unease rather than the same enormous explosion.
+    intensity = 0.26 if tier <= 2 else (0.55 if tier <= 4 else 0.78)
+    add_at(fx_s, crash(2.0, seed=91), end_at, 0.32 * intensity)
+    add_at(fx_s, sub_drop(1.8, 150.0, 26.0), end_at, 0.42 * intensity)
+    add_at(kick_s, kick(drive=1.2), end_at, 0.8 * intensity)
+    add_at(piano_l, piano_note(final_chord[0], max(.5, 1.8 * beat)), end_at, .50)
+    add_at(piano_r, piano_note(final_chord[-2], max(.5, 1.8 * beat)), end_at + .04, .40)
 
     # ---- dread layer ------------------------------------------------------ #
     # The scare rating was a label: the *audio* of the 10/10 song measured as
@@ -1090,12 +1309,14 @@ def render_song(song):
         "bass": (bass_s, 0.56, 0.56),
         "pad_l": (pad_l, 0.48, 0.18),
         "pad_r": (pad_r, 0.18, 0.48),
+        "piano_l": (piano_l, 0.85, 0.15),
+        "piano_r": (piano_r, 0.15, 0.85),
         # The finale's dense double-kick and FX mask its tune unless the
         # lead is pushed harder than in the earlier arrangements.
-        "lead_o": (lead_o, 1.65 if style == "finale" else 0.88,
+        "lead_o": (lead_o, 1.12 if style == "finale" else 0.88,
                    0.92 if style == "finale" else 0.49),
         "lead_p": (lead_p, 0.92 if style == "finale" else 0.49,
-                   1.65 if style == "finale" else 0.88),
+                   1.12 if style == "finale" else 0.88),
         "fx": (fx_s, 0.28, 0.28),
         "wet_l": (wet_l, 0.42, 0.05),
         "wet_r": (wet_r, 0.05, 0.42),
@@ -1118,7 +1339,7 @@ def render_song(song):
     # A quiet deterministic tape-hiss bed restores texture without exaggerating
     # transient hats; it is filtered and goes through the same master chain.
     if style == "trap":
-        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.055
+        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.025
         left += hiss
         right += np.roll(hiss, int(0.013 * SR))
         del hiss
@@ -1147,7 +1368,7 @@ def render_song(song):
     crushed = compress(0.5 * (left + right), threshold_db=-28.0, ratio=5.0, makeup_db=7.0)
     left = left + crushed * 0.16
     right = right + crushed * 0.16
-    left, right = widen(left, right, amount=2.2 + 0.2 * tier)
+    left, right = widen(left, right, amount=1.35 + 0.05 * tier)
 
     if style == "glitch":
         # Make the glitch song's breakdowns genuinely breathe: gently pull the
@@ -1168,6 +1389,12 @@ def render_song(song):
         left *= contrast
         right *= contrast
 
+    # The emotional arc is post-compression, so it cannot be squeezed flat by
+    # the master compressor. It is smooth over time, without section clicks.
+    arc = story_level(song, np.arange(n_total, dtype=np.float64) / max(1, n_total - 1))
+    left *= arc
+    right *= arc
+    del arc
     loudness = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))
     scale = TARGET_RMS / max(loudness, 1e-9)
     left, right = left * scale, right * scale
@@ -1182,6 +1409,90 @@ def render_song(song):
     return left, right
 
 
+@lru_cache(maxsize=128)
+def _recorded_vowel(midi):
+    """Pitch a CC0 sung vowel; filter before resampling to reduce aliasing.
+
+    The source is a sung A3 near 216 Hz.  The sample includes a gentle natural
+    pitch variation. Keep that performance rather than synthesizing formants.
+    """
+    import soundfile as sf
+    path = os.path.join(ROOT, "audio_src", "voices", "massey-sung-note.wav")
+    raw, sr = sf.read(path, dtype="float64")
+    if raw.ndim != 1 or sr != 48000:
+        raise ValueError("unexpected sung-vowel source format")
+    # Discard the initial pitch scoop and unvoiced end. Normalize only once,
+    # before pitching; the envelope below handles note boundaries.
+    raw = raw[int(.12 * sr):int(1.03 * sr)]
+    ratio = midi_to_hz(midi) / 216.0
+    raw = lowpass(raw, min(7500.0, SR * .43 / max(ratio, 1.0)), sr=sr)
+    raw = raw / max(np.max(np.abs(raw)), 1e-9)
+    # Crossfade into the next copy so sustained high notes have no abrupt seam.
+    overlap = int(.045 * sr)
+    stride = len(raw) - overlap
+    tiled = np.zeros(len(raw) + stride * 8)
+    for i in range(9):
+        part = raw.copy()
+        if i:
+            part[:overlap] *= np.linspace(0, 1, overlap)
+        if i < 8:
+            part[-overlap:] *= np.linspace(1, 0, overlap)
+        tiled[i * stride:i * stride + len(raw)] += part
+    # Pitch via resampling. The playback rate includes conversion from 48 kHz.
+    positions = np.arange(int(len(tiled) / (ratio * sr / SR))) * (ratio * sr / SR)
+    return np.interp(positions, np.arange(len(tiled)), tiled)
+
+
+def sampled_voice_note(midi, dur, dark=False):
+    """A playable, short sung chop with soft ends and a dry centre image."""
+    n = max(1, int((dur + .05) * SR))
+    src = _recorded_vowel(midi)
+    if len(src) < n:
+        raise ValueError("recorded vowel loop too short for note")
+    out = src[:n].copy()
+    # Let a held vowel open up and settle, rather than a flat loop.
+    phase = np.linspace(0., 1., n)
+    out *= .86 + .14 * np.sin(np.pi * phase)
+    attack = min(n // 3, int((.012 if dark else .008) * SR))
+    release = min(n // 3, int(.05 * SR))
+    out[:attack] *= np.linspace(0.0, 1.0, attack)
+    out[-release:] *= np.linspace(1.0, 0.0, release)
+    return out
+
+
+def vocal_performance(song):
+    """Chart-locked onsets with phrase-shaped dynamics and breathing room.
+
+    Never humanize onset time: a visible arrow and its voice must agree. Tap
+    lengths adapt to the next onset; authored holds retain their full duration.
+    """
+    notes = sorted(L.melodic_onsets(song), key=lambda n: n['time'])
+    sections = L.sections(song)
+    bounds = [section['time'] / 1000.0 for section in sections] + [L.length(song)]
+    beat, step = L.beat(song), L.step(song)
+    from bisect import bisect_right
+    for i, note in enumerate(notes):
+        at = note['time'] / 1000.0
+        section = max(0, min(len(sections) - 1, bisect_right(bounds, at + 1e-6) - 1))
+        phase = np.clip((at - bounds[section]) / max(.001, bounds[section + 1] - bounds[section]), 0., 1.)
+        next_at = notes[i + 1]['time'] / 1000.0 if i + 1 < len(notes) else L.length(song)
+        if note['sLen']:
+            dur = max(.10, note['sLen'] / 1000.0)
+        else:
+            # Faster exchanges use shorter syllables instead of overlapping
+            # multiple copies of the same recorded vowel.
+            desired = step * (2.4 if note['side'] == 'opponent' else 2.0)
+            dur = max(.045, min(desired, next_at - at - .055))
+        phrase_shape = .77 + .23 * math.sin(math.pi * phase) ** .8
+        local_step = (at - L.measure_time(song, note['measure']) / 1000.0) / beat
+        accent = 1.08 if abs(local_step - round(local_step)) < .03 else .92
+        if i and notes[i - 1]['side'] == note['side']:
+            diff = (note.get('semi') or 0) - (notes[i - 1].get('semi') or 0)
+            accent *= 1.05 if diff >= 4 else (.94 if diff <= -4 else 1.0)
+        expression = float(story_level(song, at / L.length(song))) * phrase_shape * accent
+        yield note, at, dur, expression
+
+
 def render_vocals(song):
     """The characters' vocal track -- `song/Voices.ogg`.
 
@@ -1191,10 +1502,9 @@ def render_vocals(song):
     (PlayState -> Paths.voices), so without this file the characters mouth the
     lyrics in silence.
 
-    Both characters are formant voices (`voice_note`): the player bright and
-    clean, the Trollge with shifted-down formants, sub-harmonic weight and a
-    controlled growl. The vowel changes note to note, and the two characters use
-    different vowel sets, which is most of what makes this read as singing.
+    Both singers use differently pitched versions of a CC0 recorded sung
+    vowel, rather than the old synthetic formant and growl voices. They are
+    original approximations, not the official character voice samples.
     """
     total = L.length(song)
     n_total = int(round(total * SR))
@@ -1202,22 +1512,15 @@ def render_vocals(song):
     player = empty(total)
     opponent = empty(total)
 
-    for index, note in enumerate(L.melodic_onsets(song)):
-        at = note["time"] / 1000.0
-        dur = max(0.20, note["sLen"] / 1000.0 if note["sLen"] else step * 2.2)
+    for note, at, dur, expression in vocal_performance(song):
         midi = L.note_pitch(song, note["measure"], note["id"], semi=note.get("semi"))
         if note["side"] == "player":
-            vowel = PLAYER_VOWELS[note["id"] % len(PLAYER_VOWELS)]
-            add_at(player, voice_note(midi, dur, dark=False, vowel=vowel,
-                                      seed=index, scoop=0.030, vibrato=0.011), at, 1.0)
+            add_at(player, sampled_voice_note(midi, dur), at, expression)
         else:
-            vowel = TROLLGE_VOWELS[note["id"] % len(TROLLGE_VOWELS)]
-            add_at(opponent, voice_note(midi - 12, dur * 1.02, dark=True, vowel=vowel,
-                                        seed=index + 17, scoop=0.040, vibrato=0.0085,
-                                        growl=0.55), at, 1.0)
+            add_at(opponent, sampled_voice_note(midi - 12, dur, dark=True), at, expression)
 
     # One plate for both singers, spread with a few ms of side delay.
-    wet = reverb(0.35 * (player + opponent), wet=0.24, size=0.72)
+    wet = reverb(0.22 * (player + opponent), wet=0.18, size=0.55)
     wet_l, wet_r = haas(wet, 0.016)
     del wet
 
@@ -1235,8 +1538,8 @@ def render_vocals(song):
     # The vocal bus is finished with a presence lift and a de-harshed top: the
     # voices have to cut through the 1-4 kHz pocket the instrumental leaves open
     # (see render_song), not fight the cymbals above it.
-    vocal_eq = [(90.0, -6.0), (180.0, -1.0), (400.0, 1.5), (1100.0, 2.5),
-                (2600.0, 3.0), (4200.0, 1.5), (7000.0, -1.5), (10000.0, -4.0), (16000.0, -6.0)]
+    vocal_eq = [(90.0, -6.0), (180.0, -1.0), (400.0, 0.0), (1100.0, 0.0),
+                (2600.0, -1.0), (4200.0, -2.0), (7000.0, -3.0), (10000.0, -5.0), (16000.0, -7.0)]
     left = eq_curve(left, vocal_eq)
     right = eq_curve(right, vocal_eq)
     # Soft knee: tame the peaks the formant bank leaves, keep the body.
@@ -1244,10 +1547,9 @@ def render_vocals(song):
                     release_ms=90.0, makeup_db=1.5)
     right = compress(right, threshold_db=-18.0, ratio=2.2, attack_ms=6.0,
                      release_ms=90.0, makeup_db=1.5)
-    # -7.5 dBFS RMS against the instrumental's -14: the voice sits clearly on
-    # top, which audit_songs.py measures rather than assumes.
+    # Leave the vocal in the mix rather than forcing it 6.5 dB above the band.
     rms = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))
-    target = TARGET_RMS * 10.0 ** (6.5 / 20.0)
+    target = TARGET_RMS * 10.0 ** (-2.0 / 20.0)
     scale = target / max(rms, 1e-9)
     left, right = limiter(left * scale, 0.86), limiter(right * scale, 0.86)
     peak = max(float(np.max(np.abs(left))), float(np.max(np.abs(right))), 1e-9)

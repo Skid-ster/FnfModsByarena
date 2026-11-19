@@ -178,8 +178,15 @@ def check_menu():
             ok(0 < w <= sheet[0] and 0 < h <= sheet[1],
                "menus/mainmenu/%s: frame %r is %dx%d inside a %dx%d sheet"
                % (option, name, w, h, sheet[0], sheet[1]))
-        ok(any(frames[n][1] >= 100 for n in frames),
-           "menus/mainmenu/%s: every frame is shorter than 100 px" % option)
+        ok(bool(frames) and all(frames[n] == (392, 48) for n in frames),
+           "menus/mainmenu/%s: expected stable 392x48 frames for distinct hitboxes" % option)
+
+    menu_list = os.path.join(MOD, "data", "config", "menuItems.txt")
+    if ok(os.path.isfile(menu_list), "menuItems.txt is missing"):
+        with open(menu_list, encoding="utf-8") as f:
+            ok(f.read().splitlines() == MENU_OPTIONS, "menuItems.txt differs from the four supported choices")
+    for relative in ("data/states/MainMenuState/LIB_TrollgeMod.hx", "images/menus/title_logo.png"):
+        ok(os.path.isfile(os.path.join(MOD, relative)), "missing cinematic menu asset: %s" % relative)
 
     bg = os.path.join(MOD, "images", "menus", "menuBG.png")
     if ok(os.path.isfile(bg), "images/menus/menuBG.png is missing"):

@@ -1,0 +1,13 @@
+Third-party audio source notices
+
+The original music in this mod incorporates transformed samples from:
+
+Meta Piano, Meta Open Sound (Meta Platforms, Inc.)
+https://github.com/facebookincubator/Meta-open-sound/tree/main/systems/instruments/meta-piano
+Dedicated to the public domain under CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+
+voice-note.wav, Bart Massey / Portland State University Computer Science Sound
+https://github.com/pdx-cs-sound/wavs
+Dedicated to the public domain under CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/

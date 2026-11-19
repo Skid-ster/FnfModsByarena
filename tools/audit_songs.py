@@ -51,9 +51,9 @@ TARGETS = {
     "voices_peak_db": (-8.0, -0.50),  # the vocal track is there and never clips
     "voices_cover": (0.90, 1.01),     # share of chart notes with vocals under them
     "mixed_bars": (0, 0),             # a bar is sung by exactly one character
-    "air_pct": (1.5, 22.0),           # there is a top end
+    "air_pct": (0.8, 22.0),           # allow a deliberately dark trap mix, not zero air
     "sub_pct": (2.0, 38.0),           # the sub is not the whole mix
-    "width": (0.10, 0.95),            # stereo width in the mid/high band
+    "width": (0.05, 0.95),            # allow narrower mixes; side_mid also detects near-mono
     "side_mid": (-22.0, -3.0),        # side energy relative to mid, in dB
     "max_lane_run": (0, 3),           # no accidental jacks
     "true_peak_db": (-4.0, -0.10),    # inter-sample peaks stay below full scale
