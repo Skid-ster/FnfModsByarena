@@ -184,28 +184,3 @@ jobs:
 
             Requires [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) — this is not a Psych or
             YoshiCrafter mod.
-
-  publish-rc-once:
-    name: Publish v4.1.0-rc1 testing build
-    needs: [validate, charts-in-sync]
-    if: github.ref == 'refs/heads/arena/0840e676-fnfmodsbyarena'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Package validated tree
-        run: python3 tools/package_mod.py
-      - name: Publish tested candidate
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v4.1.0-rc1
-          target_commitish: ${{ github.sha }}
-          name: v4.1.0-rc1 — Soundtrack and presentation testing
-          body_path: docs/releases/v4.1.0-rc1.md
-          prerelease: true
-          files: |
-            dist/TrollgeMod.zip
-            dist/SuperScaryTrollge-v4.1.0-rc1.zip
-          fail_on_unmatched_files: true
