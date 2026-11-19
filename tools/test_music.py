@@ -101,6 +101,98 @@ class MusicTests(unittest.TestCase):
             measured = A.SR / (lo + np.argmax(corr[lo:hi]))
             self.assertLess(abs(measured / expected - 1), .035)
 
+    def test_story_accompaniment_tracks_chart_harmony_and_varies_by_song(self):
+        rhythms = set()
+        for song in L.SONGS:
+            events = list(A.piano_events(song))
+            answers = list(A.piano_answers(song))
+            self.assertGreater(len(events), L.measures(song))
+            self.assertGreater(len(answers), 0)
+            self.assertTrue(all(0 <= at < L.length(song) and 0 < dur <= 2 * L.measure(song)
+                                and velocity > 0 for at, pitch, dur, velocity in events + answers))
+            rhythms.add(tuple(event[0] for event in A.PIANO_PATTERNS[song['id']]))
+            for at, pitch, _, _ in events:
+                self.assertTrue(40 <= pitch <= 100)
+                bar = int(round((at - song['offset']) / L.step(song))) // 16
+                root, tones = L.chord_for_measure(song, bar)
+                pcs = {(song['tonic'] + root + tone) % 12 for tone in tones}
+                self.assertIn(pitch % 12, pcs)
+            arc = A.story_level(song, np.linspace(0, 1, 100))
+            self.assertGreater(np.max(arc) - np.min(arc), .3)
+            self.assertTrue(np.isfinite(arc).all())
+        self.assertEqual(len(rhythms), len(L.SONGS))
+
+    def test_phrase_performance_keeps_chart_onsets_and_holds(self):
+        for song in L.SONGS:
+            performance = list(A.vocal_performance(song))
+            notes = sorted(L.melodic_onsets(song), key=lambda n: n['time'])
+            self.assertEqual(len(performance), len(notes))
+            expressions = []
+            for i, (note, at, dur, level) in enumerate(performance):
+                self.assertEqual(note, notes[i])
+                self.assertEqual(at, note['time'] / 1000)
+                self.assertGreater(level, 0)
+                if note['sLen']:
+                    self.assertGreaterEqual(dur, note['sLen'] / 1000)
+                elif i + 1 < len(notes) and notes[i + 1]['time'] > note['time']:
+                    gap = (notes[i + 1]['time'] - note['time']) / 1000
+                    if gap >= .10:
+                        self.assertLessEqual(dur + .05, gap + 1e-8)
+                expressions.append(level)
+            self.assertGreater(max(expressions) - min(expressions), .25)
+            self.assertEqual(performance, list(A.vocal_performance(song)))
+
+    def test_authored_answers_fit_silent_spaces_and_local_chords(self):
+        for song in L.SONGS:
+            answers = list(A.piano_answers(song))
+            self.assertGreaterEqual(len(answers), 6, song['id'])
+            self.assertEqual(len(answers) % 3, 0)
+            performance = list(A.vocal_performance(song))
+            for i in range(0, len(answers), 3):
+                phrase = answers[i:i + 3]
+                start = phrase[0][0]
+                finish = phrase[-1][0] + phrase[-1][2] + .15
+                self.assertTrue(any(at + dur + .05 <= start and finish <= nxt[1]
+                                    for (_, at, dur, _), nxt in zip(performance, performance[1:])), song['id'])
+                for (at, pitch, dur, _), (offset, _) in zip(phrase, A.ANSWER_MOTIFS[song['id']]):
+                    self.assertAlmostEqual(at - start, offset * L.beat(song))
+                    bar = min(L.measures(song) - 1, max(0, int((at - song['offset']) / L.measure(song))))
+                    root, tones = L.chord_for_measure(song, bar)
+                    self.assertIn(pitch % 12, {(song['tonic'] + root + t) % 12 for t in tones})
+                    self.assertGreater(dur, 0)
+
+    def test_rhythm_automation_breathes_and_stays_bounded(self):
+        for song in L.SONGS:
+            for part in ('drums', 'bass'):
+                points = A.rhythm_landmarks(song, part)
+                self.assertEqual(points[0][0], 0)
+                self.assertEqual(points[-1][0], L.length(song))
+                self.assertTrue(all(0 <= at <= L.length(song) and .35 <= level <= 1.0
+                                    for at, level in points))
+                self.assertTrue(all(a[0] < b[0] for a, b in zip(points, points[1:])))
+                self.assertGreater(len(set(v for _, v in points)), 3)
+
+    def test_story_landmarks_follow_actual_section_boundaries(self):
+        for song in L.SONGS:
+            sections = L.sections(song)
+            points = A.STORY_ARCS[song['id']]
+            self.assertEqual(points[-1][0], len(sections))
+            for index, value in points:
+                at = (sections[index]['time'] / 1000 if index < len(sections) else L.length(song))
+                self.assertAlmostEqual(A.story_level(song, at / L.length(song)), value)
+            for index, value in points:
+                if index < len(sections) and sections[index]['role'] == 'break':
+                    self.assertLessEqual(value, .45)
+
+    def test_piano_sampler_has_soft_edges_and_correct_duration(self):
+        for pitch in (50, 59, 64, 71, 78, 85, 90):
+            note = A.piano_note(pitch, .8)
+            self.assertTrue(np.isfinite(note).all())
+            self.assertGreater(np.max(np.abs(note)), .02)
+            self.assertAlmostEqual(note[0], 0.0)
+            self.assertAlmostEqual(note[-1], 0.0)
+            self.assertLessEqual(len(note), int(.95 * A.SR))
+
     def test_glitch_bass_does_not_jump_to_tritone(self):
         audio = A.bass_for("glitch", 45, .7, 6)
         self.assertTrue(np.isfinite(audio).all())

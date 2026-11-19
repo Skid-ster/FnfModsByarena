@@ -35,3 +35,51 @@ intentional darker, narrower mix; it still checks air, width and side/mid energy
 The melody-band mix report now measures the decoded equal-gain **sum** of both
 stems instead of treating the quietened instrumental lead as the whole melody.
 It does not model the engine muting vocals on misses or its actual gain settings.
+
+## The Trollge Files reference and 4.1.0-rc1 arrangement
+
+The user requested *The Trollge Files / The Blueballs Incident* as a reference.
+The [track listing](https://fridaynightfunking.fandom.com/wiki/The_Trollge_Files)
+credits EZHALT for **Sadness**, **Rage**, **Incident** and **Redemption** and
+lists different tempos and minor keys; the story's emotional framing moves
+between sadness, rage, conflict and redemption, not simply escalating noise.
+The [character notes](https://fridaynightfunking.fandom.com/wiki/The_Trollge_Files/Characters)
+also describe how the credits move between ideas from those songs. These sources
+support a narrative-contrast direction, not an assertion that every track uses
+a particular instrument.
+
+For analysis only, instrumentals in the publicly accessible
+[Dxgamer7405/Trollge-Files repository](https://github.com/Dxgamer7405/Trollge-Files)
+were inspected using non-overlapping four-second RMS windows, without a
+listening test. Approximate 10th-to-90th percentile ranges were **11.5 dB**
+for Sadness, **11.6 dB** for Rage, **5.4 dB** for Incident and **11.2 dB**
+for Redemption; these are dynamic measurements, not measures of emotion or
+proof of an exact sonic match. No reference audio or melody is shipped or
+reproduced.
+
+Our independent arrangement uses new chord-based piano figures and answers,
+section-aware register/velocity, different long-form rises and retreats per
+song, and softer first-song endings. The existing authored charts and vocal
+melodies remain unchanged. Seven [Meta Piano](https://github.com/facebookincubator/Meta-open-sound/tree/main/systems/instruments/meta-piano)
+upright samples (CC0) are included in `audio_src/piano/`, retuned and
+enveloped by the renderer. Listening and real gameplay are still necessary to
+judge emotion, similarity, voice character and mix.
+
+## Phrase-focused revision in 4.1.0-rc1
+
+The next arrangement keeps the charted melodies and adds five distinct,
+original three-note piano gestures. They are fitted to the local bar's chord
+and placed only in sufficiently long vocal rests, with space for the piano's
+release. Each song's dynamics now follow authored section boundaries instead
+of equal time fractions; drums and bass have four-bar movement and a small
+breath before major returns. Vocal tap lengths respond to the next note,
+while authored holds and every chart-aligned onset are preserved. Phrase
+contour, beat accent, note direction and story landmarks shape vocal intensity.
+The two characters still use different pitches of the same CC0 vowel sample,
+so this is not a substitute for separately recorded character performances.
+
+These are compositional intentions, not a verified claim about emotional
+impact. `previews/music/` contains equal-gain mixes around each breakdown;
+they omit in-engine vocal muting, volume settings and event sound effects.
+Listen to the complete songs and play them in Codename before judging the mix
+or whether the new phrases feel right.

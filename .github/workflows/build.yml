@@ -39,6 +39,7 @@ jobs:
       - name: Test battle presentation regressions
         run: |
           python3 tools/test_polish.py
+          python3 tools/test_battle_visuals.py
           python3 tools/test_stage_bounds.py
           python3 tools/make_stage_preview.py
 
@@ -148,8 +149,19 @@ jobs:
           prerelease: true
           fail_on_unmatched_files: true
 
+      - name: Attach v4.1.0-rc1 testing archives
+        if: github.ref == 'refs/tags/v4.1.0-rc1'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v4.1.0-rc1.zip
+          body_path: docs/releases/v4.1.0-rc1.md
+          prerelease: true
+          fail_on_unmatched_files: true
+
       - name: Create release
-        if: github.ref != 'refs/tags/v3.8.0' && github.ref != 'refs/tags/v3.9.0' && github.ref != 'refs/tags/v4.0.0'
+        if: github.ref != 'refs/tags/v3.8.0' && github.ref != 'refs/tags/v3.9.0' && github.ref != 'refs/tags/v4.0.0' && github.ref != 'refs/tags/v4.1.0-rc1'
         uses: softprops/action-gh-release@v2
         with:
           # TrollgeMod.zip is the installable one: Codename names a mod after the
@@ -172,3 +184,28 @@ jobs:
 
             Requires [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) — this is not a Psych or
             YoshiCrafter mod.
+
+  publish-rc-once:
+    name: Publish v4.1.0-rc1 testing build
+    needs: [validate, charts-in-sync]
+    if: github.ref == 'refs/heads/arena/0840e676-fnfmodsbyarena'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Package validated tree
+        run: python3 tools/package_mod.py
+      - name: Publish tested candidate
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v4.1.0-rc1
+          target_commitish: ${{ github.sha }}
+          name: v4.1.0-rc1 — Soundtrack and presentation testing
+          body_path: docs/releases/v4.1.0-rc1.md
+          prerelease: true
+          files: |
+            dist/TrollgeMod.zip
+            dist/SuperScaryTrollge-v4.1.0-rc1.zip
+          fail_on_unmatched_files: true

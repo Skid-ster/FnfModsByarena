@@ -77,8 +77,8 @@ void main() {
 	col *= mix(1.0, vig, uVignette);
 	col = mix(col, col * vec3(0.93, 0.97, 1.06), (1.0 - vig) * uIntensity * 0.7);
 
-	// Colour lift: more contrast and saturation the scarier the song gets.
-	col = (col - vec3(0.5)) * (1.0 + 0.12 * uIntensity) + vec3(0.5);
+	// Gentle contrast and saturation: preserve detail in already-dark artwork.
+	col = (col - vec3(0.5)) * (1.0 + 0.04 * uIntensity) + vec3(0.5);
 	float luma = dot(col, vec3(0.299, 0.587, 0.114));
 	col = mix(vec3(luma), col, 1.0 + 0.22 * uIntensity);
 

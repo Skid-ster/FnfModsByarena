@@ -1,10 +1,10 @@
 # Development status
 
-The v4.0.0 testing release includes menu, battle and soundtrack changes beyond v3.9.0; it is not engine-verified. No Codename Engine runtime, GPU rendering test, or playback/listening test was available in this environment. A standalone GLSL compiler was used with a minimal preamble.
+The v4.0.0 testing release includes menu, battle and earlier soundtrack changes beyond v3.9.0; it is not engine-verified. The v4.1.0-rc1 testing release includes the later soundtrack and visual changes. No Codename Engine runtime, GPU rendering test, or playback/listening test was available in this environment. A standalone GLSL compiler was used with a minimal preamble.
 
 ## Checks run on this checkout
 
-- `python3 tools/validate_mod.py`: 2386 checks, 0 errors, 0 warnings.
+- `python3 tools/validate_mod.py`: 2387 checks, 0 errors, 0 warnings.
 - `python3 tools/audit_songs.py --strict`: all metrics inside target windows.
 - `python3 tools/mix_report.py --strict`: all five melody/bass energy ratios
   above 1.0, crest factors in range.
@@ -12,6 +12,7 @@ The v4.0.0 testing release includes menu, battle and soundtrack changes beyond v
 - `python3 tools/test_music.py`: music generation regression tests.
 - `python3 tools/check_stem_mix.py`: decoded equal-gain stem-sum peak estimates.
 - `python3 tools/dread_report.py --strict`: dread ladder within its tolerance.
+- `python3 tools/test_battle_visuals.py`: lane colours, note contrast, frame-edge clipping, hold seams and HUD effect routing.
 - `python3 tools/test_polish.py`: character wiring, chart timing, note contrast, countdown bounds and seeded texture checks pass.
 - `python3 tools/test_stage_bounds.py`: 800 projected battle frames pass; minimum modelled margin 48.8 px at static zooms 0.95 and 1.05.
 - `python3 tools/test_glsl_compile.py`: both shaders compile for desktop GLSL 330/410 and ES 300 with a minimal Flixel-compatible preamble.
@@ -25,6 +26,14 @@ These are measurements and static models, not proof that the songs sound good,
 the shaders compile on a user's GPU, or Freeplay opens on an engine build.
 
 ## Music changes
+
+The 4.1.0-rc1 arrangement adds recorded upright piano and new harmonised
+figures. The latest revision gives each song a distinct three-note answering
+gesture in vocal rests, ties dynamic landmarks to chart sections, shapes the kit
+and bass across phrases, and varies vocal articulation and expression without
+moving chart onsets or shortening written holds. The existing chart melodies
+and song lengths remain unchanged. Five equal-gain breakdown excerpts are in
+`previews/music/`. None has been auditioned here or tested in-engine.
 
 The current work-in-progress rebuild replaces song-stem formant synthesis with
 pitched, looped CC0 recorded singing, while keeping existing authored chart
@@ -75,7 +84,7 @@ The finale note skin retains distinct lane colours; READY fits its canvas; the
 inversion is shorter, less opaque, and shows a negative of the room. Background
 and noteskin textures are seeded. These changes have not been tested in-engine.
 
-## Unreleased menu and battle pass
+## Menu and battle pass in v4.1.0-rc1
 
 The menu was rebuilt again to follow the user-supplied cinematic reference:
 a generated Trollge hallway scene, distressed title and compact left-side
@@ -89,3 +98,16 @@ HUD still. Shipped songs use their existing vocal stem instead of doubled hit
 samples. Real engine testing is
 still needed for menu states, animated character feet, camera movement, shader
 effects, HUD readability and the audio mix. Scripted flashes and scares remain.
+
+## Visual readability pass in v4.1.0-rc1
+
+Arrow scratch masks now affect the scratches only; note/receptor contrast and
+lane colours remain distinct through the four skins. Sustain bodies tile at
+matching edges, with compatible caps. HUD CRT motion and edge darkening are
+disabled; scare overlays and flashes use the game camera instead. The two
+game-camera vignettes and VHS contrast are restrained to retain shadow detail.
+`battle_preview.png` is a static atlas composite on cropped backdrops, not a
+render of the game, shaders, splash animation, camera or timing. The grade
+preview approximates VHS alone, not the subsequent CRT. Actual effects coverage,
+GPU compatibility, holds and reading under motion remain to be play-tested.
+The packaged mod now includes CC0 third-party audio source notices.

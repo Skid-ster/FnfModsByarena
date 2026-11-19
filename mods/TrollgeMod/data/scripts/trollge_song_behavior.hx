@@ -193,7 +193,7 @@ function trollgeCaption(a = null, b = null, c = null):Void {
 function trollgeJumpScare(a = null):Void {
 	var ps = PlayState.instance;
 	var spr = new FlxSprite(0, 0).loadGraphic(Paths.image('trollge_jump_scare'));
-	spr.cameras = [ps.camHUD];
+	spr.cameras = [ps.camGame];
 	spr.scrollFactor.set();
 	spr.antialiasing = false;
 	spr.setGraphicSize(FlxG.width, FlxG.height);
@@ -217,8 +217,8 @@ function trollgeJumpScare(a = null):Void {
 function trollgeScreenShake(a = null):Void {
 	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.75);
 	shake(8.0 + 2.0 * scareTier, 0.8);
-	if (PlayState.instance.camHUD != null)
-		PlayState.instance.camHUD.flash(FlxColor.fromRGB(120, 0, 0), 0.25);
+	if (PlayState.instance.camGame != null)
+		PlayState.instance.camGame.flash(FlxColor.fromRGB(120, 0, 0), 0.25);
 }
 
 function trollgeDistort(a = null):Void {
@@ -245,7 +245,7 @@ function trollgeInvert(a = null):Void {
 	var ps = PlayState.instance;
 	if (invertSpr == null) {
 		invertSpr = new FlxSprite(0, 0).loadGraphic(Paths.image('trollge_invert'));
-		invertSpr.cameras = [ps.camHUD];
+		invertSpr.cameras = [ps.camGame];
 		invertSpr.scrollFactor.set();
 		invertSpr.setGraphicSize(FlxG.width, FlxG.height);
 		invertSpr.updateHitbox();
@@ -275,7 +275,7 @@ function create() {
 
 	var ps = PlayState.instance;
 	staticSpr = new FlxSprite(0, 0).loadGraphic(Paths.image('trollge_static'));
-	staticSpr.cameras = [ps.camHUD];
+	staticSpr.cameras = [ps.camGame];
 	staticSpr.scrollFactor.set();
 	staticSpr.setGraphicSize(FlxG.width, FlxG.height);
 	staticSpr.updateHitbox();

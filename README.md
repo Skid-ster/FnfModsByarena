@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/Skid-ster/FnfModsByarena?label=release)](../../releases/latest)
 ![Engine](https://img.shields.io/badge/engine-Codename-9C35D5)
 ![Songs](https://img.shields.io/badge/songs-5-C4101E)
-![Checks](https://img.shields.io/badge/validator-2386%20checks%20%C2%B7%200%20warnings-3A7D44)
+![Checks](https://img.shields.io/badge/validator-2387%20checks%20%C2%B7%200%20warnings-3A7D44)
 
 ![Super Scary Trollge](docs/banner.jpg)
 
@@ -18,9 +18,9 @@ looks back at you.
 **Launch it and you land in the mod's own menu** — no vanilla "press enter" screen, no base-game death theme, no
 default arrows, no default shaders.
 
-**[⬇ Download v4.0.0 testing release](../../releases/tag/v4.0.0)** · [install in four steps](#install) · [see what's inside](#whats-inside)
+**[⬇ Download v4.1.0-rc1 testing release](../../releases/tag/v4.1.0-rc1)** · [install in four steps](#install) · [see what's inside](#whats-inside)
 
-## Unreleased menu and battle polish
+## v4.1.0-rc1: soundtrack, menu and battle testing
 
 The source checkout includes a cinematic menu rebuilt around a user-provided
 reference image, redesigned HUD/countdown art, soft contact shadows, bounded
@@ -30,7 +30,15 @@ are in [UI research](docs/ui-research.md). Songs with
 second sample. All five song stems have been rebuilt with recorded sung-vowel
 chops, reduced competing lead levels, narrower stereo and a gentler vocal mix.
 Both characters use different pitches of the same singer; these are not official
-BF or Trollge recordings. The v4.0.0 testing release includes these changes.
+BF or Trollge recordings. The published v4.0.0 testing release includes the
+menu and earlier vocal mix; the v4.1.0-rc1 testing release adds the soundtrack
+rearrangement described below. The latest arrangement adds a different original
+three-note piano answer for each song, places those answers in chart vocal rests,
+and shapes drum, bass and vocal dynamics around phrase and breakdown boundaries.
+Vocal attacks remain chart-locked; tap syllables shorten to leave breathing
+room and sustained notes retain their written duration. The charts themselves
+have not changed. Equal-gain excerpt mixes are in `previews/music/`; regenerate
+them with `python3 tools/make_music_previews.py`.
 This pass has not been played or listened to in Codename Engine; flashes,
 static and scripted scares are still present.
 
@@ -57,7 +65,7 @@ Freeplay, shaders, positioning and effects in your engine build. See the
 | **Engine** | Codename Engine 1.x (HScript behaviours, `chartVersion 1.6.0`) — *not* Psych or YoshiCrafter |
 | **Content** | 5 songs × 3 difficulties (easy / normal / hard), story week + freeplay, 5 Trollge phases, 5 Boyfriend skins |
 | **Custom everything** | arrow skins ×4, splashes, HUD, health bar, countdown badges, fallback note-hit voices, cutscene art, main menu, death screen, two shaders |
-| **Verified** | `tools/validate_mod.py` — **2386 checks, 0 errors, 0 warnings**; `tools/audit_songs.py --strict` — every mix and chart metric inside its window |
+| **Verified** | `tools/validate_mod.py` — **2387 checks, 0 errors, 0 warnings**; `tools/audit_songs.py --strict` — every mix and chart metric inside its window |
 | **Sources** | charts and audio use `tools/song_layout.py` and `tools/phrases.py`; art generators also use the existing `art_src/` assets |
 
 ## The five songs
@@ -136,8 +144,9 @@ Freeplay in your Codename installation; the intended order is not guaranteed.
 ## Install
 
 1. Get [Codename Engine](https://github.com/CodenameCrew/CodenameEngine) and make sure it runs.
-2. Grab **`TrollgeMod.zip`** from the [releases page](../../releases). There is also
-   `SuperScaryTrollge-v4.0.0.zip` — identical contents, but **install from `TrollgeMod.zip`** (see the warning below).
+2. Grab **`TrollgeMod.zip`** from the [releases page](../../releases), or build
+   the source checkout locally. The versioned ZIP is identical to
+   its matching `TrollgeMod.zip`; **install from `TrollgeMod.zip`** (see below).
 3. Drop that **zip** into `mods/` — or extract it so you get `mods/TrollgeMod/data/…`.
 4. Launch the engine → **Mods** → pick **TrollgeMod**.
 5. The week *SUPER SCARY TROLLGE* shows up in story mode, and all five songs are in freeplay.
@@ -245,7 +254,7 @@ Charts call HScript functions through `HScript Call` events, implemented in
 | `trollgeToStatic` | 75 s of song 3: phase 2 collapses into phase 3 |
 | `trollgeFinalForm` | 60 s of song 4: static mess → red-eyed final form, with a stinger + hard shake |
 | `trollgeToSad` / `trollgeSad` | 84 s of song 5 / 96 s of song 4: he stops fighting. One pose. Stillness. |
-| `trollgeScreenShake` | Game camera shake with a HUD red flash |
+| `trollgeScreenShake` | Game camera shake with a game-camera red flash |
 | `trollgeDistort` | Glitch overlay + shake |
 | `trollgeStatic` | CRT static burst |
 | `trollgeInvert` | Corrupted-frame overlay while reality flips |
@@ -299,8 +308,13 @@ disappeared on the darker stages:
 * **the shadow skin** gets a cold metallic rim, a specular streak and a little static instead of being a flat desaturate.
 * **the torn skin** retains the four lane colours beneath its ember tint, with a brighter centre, red/cyan fringe,
   CRT rows, ink runs and burnt edges. This avoids the old near-monochrome red arrows on the final dark stage.
-* **holds** get the same treatment (a brighter centre rail plus the shared fringe/scanline/ink pass) so a sustained note
-  reads at a glance too.
+* **holds** use a continuous centre rail and repeatable edge-to-edge body tiles, with a matching tapered end cap.
+
+The 4.1.0-rc1 visual pass fixes a scratch mask that dimmed the whole
+arrow, strengthens the dark outline, preserves lane colour through corruption,
+and keeps note animation frames inside their existing engine-sized canvases.
+[Battle preview](docs/battle_preview.png) is a static atlas composite at an
+approximate 0.7 scale, not a screenshot or shader render.
 
 How each song gets its skin:
 
@@ -373,7 +387,14 @@ need listening tests.
 
 ### Audio
 
-All audio is synthesised with numpy (`tools/make_audio.py`) at 44.1 kHz stereo, exported as OGG/Vorbis.
+Audio is rendered by `tools/make_audio.py` at 44.1 kHz stereo and exported as OGG/Vorbis. The song vocals and piano use recorded CC0 samples; the other instruments and effects are synthesized.
+
+**The 4.1.0-rc1 arrangements** take inspiration from the emotional
+contrast of *The Trollge Files*: five original piano figures and short answers
+after vocal rests, a different rise/retreat curve for each song, and quieter
+early endings. Chords follow the existing chart harmony, and the existing vocal
+melodies and timings have not been rewritten. Neither music nor samples from
+*The Trollge Files* are copied into the mod. See [the research notes](docs/music-research.md).
 
 **The instrumentals are programmed from the chart notes**: hits get a
 deterministic timing nudge and velocity (swing on the off-16ths, a few milliseconds of human drift), the pads carry a
@@ -407,8 +428,8 @@ centroid + onset rate) has to stay above 0.10, see the generated song report for
 
 On top of that: snare fills and a riser + crash into every section that gets bigger, a horror layer per scare tier
 (dread drone → tape hiss → whisper swells → a breathing, detuned tritone → heartbeat, whispers and a choir root),
-scripted stingers behind every `HScript Call` event, and a **real ending**
-— the instruments stop two beats early so the last chord, crash and sub drop ring out (no lazy fade-out).
+scripted stingers behind `HScript Call` events, and ending chords whose impact
+is softer in the early songs.
 
 **Vocals.** Both voices are pitched and enveloped from Bart Massey’s CC0 sung
 note, not the official Boyfriend chromatic or a Trollge actor. The opponent sings
@@ -441,7 +462,7 @@ Numbers are not a substitute for listening or gameplay.
   film grain, vignette, then a small contrast/saturation lift so the grade sharpens the picture instead of washing
   it out;
 * intensity follows the scare tier (0.35 / 0.51 / 0.67 / 0.83 / 1.0) and every story event in the chart (`trollgeJumpScare`,
-  `trollgeInvert`, `trollgePhase2`…) punches `uGlitch` for 1.2 s; song 3 also twitches on every beat;
+  `trollgeInvert`, `trollgePhase2`…) punches `uGlitch` for 1.2 s; songs 4 and 5 also twitch on every beat;
 * all sampling is **clamped to the texture**, so the offsets never pull from outside the frame — that was causing
   the edges of the screen to smear/clip on the first pass;
 * the stage script resolves `FunkinShader` and `openfl.filters.ShaderFilter` at runtime and silently disables the
@@ -458,8 +479,8 @@ reviewed without launching the engine.
 * barrel curvature (pixels outside the tube become transparent, including on the HUD), red/blue chromatic
   aberration sampled per channel, horizontal tear bands while a glitch is up, scanlines, animated static grain and a
   corner vignette, in that order;
-* it is applied **twice**: `camGame` gets the VHS and CRT filters, `camHUD` gets its own CRT copy at roughly 60 % strength so
-  score, captions and the health bar stay readable;
+* it is applied **twice**: `camGame` gets the VHS and CRT filters, while `camHUD` gets subtle scanlines only;
+  HUD curvature, tears, grain, vignette and channel split are disabled to keep note geometry stable;
 * the ladder is `base = (scareTier - 2) / 8`, so 2/10 is a barely-there tube, 4/10 shows the scanlines, 6/10 starts
   splitting channels and 10/10 is a broken set — and `trollgeDistort` / `trollgeStatic` punch `uGlitch` on top;
 * uniforms are written per frame from `update(elapsed)` through one guarded setter, and every load, filter creation and
@@ -640,7 +661,8 @@ pip install pillow numpy soundfile
 python3 tools/make_characters.py  # imported atlases -> normalised atlases, icons, character XML (~25 s)
 python3 tools/make_art.py         # backdrops, VHS overlays, week banner, previews (~10 s)
 python3 tools/make_audio.py       # 5 instrumentals + 5 vocal tracks + stingers/themes/note voices (~18 min)
-python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt/torn) + splashes (~12 s)
+python3 tools/make_noteskin.py    # arrow skins (default/shadow/corrupt/torn) + splashes
+python3 tools/make_battle_preview.py # approximate static atlas composite
 python3 tools/make_hud.py         # health bar frame + READY/SET/GO badges
 python3 tools/make_chart.py       # meta.json, events.json, charts {easy,normal,hard}
 python3 tools/make_cutscenes.py   # cutscene scripts + their frames/letterbox art (~2 s)
@@ -651,13 +673,13 @@ python3 tools/make_stage_preview.py  # approximate idle framing -> docs/stage.pn
 python3 tools/test_stage_bounds.py   # projected bounds for all battle animation frames
 python3 tools/test_glsl_compile.py   # needs glslangValidator; minimal-preamble GLSL compile
 python3 tools/make_grade_preview.py  # re-renders the shader maths in numpy -> docs/grade.png
-python3 tools/validate_mod.py     # 2386 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
+python3 tools/validate_mod.py     # 2387 checks: schemas, atlas bounds, skins, HUD, note times, audio length, one character per bar...
 python3 tools/audit_songs.py      # mix + chart-style metrics -> docs/song_report.md (--strict for CI)
 python3 tools/melody_report.py    # hard-chart melody metrics (--strict for CI)
 python3 tools/test_music.py       # pitch, harmony, arrangement and stem-gain regressions
 python3 tools/check_stem_mix.py  # decoded equal-gain stem-sum peak estimate
 python3 tools/dread_report.py     # dread-band spectral proxy with 3 dB tolerance (--strict for CI)
-python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v4.0.0.zip
+python3 tools/package_mod.py      # dist/TrollgeMod.zip + dist/SuperScaryTrollge-v4.1.0-rc1.zip
                                   # (175 files, includes shaders/ + music/; install the TrollgeMod one)
 ```
 
@@ -691,6 +713,7 @@ follow.
 * **Boyfriend / stage audio-engine conventions:** Friday Night Funkin' by Funkin' Crew.
 * **Trollge and Boyfriend art (`art_src/`):** drawn by the project owner and imported unchanged by
   `tools/make_characters.py` — credited to them, not covered by this repo's MIT licence.
+* **Piano samples:** [Meta Piano](https://github.com/facebookincubator/Meta-open-sound/tree/main/systems/instruments/meta-piano) (CC0), retuned, trimmed and enveloped for the new arrangements.
 * **Sung-vowel source:** [Bart Massey, voice-note.wav](https://github.com/pdx-cs-sound/wavs/blob/main/voice-note.wav) (CC0); modified through trimming, filtering, looping, pitch shifting and envelopes for the song vocals.
 * **Charts, original compositions, scripts, backdrops, overlays, tooling:** made for this repo (MIT, see `LICENSE`); the recorded vocal source is separately licensed as noted above.
 * **Stage backdrops:** graded from a horror backdrop image in `art_src/scary_bg.png`.

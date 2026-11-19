@@ -29,7 +29,7 @@ MOD = os.path.join(ROOT, "mods", "TrollgeMod")
 DIST = os.path.join(ROOT, "dist")
 
 #: Folders that belong in the shipped archive.
-INCLUDE = ["data", "images", "music", "shaders", "songs", "sounds", "mod.json"]
+INCLUDE = ["data", "images", "music", "shaders", "songs", "sounds", "mod.json", "THIRD_PARTY_NOTICES.txt"]
 
 #: Top-level entries that stay out of the archive on purpose.
 EXCLUDE = {"README.md", "LICENSE", "preview.png"}

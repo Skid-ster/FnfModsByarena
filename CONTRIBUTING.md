@@ -51,6 +51,8 @@ python3 tools/test_stage_bounds.py   # model every battle frame at both zooms
 
 python3 tools/validate_mod.py  # must print VALIDATION PASSED
 python3 tools/test_polish.py    # character wiring, effect timing, HUD and notes
+python3 tools/test_battle_visuals.py # atlas bounds, hold seams and HUD routing
+python3 tools/make_battle_preview.py # approximate static atlas composite
 python3 tools/audit_songs.py   # mix + chart style report; --strict fails on a metric outside its window
 ```
 
@@ -110,6 +112,11 @@ sum at equal stem gain, not actual engine playback or standards-compliant true p
   in `images/ui/`. Never hand-edit the `.hx` files, CI diffs them.
 * **Difficulties** come from `notes(song, difficulty)`: hard applies tier spacing, normal drops one in four of those notes, and easy keeps every second.
   Do not hand-write an easy chart — it is a strided subset, so the three charts can never disagree about timing.
+* **Story arrangements** use `STORY_ARCS`, `PIANO_PATTERNS`, `piano_events()`
+  and `piano_answers()` in `make_audio.py`: original chord-based parts and
+  smooth intensity curves follow each song's chart/harmony without modifying
+  note timings. The upright samples under `audio_src/piano/` are CC0 Meta
+  Piano recordings. Keep sample provenance and audition stems together.
 * **Song identity** is `"style"` in `song_layout.py` (`bounce`, `trap`, `glitch`, `industrial`, `finale`). Each style
   picks its own kit,
   bass and lead voice from `kick_for` / `snare_for` / `hat_for` / `bass_for` / `lead_for` and its own groove in
