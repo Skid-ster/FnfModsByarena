@@ -3,8 +3,10 @@
 Renders every audio asset of the Super Scary Trollge mod.
 
 Per song (songs/<id>/song/Inst.ogg):
-    the instrumental, built FROM the chart notes of that song, with the horror
-    dialled up per scare tier (2/10, 4/10, 7/10).
+    the instrumental, rebuilt as a real dark electronic piece -- each song its
+    own sub-genre (dark bounce / dark trap / dark glitch / industrial / dark
+    ambient industrial) with Reese bass, distorted saw leads, 808 slides,
+    cinematic drums and horror layers that scale with the scare tier.
 
 Shared (sounds/):
     trollge_theme.ogg / trollge_theme_scary.ogg   cutscene + menu music
@@ -40,65 +42,185 @@ MOD = os.path.join(ROOT, "mods", "TrollgeMod")
 SFX_DIR = os.path.join(MOD, "sounds")
 MUSIC_DIR = os.path.join(MOD, "music")
 
-#: Loudness the instrumentals are mastered to (RMS, linear). -15.5 dBFS is loud
-#: enough for a game mix without squashing the quiet sections.
 TARGET_RMS = 10.0 ** (-14.0 / 20.0)
 
+SONG_STYLES = {
+    "trolling": "dark_bounce",
+    "getting-dark": "dark_trap",
+    "dont-look-back": "dark_glitch",
+    "super-scary": "industrial",
+    "the-incident": "dark_ambient",
+}
+
+ROLE_GAIN = {
+    "intro": 0.10,
+    "verse": 0.70,
+    "build": 0.86,
+    "drop": 1.04,
+    "break": 0.18,
+    "finale": 1.12,
+}
+
+
+def tier_for(scare):
+    if scare <= 2:
+        return 1
+    if scare <= 4:
+        return 2
+    if scare <= 6:
+        return 3
+    if scare <= 8:
+        return 4
+    return 5
+
 
 # --------------------------------------------------------------------------- #
-# Instruments
+# Dark electronic instrument library
 # --------------------------------------------------------------------------- #
 
-def kick(dur=0.42, drive=1.0, tune=1.0):
-    """A kick with weight, not a click.
+def _env(n, attack, decay, sustain, release):
+    a = max(1, int(attack * SR))
+    d = max(1, int(decay * SR))
+    r = max(1, int(release * SR))
+    s = max(0, n - a - d - r)
+    return np.concatenate([
+        np.linspace(0.0, 1.0, a, endpoint=False),
+        np.linspace(1.0, sustain, d, endpoint=False),
+        np.full(s, sustain),
+        np.linspace(sustain, 0.0, r),
+    ])[:n]
 
-    Pitch envelope 90 -> 54 Hz over ~40 ms, a soft attack ramp so the transient
-    has no click, and no saturation by default: the sub is already a sine, so
-    drive only adds harmonics nobody wants in a 50-90 Hz band.
-    """
-    n = int(dur * SR)
+
+def reese_bass(f, n, tier, slide_to=None):
     t = np.arange(n) / SR
-    start_hz, end_hz = 90.0 * tune, 54.0 * tune
-    freq = end_hz + (start_hz - end_hz) * np.exp(-t * 26.0)
+    detune = 0.012 + 0.006 * tier
+    if slide_to is not None:
+        f_curve = f + (slide_to - f) * (1.0 - np.exp(-t * 12.0))
+    else:
+        f_curve = np.full(n, f)
+    voice = (
+        saw(f_curve * (1.0 - detune), n) * 0.45
+        + saw(f_curve * (1.0 + detune), n) * 0.45
+    )
+    voice += sine(f_curve, n) * 0.10
+    cutoff = 550.0 + 900.0 * tier
+    dark = lowpass(voice, cutoff * 0.55)
+    bright = lowpass(voice, cutoff * 1.6)
+    open_env = np.clip(1.0 - np.exp(-t * 20.0), 0.0, 1.0)
+    out = dark * (1.0 - open_env) + bright * open_env
+    env = _env(n, 0.010, 0.15, 0.70, min(0.30, n / SR * 0.5))
+    out = out * env
+    out = highpass(out, 40.0)
+    drive = 1.0 + 0.35 * tier
+    return soft_clip(out * drive, 1.0 + 0.5 * tier)
+
+
+def slide_808(f0, f1, n, tier):
+    t = np.arange(n) / SR
+    freq = f1 + (f0 - f1) * np.exp(-t * 10.0)
     body = np.sin(2 * np.pi * np.cumsum(freq) / SR)
-    # Amplitude: a raised-cosine attack (no discontinuity) into a slow decay.
-    attack = int(0.004 * SR)
-    env = np.exp(-t * 5.2)
-    if attack:
-        env[:attack] *= np.linspace(0.0, 1.0, attack) ** 2
-    # A little beater: a very short band of noise low in the mids, 60 ms decay.
-    beater = bandpass(noise(n, seed=11), 300.0, 1600.0) * np.exp(-t * 130.0) * 0.10
-    out = body * env + beater
-    return soft_clip(out, drive) if drive != 1.0 else out
+    body += np.sin(2 * np.pi * np.cumsum(freq * 2.0) / SR) * 0.12
+    env = _env(n, 0.008, 0.25, 0.75, min(0.40, n / SR * 0.5))
+    out = body * env
+    drive = 1.2 + 0.5 * tier
+    return soft_clip(lowpass(out, 350.0 + 300.0 * tier), drive)
 
 
-def snare(dur=0.34, tune=200.0, seed=12, wet=0.0):
-    """A snare with a body, not a noise burst.
+def sub_hit(f, n):
+    t = np.arange(n) / SR
+    freq = f * np.exp(-t * 8.0)
+    return np.sin(2 * np.pi * np.cumsum(freq) / SR) * np.exp(-t * 10.0)
 
-    A tuned tone component at 180-220 Hz (the drum's own pitch) sits under
-    band-limited noise, and the whole thing can be sent to the plate (`wet`),
-    which is where the tail comes from in the mix stage.
-    """
+
+def dark_saw_lead(f, n, tier, detune=0.012):
+    t = np.arange(n) / SR
+    voice = (
+        saw(f * (1.0 - detune), n) * 0.40
+        + saw(f, n) * 0.50
+        + saw(f * (1.0 + detune), n) * 0.35
+        + saw(f * 0.5, n) * 0.14
+    )
+    cutoff = 1800.0 + 900.0 * tier
+    dark = lowpass(voice, cutoff * 0.55)
+    bright = lowpass(voice, cutoff * 1.9)
+    open_env = np.clip(1.0 - np.exp(-t * 24.0), 0.0, 1.0)
+    out = dark * (1.0 - open_env) + bright * open_env
+    env = _env(n, 0.006, 0.10, 0.55, 0.12)
+    out = out * env
+    drive = 1.5 + 0.6 * tier
+    return soft_clip(out, drive)
+
+
+def fm_bell(f, n):
+    t = np.arange(n) / SR
+    body = np.zeros(n)
+    for mult, amp, decay in ((1.0, 1.0, 2.5), (2.01, 0.32, 4.5), (3.03, 0.14, 7.0)):
+        body += np.sin(2 * np.pi * f * mult * t) * amp * np.exp(-t * decay)
+    return body * 0.55
+
+
+def dark_pad_voice(f, n, tier):
+    t = np.arange(n) / SR
+    voice = (
+        saw(f * 0.995, n) * 0.50
+        + saw(f, n) * 0.65
+        + saw(f * 1.005, n) * 0.50
+        + saw(f * 2.0, n) * 0.12
+    )
+    breathe = 1.0 + 0.25 * np.sin(2 * np.pi * 0.10 * t) + 0.12 * np.sin(2 * np.pi * 0.31 * t)
+    cutoff = 900.0 + 1100.0 * tier
+    dark = lowpass(voice, cutoff * 0.5)
+    bright = lowpass(voice, cutoff * 1.3)
+    weight = np.clip(0.45 + 0.45 * np.sin(2 * np.pi * 0.10 * t), 0.0, 1.0)
+    out = dark * (1.0 - weight) + bright * weight
+    env = _env(n, n / SR * 0.35, n / SR * 0.15, 0.72, n / SR * 0.30)
+    return out * env * breathe * 0.08
+
+
+def dark_kick(dur, style, tier):
     n = int(dur * SR)
     t = np.arange(n) / SR
+    start_hz, end_hz = (70.0, 48.0) if style != "trap" else (55.0, 40.0)
+    freq = end_hz + (start_hz - end_hz) * np.exp(-t * 24.0)
+    body = np.sin(2 * np.pi * np.cumsum(freq) / SR)
+    attack = int(0.004 * SR)
+    env = np.exp(-t * 6.0)
+    env[:attack] *= np.linspace(0.0, 1.0, attack) ** 2
+    click = bandpass(noise(n, seed=23), 2500.0, 6000.0) * np.exp(-t * 80.0) * 0.10
+    kick = body * env + click
+    if style == "industrial":
+        metal = bandpass(noise(n, seed=22), 400.0, 2600.0) * np.exp(-t * 45.0) * 0.28
+        kick = kick + metal
+    elif style == "trap":
+        kick = kick * np.exp(-t * 2.0)
+    elif style == "finale":
+        kick += np.sin(2 * np.pi * np.cumsum(freq * 1.5) / SR) * np.exp(-t * 8.0) * 0.20
+    return soft_clip(kick * (1.0 + 0.25 * tier), 1.15 + 0.2 * tier)
+
+
+def dark_snare(dur, style, tier, seed=12):
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    tune = 185.0 if style == "trap" else (210.0 if style == "industrial" else 200.0)
     tone = (np.sin(2 * np.pi * tune * t) * 0.55
             + np.sin(2 * np.pi * tune * 1.62 * t) * 0.22) * np.exp(-t * 26.0)
-    rattle = bandpass(noise(n, seed=seed), 900.0, 6200.0) * np.exp(-t * 15.0)
-    # Smooth the rattle's onset: a raw noise burst reads as a click.
+    if style == "industrial":
+        rattle = bandpass(noise(n, seed=seed), 1100.0, 6000.0) * np.exp(-t * 14.0) * 0.65
+    elif style == "glitch":
+        gate = (np.sin(2 * np.pi * 34.0 * t) > -0.2).astype(float)
+        rattle = bandpass(noise(n, seed=seed), 1400.0, 6000.0) * np.exp(-t * 30.0) * gate * 0.55
+    else:
+        rattle = bandpass(noise(n, seed=seed), 900.0, 6200.0) * np.exp(-t * 15.0) * 0.62
     onset = int(0.003 * SR)
     rattle[:onset] *= np.linspace(0.0, 1.0, onset)
-    return (tone * 0.7 + rattle * 0.62)
+    return tone * 0.7 + rattle * 0.66
 
 
-def hat(dur=0.07, open_=False, seed=13, tune=1.0):
-    """A hat with air, without the 3-8 kHz shard.
-
-    Filtered noise with a gentle high shelf instead of a hard highpass: the
-    harshness in the old kit came from a 6.5 kHz brick wall on white noise.
-    """
+def dark_hat(dur, open_, style, seed=13):
     n = int(dur * SR)
     t = np.arange(n) / SR
-    env = np.exp(-t * (9.0 if open_ else 52.0))
+    env = np.exp(-t * (8.0 if open_ else 50.0))
+    tune = 1.0 if style == "trap" else (0.86 if style == "industrial" else 1.0)
     body = bandpass(noise(n, seed=seed), 5200.0 * tune, 13500.0 * tune)
     body = eq_curve(body, [(2000.0, -3.0), (6000.0, 0.5), (10000.0, 2.5), (14000.0, -1.0)])
     onset = int(0.0015 * SR)
@@ -106,15 +228,83 @@ def hat(dur=0.07, open_=False, seed=13, tune=1.0):
     return body * env * 0.34
 
 
-def crash(dur=1.8, seed=14):
+def metal_hit(dur, seed=40):
     n = int(dur * SR)
     t = np.arange(n) / SR
-    body = bandpass(noise(n, seed=seed), 2400.0, 13000.0)
-    body = eq_curve(body, [(3000.0, -1.0), (8000.0, 1.0), (14000.0, -2.0)])
-    return body * np.exp(-t * 2.2) * 0.42
+    partials = [(320.0, 0.5), (510.0, 0.35), (890.0, 0.25), (1400.0, 0.14), (2100.0, 0.08)]
+    out = sum(np.sin(2 * np.pi * h * t) * a * np.exp(-t * (3.0 + i)) for i, (h, a) in enumerate(partials))
+    noise_bit = bandpass(noise(n, seed=seed), 2000.0, 9000.0) * np.exp(-t * 25.0) * 0.35
+    return soft_clip((out + noise_bit) * 1.4, 1.3)
 
 
-def sub_drop(dur=2.2, f0=170.0, f1=28.0):
+def dread_drone(root_hz, n, tier):
+    t = np.arange(n) / SR
+    beat_hz = 0.55 + 0.18 * tier
+    drone = (sine(root_hz, n) * 0.55 + sine(root_hz * 1.0035, n) * 0.45)
+    drone_l = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * t))
+    drone_r = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * t + 1.9))
+    if tier >= 4:
+        tritone = root_hz * (2 ** (6 / 12.0))
+        drone_l = drone_l + sine(tritone, n) * 0.22
+        drone_r = drone_r + sine(tritone * 1.002, n) * 0.22
+    gain = 0.075 * max(0.0, (tier - 1) / 4.0)
+    return (lowpass(drone_l, 120.0) * gain, lowpass(drone_r, 120.0) * gain)
+
+
+def breath_layer(n, tier):
+    breath = bandpass(noise(n, seed=7 + tier), 700.0, 2600.0)
+    t = np.arange(n) / SR
+    swing = 0.5 + 0.5 * np.sin(2 * np.pi * (0.11 + 0.03 * tier) * t - 0.6)
+    swing = swing ** 3
+    return breath * swing * (0.05 * max(0.0, (tier - 1) / 4.0))
+
+
+def heartbeat(bpm, total, tier):
+    beat_s = 60.0 / bpm
+    hb_n = int(0.16 * SR)
+    hbt = np.arange(hb_n) / SR
+    thump = np.sin(2 * np.pi * np.cumsum(58.0 + 40.0 * np.exp(-hbt * 30.0)) / SR)
+    thump *= np.exp(-hbt * 16.0)
+    buf = empty(total)
+    bar = 4 * beat_s
+    t = 0.0
+    gain = 0.10 * max(0.0, (tier - 3) / 2.0)
+    while t < total - 0.5:
+        add_at(buf, thump, t, gain)
+        add_at(buf, thump * 0.7, t + 0.30, gain)
+        t += bar
+    return buf
+
+
+def whispers(n, tier):
+    w = highpass(noise(n, seed=67), 1800.0)
+    t = np.arange(n) / SR
+    wl = 0.5 + 0.5 * np.sin(2 * np.pi * 0.07 * t)
+    return w * wl * 0.018
+
+
+def choir_chord(midis, n, tier):
+    out = np.zeros(n)
+    for midi in midis:
+        f = midi_to_hz(midi)
+        out += dark_pad_voice(f, n, tier) * 1.4
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# FX
+# --------------------------------------------------------------------------- #
+
+def riser(dur, from_hz, to_hz, seed=74):
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    freq = from_hz * (to_hz / from_hz) ** (t / dur)
+    tone = np.sin(2 * np.pi * np.cumsum(freq) / SR)
+    noise_env = bandpass(noise(n, seed=seed), 300.0, 8000.0) * (t / dur) ** 2
+    return soft_clip((tone * 0.5 + noise_env * 0.5) * 1.4, 1.5)
+
+
+def sub_drop(dur, f0, f1):
     n = int(dur * SR)
     t = np.arange(n) / SR
     freq = f1 + (f0 - f1) * np.exp(-t * 2.6)
@@ -122,7 +312,15 @@ def sub_drop(dur=2.2, f0=170.0, f1=28.0):
     return soft_clip(np.sin(2 * np.pi * np.cumsum(freq) / SR) * env, 1.4)
 
 
-def screech(dur=1.4, seed=51):
+def crash(dur, seed=14):
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    body = bandpass(noise(n, seed=seed), 2400.0, 13000.0)
+    body = eq_curve(body, [(3000.0, -1.0), (8000.0, 1.0), (14000.0, -2.0)])
+    return body * np.exp(-t * 2.2) * 0.42
+
+
+def screech_fx(dur, seed=51):
     n = int(dur * SR)
     t = np.arange(n) / SR
     f = 1500.0 + 700.0 * np.sin(2 * np.pi * 5.5 * t) + 260.0 * np.sin(2 * np.pi * 0.7 * t)
@@ -131,231 +329,14 @@ def screech(dur=1.4, seed=51):
     return soft_clip(tone * exp_decay(n, dur * 0.35), 2.0) * 0.5
 
 
-def human(index, step_s, swing=0.0):
-    """Deterministic micro-timing and velocity for one hit.
-
-    A grid-perfect renderer is the main reason a synth track sounds like a
-    metronome instead of a band: every hit lands on the same microsecond with
-    the same level. This returns a small timing nudge (plus swing on the odd
-    16ths) and a velocity multiplier, both repeatable for a given index.
-    """
-    rng = (index * 2654435761) % 4294967296
-    jitter = ((rng / 4294967296.0) - 0.5) * 0.007 * max(1.0, step_s / 0.1)
-    velocity = 0.90 + (((rng >> 11) % 1000) / 1000.0) * 0.10
-    shift = swing * step_s if index % 2 else 0.0
-    return jitter + shift, velocity
+def reverse_signal(x):
+    return x[::-1].copy()
 
 
 # --------------------------------------------------------------------------- #
-# Per-song voices
-#
-# The three songs share a renderer, not a band: each has its own kit, bass
-# voice and lead voice, so they cannot sound like the same track at three tempos.
+# Vocals (ported from previous design)
 # --------------------------------------------------------------------------- #
 
-def kick_for(style, tier):
-    """One kick per genre, all built on the same warm 90 -> 55 Hz envelope.
-
-    bounce = tight and round · trap = long 808 with a slide · glitch = short and
-    broken · industrial = a metal beater on top · finale = double-headed.
-    """
-    if style == "trap":
-        n = int(0.85 * SR)
-        t = np.arange(n) / SR
-        freq = 52.0 + 38.0 * np.exp(-t * 9.0)
-        body = np.sin(2 * np.pi * np.cumsum(freq) / SR)
-        attack = int(0.005 * SR)
-        env = np.exp(-t * 2.6)
-        env[:attack] *= np.linspace(0.0, 1.0, attack) ** 2
-        return body * env
-    if style == "industrial":
-        n = int(0.34 * SR)
-        t = np.arange(n) / SR
-        freq = 55.0 + 35.0 * np.exp(-t * 30.0)
-        body = np.sin(2 * np.pi * np.cumsum(freq) / SR) * np.exp(-t * 7.5)
-        metal = bandpass(noise(n, seed=22), 400.0, 2400.0) * np.exp(-t * 40.0) * 0.22
-        return soft_clip(body + metal, 1.15)
-    if style == "glitch":
-        n = int(0.24 * SR)
-        t = np.arange(n) / SR
-        freq = 58.0 + 32.0 * np.exp(-t * 34.0)
-        body = np.sin(2 * np.pi * np.cumsum(freq) / SR) * np.exp(-t * 11.5)
-        tick = bandpass(noise(n, seed=31), 1800.0, 5200.0) * np.exp(-t * 150.0) * 0.14
-        return body + tick
-    if style == "finale":
-        n = int(0.50 * SR)
-        t = np.arange(n) / SR
-        freq = 60.0 + 40.0 * np.exp(-t * 20.0)
-        body = np.sin(2 * np.pi * np.cumsum(freq) / SR) * np.exp(-t * 3.8)
-        body += np.sin(2 * np.pi * np.cumsum(freq * 1.5) / SR) * np.exp(-t * 6.0) * 0.18
-        growl = lowpass(saw(46.0, n), 180.0) * np.exp(-t * 4.0) * 0.24
-        return soft_clip(body + growl, 1.25)
-    return kick(drive=1.0)
-
-
-def snare_for(style, seed=12):
-    """One snare per genre: all tuned (180-220 Hz body) and smooth-tailed."""
-    if style == "trap":
-        return snare(dur=0.36, tune=185.0, seed=seed) * 0.9
-    if style == "industrial":
-        n = int(0.36 * SR)
-        t = np.arange(n) / SR
-        tone = (np.sin(2 * np.pi * 210.0 * t) * 0.5
-                + np.sin(2 * np.pi * 340.0 * t) * 0.2) * np.exp(-t * 24.0)
-        metal = bandpass(noise(n, seed=seed), 1100.0, 5000.0) * np.exp(-t * 13.0) * 0.55
-        return tone + metal
-    if style == "glitch":
-        n = int(0.30 * SR)
-        t = np.arange(n) / SR
-        tone = np.sin(2 * np.pi * 196.0 * t) * 0.55 * np.exp(-t * 22.0)
-        gated = bandpass(noise(n, seed=seed), 1400.0, 6000.0) * np.exp(-t * 30.0)
-        # Gated, not crushed: a rhythmic hole in the noise, no bitcrusher fizz.
-        gate = (np.sin(2 * np.pi * 34.0 * t) > -0.2).astype(float)
-        return tone + gated * gate * 0.5
-    if style == "finale":
-        # Blast-beat snare: a tight body with a second, longer, lower drum under
-        # it for weight. Buffers differ in length, so pad before summing.
-        hit = snare(dur=0.46, tune=205.0, seed=seed)
-        under = snare(dur=0.7, tune=150.0, seed=seed + 1) * 0.4
-        out = np.zeros(max(len(hit), len(under)))
-        out[:len(hit)] += hit
-        out[:len(under)] += under
-        return out
-    return snare(dur=0.34, tune=200.0, seed=seed)
-
-
-def hat_for(style, open_=False, seed=13):
-    """All four kits share the soft hat; only the length and the shelf differ."""
-    if style == "trap":
-        # Trap is the darkest kit (808 + half-time), so its hats carry a little
-        # more air than the others or the song has no top end at all.
-        return hat(dur=0.13 if open_ else 0.045, open_=open_, seed=seed, tune=1.0) * 1.5
-    if style == "industrial":
-        return hat(dur=0.20 if open_ else 0.06, open_=open_, seed=seed, tune=0.86)
-    if style == "glitch":
-        return hat(dur=0.15 if open_ else 0.04, open_=open_, seed=seed, tune=1.12)
-    if style == "finale":
-        return hat(dur=0.17 if open_ else 0.05, open_=open_, seed=seed, tune=0.94)
-    return hat(dur=0.07 if not open_ else 0.13, open_=open_, seed=seed)
-
-
-def _analog_stack(f, n, detune=0.004, octave=0.0, seed=0):
-    """Detuned saw stack through a warm, slightly moving low-pass.
-
-    Three saws a few cents apart plus a sub sine: the classic analogue pad/lead
-    core. The filter opens with the note (a slow envelope), which is where the
-    "warm but not dull" comes from -- a static filter is what makes synth leads
-    sound like a buzzer with a shelf on it.
-    """
-    t = np.arange(n) / SR
-    voice = (saw(f * (1.0 - detune), n) * 0.34
-             + saw(f, n) * 0.40
-             + saw(f * (1.0 + detune), n) * 0.30)
-    if octave:
-        voice += saw(f * octave, n) * 0.16
-    else:
-        voice += sine(f * 0.5, n) * 0.18
-    # Envelope-modulated cutoff: opens by ~1.6x over the first 120 ms.
-    open_amount = np.clip(1.0 - np.exp(-t * 18.0), 0.0, 1.0)
-    cutoff = 900.0 * (1.0 + 0.8 * open_amount)
-    # Approximate the moving filter with two static filters, crossfaded: cheap
-    # and it keeps the attack bright instead of uniformly muffled.
-    dark = lowpass(voice, 800.0)
-    bright = lowpass(voice, 2400.0)
-    return dark * (1.0 - open_amount) + bright * open_amount
-
-
-def bass_for(style, midi, dur, tier):
-    """One bass voice per genre, each warm and each audibly different."""
-    n = int(max(dur, 0.06) * SR)
-    t = np.arange(n) / SR
-    f = midi_to_hz(midi)
-    if style == "trap":
-        freq = f * (1.0 + 0.30 * np.exp(-t * 26.0))
-        body = np.sin(2 * np.pi * np.cumsum(freq) / SR)
-        body += np.sin(2 * np.pi * np.cumsum(freq * 2.0) / SR) * 0.10
-        env = adsr(n, attack=0.008, decay=0.20, sustain=0.70, release=min(0.30, dur * 0.5))
-        return soft_clip(lowpass(body * env, 300.0), 1.0)
-    if style == "industrial":
-        voice = _analog_stack(f, n, detune=0.006)
-        voice += saw(f * 2.0, n) * 0.12
-        env = adsr(n, attack=0.004, decay=0.09, sustain=0.60, release=0.06)
-        out = lowpass(voice * env, 1300.0)
-        return soft_clip(out * 1.1, 1.2)
-    if style == "glitch":
-        # Rhythmic dropouts give the glitch bass its broken-tape character
-        # without randomly jumping pitch by a tritone every 60 ms. The bass
-        # holds the chord root and the written b5 melody supplies the tension.
-        rng = np.random.RandomState(abs(int(midi * 7 + dur * 1000)) % 2 ** 31)
-        steps = max(2, int(np.ceil(n / (SR * 0.06))))
-        gates = rng.choice([0.62, 0.80, 1.0, 1.0], size=steps)
-        mask = np.repeat(gates, int(np.ceil(n / steps)))[:n]
-        voice = sine(f, n) * 0.62 + sine(f * 2.0, n) * 0.14
-        env = adsr(n, attack=0.003, decay=0.06, sustain=0.55, release=0.05)
-        return soft_clip(lowpass(voice * env * mask, 1500.0), 1.15)
-    if style == "finale":
-        sub = sine(f, n) * 0.80 + sine(f * 2.0, n) * 0.12
-        grunt = _analog_stack(f * 2.0, n, detune=0.005)
-        grunt = soft_clip(grunt * 2.0, 1.5)
-        env = adsr(n, attack=0.005, decay=0.11, sustain=0.66, release=0.08)
-        return soft_clip(lowpass(sub + grunt * 0.30, 1500.0) * env, 1.15)
-    # bounce: round sub with a plucked top, no grit
-    voice = _analog_stack(f, n, detune=0.003)
-    env = adsr(n, attack=0.005, decay=0.12, sustain=0.58, release=0.07)
-    return soft_clip(lowpass(voice * env, 750.0), 1.05)
-
-
-def lead_for(style, midi, dur, tier, note_id=0):
-    """One lead voice per genre, all warm analog rather than shrill digital."""
-    n = int(max(dur, 0.10) * SR)
-    t = np.arange(n) / SR
-    f = midi_to_hz(midi)
-    if style == "trap":
-        # FM bell: an inharmonic tail, but rolled off warm instead of glassy.
-        body = np.zeros(n)
-        for mult, amp, decay in ((1.0, 1.0, 2.2), (2.01, 0.30, 3.8), (3.03, 0.12, 6.0)):
-            body += np.sin(2 * np.pi * f * mult * t) * amp * np.exp(-t * decay)
-        body *= np.minimum(1.0, max(dur, 0.2) / 0.2)
-        env = adsr(n, attack=0.006, decay=dur * 0.45, sustain=0.30, release=min(0.40, dur * 0.8))
-        return soft_clip(lowpass(body, 3800.0) * env, 1.0) * 0.55
-    if style == "industrial":
-        voice = _analog_stack(f, n, detune=0.007)
-        voice += saw(f * 0.5, n) * 0.16
-        if tier >= 3:
-            voice += sine(f * 1.5, n) * 0.10
-        env = adsr(n, attack=0.005, decay=0.10, sustain=0.45, release=0.12)
-        out = lowpass(voice * env, 3600.0)
-        return soft_clip(out, 1.05) * 0.5
-    if style == "glitch":
-        # A vocal-ish square with rhythmic dropouts; no bitcrusher.
-        rng = np.random.RandomState(abs(int(midi * 13 + note_id * 7)) % 2 ** 31)
-        voice = _analog_stack(f, n, detune=0.009)
-        voice += square(f, n, duty=0.30) * 0.14
-        env = adsr(n, attack=0.004, decay=0.07, sustain=0.50, release=0.06)
-        out = lowpass(voice * env, 2800.0)
-        holes = rng.rand(int(n / (SR * 0.03)) + 2) < 0.16
-        mask = np.repeat(holes, int(SR * 0.03))[:n]
-        out = out.copy()
-        out[mask] *= 0.25
-        return soft_clip(out, 1.1) * 0.5
-    if style == "finale":
-        voice = _analog_stack(f, n, detune=0.008)
-        voice += saw(f * 1.5, n) * 0.14 + saw(f * 2.0, n) * 0.10
-        env = adsr(n, attack=0.014, decay=0.15, sustain=0.58, release=0.15)
-        out = lowpass(voice * env, 3400.0 + 500.0 * tier)
-        return soft_clip(out, 1.05) * 0.46
-    # bounce: a bright pulse chip lead, filtered round
-    duty = 0.30 if note_id % 2 else 0.24
-    voice = square(f, n, duty=duty) * 0.42 + square(f * 2.0, n, duty=0.5) * 0.10
-    voice += sine(f * 3.0, n) * 0.06
-    env = adsr(n, attack=0.004, decay=0.11, sustain=0.42, release=0.09)
-    return soft_clip(lowpass(voice * env, 5200.0), 1.0) * 0.55
-
-
-#: Vowel formants, measured from the models singers actually use (Peterson &
-#: Barney / Csound's vowel tables), as (centre Hz, bandwidth Hz, gain).
-#: The first two formants decide the vowel; the third adds presence, and a
-#: little fourth keeps the top from sounding synthetic.
 VOWELS = {
     "ah": ((730.0, 90.0, 1.00), (1090.0, 110.0, 0.55), (2440.0, 170.0, 0.22), (3400.0, 250.0, 0.08)),
     "oh": ((570.0, 80.0, 1.00), (840.0, 100.0, 0.60), (2410.0, 170.0, 0.16), (3300.0, 250.0, 0.06)),
@@ -363,26 +344,13 @@ VOWELS = {
     "oo": ((370.0, 70.0, 1.00), (950.0, 100.0, 0.42), (2350.0, 170.0, 0.10), (3300.0, 250.0, 0.05)),
 }
 
-#: Which vowel each character sings on which scale step -- a singer does not hold
-#: one vowel for a whole phrase, and the alternation is most of what makes a
-#: synth voice read as "words" rather than as a buzz.
 PLAYER_VOWELS = ("ah", "ee", "oh", "ee")
 TROLLGE_VOWELS = ("oh", "oo", "oh", "ah")
-
-#: Formant scaling per character. Boyfriend is a brighter, smaller vocal tract
-#: (formants up); the Trollge is a much bigger one (formants down) with a wider
-#: bandwidth, which is what makes a voice sound huge instead of just low.
 PLAYER_SHIFT = 1.10
 TROLLGE_SHIFT = 0.82
 
 
 def _glottal(f0, n, sr=SR, tilt=1.0, breath=0.0, seed=0):
-    """A glottal source with a real spectral roll-off.
-
-    Additive harmonics with a 1/h^tilt amplitude law (plus a little even-harmonic
-    asymmetry) give a sawtooth-like pulse that filters like a voice; white noise
-    is a buzz saw, not a larynx.
-    """
     t = np.arange(n) / sr
     phase = 2 * np.pi * np.cumsum(np.full(n, f0)) / sr
     out = np.zeros(n)
@@ -398,29 +366,14 @@ def _glottal(f0, n, sr=SR, tilt=1.0, breath=0.0, seed=0):
 
 def voice_note(midi, dur, dark=False, vowel=None, seed=0, scoop=0.028,
                vibrato_hz=None, vibrato=0.010, growl=0.0):
-    """One sung syllable through a parallel formant bank.
-
-    The chain is the one a voice actually has: a glottal source with a spectral
-    tilt, a pitch scoop into the note, vibrato that grows through the note, three
-    or four resonant formants in parallel, a breath of consonant on the attack,
-    and an ADSR whose attack and release are long enough not to click.
-
-    `dark` switches character: Boyfriend (bright formants, clean, ~5.6 Hz
-    vibrato) or the Trollge (formants shifted down, sub-harmonic weight, a
-    controlled saturation instead of fizz).
-    """
     n = max(int(0.16 * SR), int((dur + 0.09) * SR))
     t = np.arange(n) / SR
     f0 = midi_to_hz(midi)
-
-    # Pitch: scoop in from slightly flat, then settle; vibrato grows with length.
     glide = 1.0 - scoop * np.exp(-t * 22.0)
     rate = vibrato_hz if vibrato_hz else (5.1 if dark else 5.6)
     depth = vibrato * (0.55 if dark else 1.0)
     ramp = np.clip((t - 0.11) / 0.30, 0.0, 1.0)
     vibr = 1.0 + depth * np.sin(2 * np.pi * rate * t + 0.4) * ramp
-
-    # The source: a harmonic stack at the moving pitch.
     inst = f0 * glide * vibr
     phase = 2 * np.pi * np.cumsum(inst) / SR
     src = np.zeros(n)
@@ -429,24 +382,16 @@ def voice_note(midi, dur, dark=False, vowel=None, seed=0, scoop=0.028,
         amp = (1.0 / (h ** (1.35 if dark else 1.15))) * (1.0 + 0.16 * (h % 2))
         src += np.sin(phase * h + 0.35 * h) * amp
         h += 1
-
     if dark and growl > 0:
-        # Sub-harmonic weight, not fizz: a half-rate component plus a little
-        # saturation folds the voice down without the buzz of a bitcrusher.
         src += np.sin(phase * 0.5) * 0.35 * growl
         src = soft_clip(src * (1.0 + 0.5 * growl), 1.35)
-
     if vowel is None:
         vowel = "oh" if dark else "ah"
     shift = TROLLGE_SHIFT if dark else PLAYER_SHIFT
     formants = tuple((hz * shift, bw * shift, gain) for hz, bw, gain in VOWELS[vowel])
     out = formant_bank(src, formants)
-
-    # A consonant: a very short band of noise, low level -- a "t" not a "shh".
     n_c = int(0.028 * SR)
     out[:n_c] += bandpass(noise(n_c, seed=seed % 251), 2600.0, 7600.0) * (0.16 if dark else 0.22)
-
-    # ADSR with a soft attack and a release that reaches zero, so no click.
     attack = int((0.030 if dark else 0.018) * SR)
     release = int(0.11 * SR)
     sustain_len = max(1, n - attack - release)
@@ -454,42 +399,27 @@ def voice_note(midi, dur, dark=False, vowel=None, seed=0, scoop=0.028,
     env[:attack] = np.linspace(0.0, 1.0, attack) ** 1.4
     env[attack:attack + sustain_len] = 1.0
     env[attack + sustain_len:] = np.linspace(1.0, 0.0, n - attack - sustain_len) ** 1.6
-    # A singer lets a long note swell then ease: a shallow arc over the body.
     body = np.ones(n)
     arc = np.clip(np.arange(n) / max(1.0, 0.28 * SR), 0.0, 1.0)
     body *= 0.82 + 0.18 * arc
     out *= env * body
-
     out = highpass(out, 85.0)
     return out * (0.5 if dark else 0.55)
 
 
 def pad_voicing(root_midi, tones, tier, tonic, scale):
-    """Chord with an optional diatonic add-nine, above the underlying voicing.
-
-    The previous extension used the absolute key and `top + 2` (or `top + 10`),
-    so it was often a sixth or chromatic tone, not a ninth. Keep the pad clear;
-    dissonance belongs to the written melody, drone and timed horror layers.
-    """
     chord = sorted(root_midi + t for t in tones)
     root_pc = (root_midi - tonic) % 12
     if root_pc in scale:
         degree = scale.index(root_pc)
         interval = (scale[(degree + 1) % len(scale)] - root_pc) % 12
         ninth = root_midi + 12 + interval
-        # Do not duplicate a chord tone at another octave. An add-nine is a
-        # colour, not a reason to make every sustained chord a dense cluster.
         if interval not in {t % 12 for t in tones}:
             chord.append(ninth)
     return sorted(chord)
 
 
 def pad_chord(midis, dur, gain=0.075, cutoff=1500.0, seed=0):
-    """A lush pad: detuned saws per voice, warm filter, slow amplitude arc.
-
-    Every voice gets three saws a few cents apart plus a quiet octave, which is
-    what makes a pad sound wide and expensive rather than like a synth blast.
-    """
     n = int(dur * SR)
     out = np.zeros(n)
     for i, midi in enumerate(midis):
@@ -497,7 +427,6 @@ def pad_chord(midis, dur, gain=0.075, cutoff=1500.0, seed=0):
         for mult, amp, phase in ((0.9965, 0.55, 0.3), (1.0, 0.70, 1.1), (1.0035, 0.55, 2.4)):
             out += saw(f * mult, n, phase0=phase + i) * amp
         out += sine(f * 2.0, n) * 0.12
-    # Slow filter breathing: two LFO rates, so no two bars of pad are identical.
     t = np.arange(n) / SR
     breathe = 1.0 + 0.22 * np.sin(2 * np.pi * 0.13 * t + seed) + 0.10 * np.sin(2 * np.pi * 0.41 * t)
     dark = lowpass(out, max(300.0, cutoff * 0.55))
@@ -506,7 +435,7 @@ def pad_chord(midis, dur, gain=0.075, cutoff=1500.0, seed=0):
     out = dark * (1.0 - weight) + bright * weight
     env = adsr(n, attack=dur * 0.30, decay=dur * 0.12, sustain=0.72, release=dur * 0.34)
     out *= env * breathe
-    out = highpass(out, 140.0).copy()       # keep the pad out of the kick's way
+    out = highpass(out, 140.0).copy()
     return out * gain / max(1, len(midis)) * 0.9
 
 
@@ -521,41 +450,12 @@ def music_box(midi, dur=1.6):
     return out * 0.6
 
 
-# The original score is an emotional arc, not a wall of maximum-intensity
-# drums. These are *new* accompaniment patterns, not Trollge Files melodies.
-# (beat within bar, chord-tone index, octave lift, duration in beats, velocity)
-PIANO_PATTERNS = {
-    'trolling': ((0, 0, 0, 1.7, .80), (1.5, 1, 0, 1.2, .55), (3, 2, 0, 1.4, .66)),
-    'getting-dark': ((0, 0, 0, 2.0, .78), (2, 2, 0, 1.7, .55), (3.5, 1, 0, 1.0, .45)),
-    'dont-look-back': ((0, 0, 0, 1.4, .75), (1.25, 2, 0, 1.0, .46), (2.5, 1, 0, 1.2, .58)),
-    'super-scary': ((0, 0, 0, 1.5, .78), (1.25, 2, 0, 1.0, .52), (2.75, 1, 0, 1.1, .53)),
-    'the-incident': ((0, 0, 0, 2.1, .86), (1, 2, 0, 1.7, .53), (2.5, 1, 0, 1.5, .65)),
-}
-
-# Hand-shaped dramatic landmarks in SECTION coordinates, not wall-clock
-# percentages: the musical retreat happens with the chart's actual breakdown.
-# Each final point is the end of the song, after the last section.
-STORY_ARCS = {
-    'trolling':       ((0,.48),(3,.67),(6,.88),(7,.45),(8,.38),(11,.83),(12,.42),(14,1.0),(16,.48)),
-    'getting-dark':   ((0,.42),(4,.67),(8,.90),(9,.42),(10,.32),(13,.83),(16,.38),(18,1.0),(20,.46)),
-    'dont-look-back': ((0,.48),(4,.70),(8,.93),(9,.40),(10,.34),(14,.91),(16,.40),(18,1.0),(20,.55)),
-    'super-scary':    ((0,.55),(4,.76),(8,.95),(9,.42),(10,.35),(14,.93),(16,.43),(18,1.0),(20,.64)),
-    'the-incident':   ((0,.43),(6,.77),(10,.97),(13,.42),(14,.34),(19,.94),(22,.38),(25,1.0),(28,.53)),
-}
-
-
-def story_level(song, fraction):
-    # Section starts include the lead-in offset, just like the charts. Use the
-    # end as the last landmark so this also works with scalar and vector input.
-    starts = [s['time'] / 1000.0 for s in L.sections(song)] + [L.length(song)]
-    knots = STORY_ARCS[song['id']]
-    positions = [starts[index] / L.length(song) for index, _ in knots]
-    return np.interp(np.clip(fraction, 0.0, 1.0), positions, [v for _, v in knots])
-
+# --------------------------------------------------------------------------- #
+# Piano + patterns
+# --------------------------------------------------------------------------- #
 
 @lru_cache(maxsize=96)
 def _piano_pitch(midi):
-    """Retune the closest recorded upright-piano note, with antialias filtering."""
     import soundfile as sf
     samples = ((48, 'C3'), (55, 'G3'), (60, 'C4'), (67, 'G4'),
                (72, 'C5'), (79, 'G5'), (84, 'C6'))
@@ -563,7 +463,6 @@ def _piano_pitch(midi):
     raw, sr = sf.read(os.path.join(ROOT, 'audio_src', 'piano', name + '.ogg'), dtype='float64')
     if sr != 48000 or raw.ndim != 1:
         raise ValueError('unexpected piano source format')
-    # Match the first half second across the source notes, not their decay.
     level = np.sqrt(np.mean(raw[:sr // 2] ** 2))
     raw = raw / max(level, 1e-8) * .10
     ratio = 2.0 ** ((midi - root) / 12.0)
@@ -575,7 +474,6 @@ def _piano_pitch(midi):
 
 
 def piano_note(midi, duration):
-    """Recorded piano note with a soft release (no abrupt note-off)."""
     sample = _piano_pitch(int(midi))
     n = min(len(sample), max(1, int((duration + .15) * SR)))
     result = sample[:n].copy()
@@ -588,13 +486,39 @@ def piano_note(midi, duration):
     return result
 
 
-def piano_events(song):
-    """Harmonised broken chords with a distinct rhythm and evolving register.
+PIANO_PATTERNS = {
+    'trolling': ((0, 0, 0, 1.7, .80), (1.5, 1, 0, 1.2, .55), (3, 2, 0, 1.4, .66)),
+    'getting-dark': ((0, 0, 0, 2.0, .78), (2, 2, 0, 1.7, .55), (3.5, 1, 0, 1.0, .45)),
+    'dont-look-back': ((0, 0, 0, 1.4, .75), (1.25, 2, 0, 1.0, .46), (2.5, 1, 0, 1.2, .58)),
+    'super-scary': ((0, 0, 0, 1.5, .78), (1.25, 2, 0, 1.0, .52), (2.75, 1, 0, 1.1, .53)),
+    'the-incident': ((0, 0, 0, 2.1, .86), (1, 2, 0, 1.7, .53), (2.5, 1, 0, 1.5, .65)),
+}
 
-    The existing melody/chart and its bar harmony stay authoritative. A sparse
-    original chord pattern supports it; breaks expose the instrument, and busy
-    sections leave gaps so it does not double every sung syllable.
-    """
+ANSWER_MOTIFS = {
+    'trolling': ((0.0, 0), (.45, 4), (1.0, 0)),
+    'getting-dark': ((0.0, 0), (.55, -3), (1.05, -5)),
+    'dont-look-back': ((0.0, 0), (.38, 6), (.90, 3)),
+    'super-scary': ((0.0, 0), (.35, -5), (.95, 2)),
+    'the-incident': ((0.0, 0), (.60, 3), (1.15, -2)),
+}
+
+STORY_ARCS = {
+    'trolling': ((0, .48), (3, .67), (6, .88), (7, .45), (8, .38), (11, .83), (12, .42), (14, 1.0), (16, .48)),
+    'getting-dark': ((0, .42), (4, .67), (8, .90), (9, .42), (10, .32), (13, .83), (16, .38), (18, 1.0), (20, .46)),
+    'dont-look-back': ((0, .48), (4, .70), (8, .93), (9, .40), (10, .34), (14, .91), (16, .40), (18, 1.0), (20, .55)),
+    'super-scary': ((0, .55), (4, .76), (8, .95), (9, .42), (10, .35), (14, .93), (16, .43), (18, 1.0), (20, .64)),
+    'the-incident': ((0, .43), (6, .77), (10, .97), (13, .42), (14, .34), (19, .94), (22, .38), (25, 1.0), (28, .53)),
+}
+
+
+def story_level(song, fraction):
+    starts = [s['time'] / 1000.0 for s in L.sections(song)] + [L.length(song)]
+    knots = STORY_ARCS[song['id']]
+    positions = [starts[index] / L.length(song) for index, _ in knots]
+    return np.interp(np.clip(fraction, 0.0, 1.0), positions, [v for _, v in knots])
+
+
+def piano_events(song):
     beat = L.beat(song)
     roles = L.measure_roles(song)
     for bar in range(L.measures(song)):
@@ -603,34 +527,18 @@ def piano_events(song):
         chord = sorted(song['tonic'] + root + t + 12 for t in tones)
         pattern = PIANO_PATTERNS[song['id']]
         for i, (offset, tone, lift, length, velocity) in enumerate(pattern):
-            # In the loud battle passages, the middle accent is absent every
-            # other bar; quiet sections play the whole human-scale figure.
             if role in ('drop', 'finale') and i == 1 and bar % 2:
                 continue
             midi = chord[tone % len(chord)] + lift
             if bar % 8 == 7 and i == len(pattern) - 1:
-                midi += 12  # a question rather than identical loop endings
+                midi += 12
             variation = .9 + .1 * ((bar * 3 + i * 7) % 5) / 4.0
             level = velocity * variation * (1.15 if role in ('intro', 'break') else .78)
             yield (L.measure_time(song, bar) / 1000.0 + offset * beat,
                    midi, length * beat, level)
 
 
-
-# Five original three-note gestures, voiced against the local chord. Each is a
-# recognizable contour rather than a random run; later appearances answer a
-# singer's actual rest. Times are in beats after the first answer note.
-ANSWER_MOTIFS = {
-    'trolling':       ((0.0, 0), (.45, 4), (1.0, 0)),       # playful question
-    'getting-dark':   ((0.0, 0), (.55, -3), (1.05, -5)),    # a quiet descent
-    'dont-look-back': ((0.0, 0), (.38, 6), (.90, 3)),      # a fractured reach
-    'super-scary':    ((0.0, 0), (.35, -5), (.95, 2)),     # fall and recoil
-    'the-incident':   ((0.0, 0), (.60, 3), (1.15, -2)),   # a fragile return
-}
-
-
 def piano_answers(song):
-    """A composed gesture in genuine vocal rests, never under a sung onset."""
     notes = list(vocal_performance(song))
     beat = L.beat(song)
     motif = ANSWER_MOTIFS[song['id']]
@@ -639,8 +547,6 @@ def piano_answers(song):
         bar = note['measure']
         if bar - last_bar < 4:
             continue
-        # The sampler's 50 ms release is included. Leave an extra margin on
-        # both sides so the answer does not smear into the next chart note.
         start = at + dur + .05 + .12 * beat
         end = next_at - .12 * beat
         last_end = start + (motif[-1][0] + .32) * beat + .15
@@ -658,7 +564,6 @@ def piano_answers(song):
                           for tone in tones for octave in (0, 12, 24, 36)
                           if 45 <= song['tonic'] + root + tone + octave <= 88]
             target = anchor + interval
-            # On a changed contour prefer a different chord tone if available.
             if previous is not None and interval != motif[index - 1][1]:
                 direction = 1 if interval > motif[index - 1][1] else -1
                 directed = [p for p in candidates if (p - previous) * direction > 0]
@@ -672,11 +577,6 @@ def piano_answers(song):
 
 
 def rhythm_landmarks(song, part):
-    """Shape four-bar phrases; make a small breath before a major return.
-
-    These are mixer movements, not note-time changes. The gentle transitions are
-    deterministic and keep kick, snare and hats together as a played kit.
-    """
     if part not in ('drums', 'bass'):
         raise ValueError('unknown rhythm part')
     sections = L.sections(song)
@@ -687,8 +587,6 @@ def rhythm_landmarks(song, part):
     for i, sec in enumerate(sections):
         start = sec['time'] / 1000.0
         for bar in range(sec['measures']):
-            # Unequal weights make each four-bar period breathe rather than
-            # repeating the exact same mixer level from one bar to the next.
             shape = (.82, .96, .89, 1.0)[bar % 4]
             if sec['role'] in ('drop', 'finale'):
                 shape = .9 + .1 * shape
@@ -716,47 +614,237 @@ def shape_rhythm(song, signals, part):
 
 
 # --------------------------------------------------------------------------- #
-# The instrumentals
+# Bass & drum patterns
 # --------------------------------------------------------------------------- #
 
-#: How hard each part of the arrangement pushes, by section role.
-ROLE_GAIN = {
-    "intro": 0.10,
-    "verse": 0.70,
-    "build": 0.86,
-    "drop": 1.04,
-    "break": 0.18,
-    "finale": 1.12,
-}
+def bass_pattern(style, role, beat, tier):
+    if style == "dark_trap":
+        if role == "break":
+            return [(0.0, -12, 2.2)]
+        if role == "intro":
+            return [(0.0, -12, 3.6)]
+        return [(0.0, -12, 1.35), (1.5, 0, 0.9), (2.5, -12, 0.75), (3.25, 0, 0.7)]
+    if style == "dark_glitch":
+        if role == "break":
+            return [(0.0, -12, 1.2)]
+        if role == "intro":
+            return [(0.0, -12, 3.0)]
+        if role in ("finale", "drop"):
+            return [(i * 0.25, (-12 if i % 4 == 0 else (12 if i % 8 == 5 else 0)), 0.25 * (1.0 if i % 2 else 0.7)) for i in range(16)]
+        return [(i * 0.25, (-12 if i % 8 == 0 else (12 if i % 8 == 6 else 0)), 0.25 * 0.9) for i in range(8)]
+    if style == "industrial":
+        if role == "break":
+            return [(0.0, -12, 2.0), (2.0, 0, 1.6)]
+        if role == "intro":
+            return [(0.0, -12, 3.6)]
+        return [(i * 0.5, (-12 if i % 4 == 0 else (7 if i == 5 else 0)), 0.5 * (0.95 if i % 2 else 1.06)) for i in range(8)]
+    if style == "dark_ambient":
+        if role == "break":
+            return [(0.0, -12, 1.8)]
+        if role == "intro":
+            return [(0.0, -12, 3.4)]
+        return [(i * 0.5, -12 if i % 4 == 0 else 0, 0.5 * (0.92 if i % 2 else 1.05)) for i in range(8)]
+    if role == "break":
+        return [(0.0, -12, 1.8)]
+    if role == "drop":
+        return [(0.0, 0, 0.42), (0.5, 0, 0.30), (0.75, 0, 0.20), (1.0, -12, 0.40),
+                (1.5, 0, 0.30), (1.75, 0, 0.20), (2.0, 0, 0.42), (2.5, -12, 0.28),
+                (3.0, 0, 0.42), (3.5, 0, 0.30)]
+    if role == "intro":
+        return [(0.0, -12, 3.4)]
+    return [(i * 0.5, -12 if i % 4 == 0 else 0, 0.5 * (0.92 if i % 2 else 1.05)) for i in range(8)]
 
 
-def tier_for(scare):
-    """Scare rating -> production tier. One step per song, 0-10 -> 1-5."""
-    if scare <= 2:
-        return 1
-    if scare <= 4:
-        return 2
-    if scare <= 6:
-        return 3
-    if scare <= 8:
-        return 4
-    return 5
+def drum_pattern(style, role, t0, beat, tier, kick_s, snare_s, hat_l, hat_r, fx_s, m):
+    intensity = ROLE_GAIN[role]
+    if role in ("verse", "build", "drop", "finale"):
+        if style == "dark_trap":
+            add_at(kick_s, dark_kick(0.42, style, tier), t0, 0.95 * intensity)
+            add_at(kick_s, dark_kick(0.42, style, tier), t0 + 2.75 * beat, 0.7 * intensity)
+            add_at(snare_s, dark_snare(0.36, style, tier, 71), t0 + 2 * beat, 0.55 * intensity)
+            for step in range(8):
+                at = t0 + step * beat / 2.0
+                add_at(hat_l if step % 2 else hat_r, dark_hat(0.045, False, style, 40 + step), at, 0.30 * intensity)
+                if step % 2 == 1 and (role in ("drop", "finale") or tier >= 2):
+                    add_at(hat_r, dark_hat(0.04, False, style, 60 + step), at + beat / 4.0, 0.16 * intensity)
+                    add_at(hat_l, dark_hat(0.04, False, style, 80 + step), at + beat * 0.5, 0.14 * intensity)
+                    add_at(hat_l, dark_hat(0.13, True, style, 90 + step), at + beat * 0.66, 0.12 * intensity)
+        elif style == "dark_glitch":
+            add_at(kick_s, dark_kick(0.24, style, tier), t0, 0.95 * intensity)
+            add_at(kick_s, dark_kick(0.24, style, tier), t0 + 1.75 * beat, 0.72 * intensity)
+            if role in ("drop", "finale"):
+                add_at(kick_s, dark_kick(0.24, style, tier), t0 + 2.5 * beat, 0.62 * intensity)
+                add_at(kick_s, dark_kick(0.24, style, tier), t0 + 3.25 * beat, 0.55 * intensity)
+            add_at(snare_s, dark_snare(0.30, style, tier, 50 + m), t0 + 2 * beat, 0.62 * intensity)
+            for q in range(4):
+                add_at(snare_s, dark_snare(0.15, style, tier, 70 + q),
+                       t0 + 3 * beat + q * beat / 8.0, (0.34 - 0.05 * q) * intensity)
+            for q in range(8):
+                at = t0 + q * beat / 2.0
+                if q % 3 == 2:
+                    continue
+                add_at(hat_l if q % 2 else hat_r, dark_hat(0.04, q == 7, style, 120 + q), at, 0.24 * intensity)
+                if q % 2 and role in ("drop", "finale"):
+                    add_at(hat_r, dark_hat(0.04, False, style, 140 + q), at + beat / 4.0, 0.13 * intensity)
+        elif style == "industrial":
+            for b in range(4):
+                at = t0 + b * beat
+                add_at(kick_s, dark_kick(0.34, style, tier), at, 0.92 * intensity)
+                if b in (1, 3):
+                    add_at(snare_s, dark_snare(0.36, style, tier, 12 + b), at, 0.5 * intensity)
+                    add_at(snare_s, dark_snare(0.18, style, tier, 30 + b), at + beat / 2.0, 0.18 * intensity)
+                for q in range(4):
+                    add_at(hat_l if (q + b) % 2 else hat_r, dark_hat(0.06, q == 3, style, 100 + q + b * 4), at + q * beat / 4.0, 0.19 * intensity)
+            if role in ("drop", "finale"):
+                add_at(kick_s, dark_kick(0.34, style, tier), t0 + 3.5 * beat, 0.55 * intensity)
+        elif style == "dark_ambient":
+            for b in range(4):
+                at = t0 + b * beat
+                if b in (0, 2) or (role in ("drop", "finale") and b == 3 and tier >= 2):
+                    add_at(kick_s, dark_kick(0.42, style, tier), at, 0.95 * intensity)
+                if b in (1, 3):
+                    add_at(snare_s, dark_snare(0.34, style, tier, 12 + b), at, 0.55 * intensity)
+                add_at(hat_l, dark_hat(0.07, False, style, 13 + b), at, 0.26 * intensity)
+                add_at(hat_r, dark_hat(0.07, True, style, 14 + b), at + beat / 2.0, 0.20 * intensity)
+                air_n = int(0.05 * SR)
+                air_t = np.arange(air_n) / SR
+                air = bandpass(noise(air_n, seed=90 + b), 9000.0, 16000.0) * np.exp(-air_t * 55.0)
+                add_at(hat_l if b % 2 == 0 else hat_r, air, at, 0.17 * intensity)
+                add_at(hat_r if b % 2 == 0 else hat_l, air, at + beat / 2.0, 0.14 * intensity)
+                if role in ("drop", "finale") or tier >= 3:
+                    add_at(hat_l, dark_hat(0.04, False, style, 15 + b), at + beat / 4.0, 0.12 * intensity)
+                    add_at(hat_r, dark_hat(0.04, False, style, 19 + b), at + 3 * beat / 4.0, 0.12 * intensity)
+            if role in ("drop", "finale"):
+                add_at(kick_s, dark_kick(0.42, style, tier), t0 + 3.5 * beat, 0.6 * intensity)
+        else:  # dark_bounce
+            for b in range(4):
+                at = t0 + b * beat
+                if b in (0, 2) or (role in ("drop", "finale") and b == 3 and tier >= 2):
+                    add_at(kick_s, dark_kick(0.42, style, tier), at, 0.95 * intensity)
+                if b in (1, 3):
+                    add_at(snare_s, dark_snare(0.34, style, tier, 12 + b), at, 0.55 * intensity)
+                add_at(hat_l, dark_hat(0.07, False, style, 13 + b), at, 0.26 * intensity)
+                add_at(hat_r, dark_hat(0.07, True, style, 14 + b), at + beat / 2.0, 0.20 * intensity)
+                air_n = int(0.05 * SR)
+                air_t = np.arange(air_n) / SR
+                air = bandpass(noise(air_n, seed=90 + b), 9000.0, 16000.0) * np.exp(-air_t * 55.0)
+                add_at(hat_l if b % 2 == 0 else hat_r, air, at, 0.17 * intensity)
+                add_at(hat_r if b % 2 == 0 else hat_l, air, at + beat / 2.0, 0.14 * intensity)
+                if role in ("drop", "finale") or tier >= 3:
+                    add_at(hat_l, dark_hat(0.04, False, style, 15 + b), at + beat / 4.0, 0.12 * intensity)
+                    add_at(hat_r, dark_hat(0.04, False, style, 19 + b), at + 3 * beat / 4.0, 0.12 * intensity)
+            if role in ("drop", "finale"):
+                add_at(kick_s, dark_kick(0.42, style, tier), t0 + 3.5 * beat, 0.6 * intensity)
+    elif role == "break":
+        add_at(kick_s, dark_kick(0.42, style, tier), t0, 0.7)
+        add_at(snare_s, dark_snare(0.34, style, tier, 61), t0 + 2 * beat, 0.4)
+        for b in range(4):
+            add_at(hat_r, dark_hat(0.04, True, style, 20 + b), t0 + b * beat, 0.12)
+    else:
+        add_at(kick_s, dark_kick(0.42, style, tier), t0, 0.6)
+        for b in range(4):
+            add_at(hat_r, dark_hat(0.04, False, style, 30 + b), t0 + b * beat + beat / 2.0, 0.12)
+
+    if role in ("verse", "build", "drop", "finale"):
+        air_n = int(0.045 * SR)
+        air = bandpass(noise(air_n, seed=300 + m), 10000.0, 16500.0) * exp_decay(air_n, 0.03)
+        for b in range(2, 5):
+            gain = 0.20 if style == "dark_trap" else (0.16 if style == "industrial" else 0.14)
+            add_at(hat_l if b % 2 == 0 else hat_r, air, t0 + (b - 1) * beat + beat * 0.5, gain * intensity)
+
+    if style == "dark_glitch" and role in ("verse", "build", "drop", "finale") and m % 2 == 0:
+        g_n = int(beat * 0.9 * SR)
+        gt = np.arange(g_n) / SR
+        chunk = bandpass(noise(g_n, seed=230 + m), 600.0, 5200.0)
+        chunk = bitcrush(chunk * np.exp(-gt * 8.0), bits=4, hold=11)
+        add_at(fx_s, chunk, t0 + 3 * beat + beat * 0.25, 0.11)
+    elif style == "dark_ambient" and role in ("drop", "finale"):
+        g_n = int(1.6 * SR)
+        gt = np.arange(g_n) / SR
+        gong = sum(np.sin(2 * np.pi * hz * gt) * amp
+                   for hz, amp in ((73.4, 0.30), (110.0, 0.16), (146.8, 0.10),
+                                   (221.0, 0.06), (293.6, 0.04)))
+        gong *= np.exp(-gt * 3.2)
+        add_at(fx_s, gong, t0, 0.16)
+    elif style == "industrial" and role in ("drop", "finale"):
+        add_at(fx_s, bandpass(noise(int(0.4 * SR), seed=200 + m), 900.0, 9000.0)
+               * exp_decay(int(0.4 * SR), 0.12), t0 + 3.75 * beat, 0.10)
+    elif style == "dark_trap" and role in ("build", "drop") and m % 4 == 0:
+        rev_n = int(beat * 1.2 * SR)
+        rev = crash(beat * 1.2, seed=210 + m)[::-1][:rev_n]
+        add_at(fx_s, rev, t0 + 4 * beat - beat * 1.2, 0.16)
+    elif style == "dark_bounce" and role == "verse" and m % 2 == 1:
+        blk_n = int(0.06 * SR)
+        blk = np.sin(2 * np.pi * 1180.0 * np.arange(blk_n) / SR) * exp_decay(blk_n, 0.02)
+        add_at(hat_r, blk, t0 + 2.5 * beat, 0.10)
 
 
-def section_roles(song):
-    """Arrangement roles live in song_layout.py so the chart and the audio can
-    never disagree about where a song breathes."""
-    return L.section_roles(song)
+def drum_fill(at, length, style, tier, snare_s, fx_s, seed=40, loudness=1.0):
+    hits = 8
+    for i in range(hits):
+        when = at + length * i / hits
+        if style == "dark_trap":
+            add_at(snare_s, dark_snare(0.15, style, tier, seed + i), when, 0.10 * loudness)
+        else:
+            add_at(snare_s, dark_snare(0.20, style, tier, seed + i), when,
+                   (0.16 + 0.22 * i / hits) * loudness)
+    add_at(fx_s, crash(1.8, seed=80), at + length, 0.20 + 0.05 * tier)
 
+
+def ghost_snares(style, role, t0, beat, tier, snare_s, hat_r, m, intensity):
+    if role not in ("verse", "build", "drop", "finale"):
+        return
+    for beat_index in (1, 3):
+        for fraction in (0.25, 0.75):
+            if role == "verse" and fraction == 0.25:
+                continue
+            add_at(snare_s, dark_snare(0.12, style, tier, 300 + m * 4 + beat_index),
+                   t0 + beat_index * beat + fraction * beat,
+                   0.09 * intensity * 0.95)
+    if m % 2 == 1:
+        add_at(hat_r, dark_hat(0.13, True, style, 400 + m), t0 + 3.5 * beat, 0.16 * intensity)
+
+
+# --------------------------------------------------------------------------- #
+# Horror & FX per tier
+# --------------------------------------------------------------------------- #
+
+def scripted_stinger(fx_s, func, at, tier, song):
+    if func == "trollgeJumpScare":
+        add_at(fx_s, sub_drop(2.4, 170.0, 28.0), at - 0.05, 0.7)
+        add_at(fx_s, crash(2.2, seed=71), at, 0.5)
+        add_at(fx_s, screech_fx(1.6), at, 0.35)
+        blast_n = int(0.8 * SR)
+        blast = bandpass(noise(blast_n, seed=72), 500.0, 9000.0) * exp_decay(blast_n, 0.2)
+        add_at(fx_s, soft_clip(blast, 2.0), at, 0.35)
+    elif func == "trollgeScreenShake":
+        add_at(fx_s, crash(1.6, seed=73), at, 0.4)
+        add_at(fx_s, sub_drop(1.8, 140.0, 32.0), at, 0.4)
+    elif func == "trollgeDistort":
+        glitch_n = int(1.1 * SR)
+        glitch = bitcrush(square(60.0, glitch_n, duty=0.2) * exp_decay(glitch_n, 0.5), bits=4, hold=6)
+        add_at(fx_s, glitch, at, 0.22)
+    elif func == "trollgeInvert":
+        riser_n = int(2.4 * SR)
+        rt = np.arange(riser_n) / SR
+        riser = bandpass(noise(riser_n, seed=74), 300.0, 8000.0) * (rt / rt[-1]) ** 2
+        add_at(fx_s, riser, max(0.0, at - 2.4), 0.35)
+        add_at(fx_s, sub_drop(2.0, 200.0, 35.0), at, 0.55)
+    elif func == "trollgePhase2":
+        add_at(fx_s, crash(2.6, seed=75), at, 0.5)
+        add_at(fx_s, screech_fx(2.2, seed=76), at, 0.45)
+        add_at(fx_s, sub_drop(2.6, 190.0, 24.0), at, 0.6)
+    else:
+        st_n = int(0.9 * SR)
+        st = highpass(noise(st_n, seed=77), 2000.0) * np.exp(-np.arange(st_n) / (0.3 * SR))
+        add_at(fx_s, st, at, 0.3)
+
+
+# --------------------------------------------------------------------------- #
+# The instrumental
+# --------------------------------------------------------------------------- #
 
 def render_song(song):
-    """Render one instrumental.
-
-    Layout: mono stems -> stereo mix -> master chain. Everything is arranged by
-    *section role* (intro / verse / build / drop / break / finale), so each song
-    builds, drops into a breakdown and lands on a real ending chord instead of
-    looping one drum pattern for 104 seconds.
-    """
     total = L.length(song)
     n_total = int(round(total * SR))
     beat = L.beat(song)
@@ -764,7 +852,8 @@ def render_song(song):
     step = L.step(song)
     scare = song["scare"]
     tier = tier_for(scare)
-    style = song.get("style", "bounce")
+    style = SONG_STYLES[song["id"]]
+    sid = song["id"]
 
     kick_s, snare_s = empty(total), empty(total)
     hat_l, hat_r = empty(total), empty(total)
@@ -775,524 +864,250 @@ def render_song(song):
     piano_l, piano_r = empty(total), empty(total)
 
     secs = L.sections(song)
-    roles = section_roles(song)
+    roles = L.section_roles(song)
     measure_role = L.measure_roles(song)
     total_measures = L.measures(song)
 
-    # ---- pads ------------------------------------------------------------- #
+    # ---- pads ----
     for m in range(total_measures):
         t0 = L.measure_time(song, m) / 1000.0
         role = measure_role.get(m, "verse")
         root, tones = L.chord_for_measure(song, m)
-        chord = [song["tonic"] + root + t for t in tones]
-        cutoff = {"intro": 1100.0, "verse": 1600.0, "build": 1900.0,
-                  "drop": 2400.0, "break": 900.0, "finale": 2700.0}[role]
-        # Minor-ninth / sus voicing: the pad is a chord, not a power chord
-        # (see pad_voicing). Slow filter movement keeps bar-to-bar fresh.
         chord = pad_voicing(song["tonic"] + root, tones, tier, song["tonic"], L.SCALES[song["id"]])
-        cutoff *= 0.86 + 0.28 * (0.5 + 0.5 * math.sin(m * 0.9 + song["scare"]))
-        gain = 0.085 * ROLE_GAIN[role]
+        cutoff = {"intro": 900.0, "verse": 1300.0, "build": 1700.0,
+                  "drop": 2200.0, "break": 700.0, "finale": 2600.0}[role]
+        gain = 0.08 * ROLE_GAIN[role]
         sig = pad_chord(chord, measure * 1.04, gain=gain, cutoff=cutoff, seed=m * 0.7)
-        # Wide: one take per side, the right side delayed a few ms.
-        add_at(pad_l, sig, t0, 0.62)
-        add_at(pad_r, sig, t0 + 0.011, 0.62)
+        add_at(pad_l, sig, t0, 0.60)
+        add_at(pad_r, sig, t0 + 0.012, 0.60)
 
-    # A recorded upright piano gives the harmony a human, fragile centre. The
-    # notes are new chord-based accompaniment; the vocals retain chart timing.
+    # ---- piano ----
     answers = list(piano_answers(song))
-    # Let an answer speak: remove accompaniment attacks immediately around it.
     accompaniment = [event for event in piano_events(song)
-                     if all(abs(event[0] - answer[0]) > .55 * beat for answer in answers)]
+                     if all(abs(event[0] - answer[0]) > 0.55 * beat for answer in answers)]
     for i, (at, midi, dur, velocity) in enumerate(accompaniment + answers):
         note = piano_note(midi, dur)
-        # Alternate gently across the room; never hard-pan the core instrument.
-        pan_pos = (-.20 if i % 2 else .20)
+        pan_pos = (-0.20 if i % 2 else 0.20)
         l, r = pan(note, pan_pos)
-        add_at(piano_l, l, at, velocity * .95)
-        add_at(piano_r, r, at + .008, velocity * .95)
+        add_at(piano_l, l, at, velocity * 0.95)
+        add_at(piano_r, r, at + 0.008, velocity * 0.95)
 
-    # ---- bass ------------------------------------------------------------- #
+    # ---- bass ----
     for m in range(total_measures):
         t0 = L.measure_time(song, m) / 1000.0
         role = measure_role.get(m, "verse")
         root, _tones = L.chord_for_measure(song, m)
         base = song["tonic"] + root
-        drive = 1.3 + 0.45 * tier
-
-        # Bass figure: the groove is the song's, the role only scales it.
-        if style == "trap":
-            # 808: few, long, with slides into the next note.
-            if role == "break":
-                pattern = [(0.0, -12, beat * 2.2)]
-            elif role == "intro":
-                pattern = [(0.0, -12, beat * 3.6)]
-            else:
-                pattern = [(0.0, -12, beat * 1.35), (beat * 1.5, 0, beat * 0.9),
-                           (beat * 2.5, -12, beat * 0.75), (beat * 3.25, 0, beat * 0.7)]
-        elif style == "glitch":
-            # Staccato 16ths that jump octaves: never settles, always in key.
-            if role == "break":
-                pattern = [(0.0, -12, beat * 1.2)]
-            elif role == "intro":
-                pattern = [(0.0, -12, beat * 3.0)]
-            elif role == "finale" or role == "drop":
-                pattern = [(i * beat / 4.0, (-12 if i % 4 == 0 else (12 if i % 8 == 5 else 0)),
-                            beat / 4.0 * (1.0 if i % 2 else 0.7)) for i in range(16)]
-            else:
-                pattern = [(i * beat / 4.0, (-12 if i % 8 == 0 else (12 if i % 8 == 6 else 0)),
-                            beat / 4.0 * 0.9) for i in range(8)]
-        elif style == "finale":
-            # Driving 8ths with a fifth stab on the "and" of 3: metal, not techno.
-            if role == "break":
-                pattern = [(0.0, -12, beat * 2.0), (beat * 2.0, 0, beat * 1.6)]
-            elif role == "intro":
-                pattern = [(0.0, -12, beat * 3.6)]
-            else:
-                pattern = [(i * beat / 2.0, (-12 if i % 4 == 0 else (7 if i == 5 else 0)),
-                            beat / 2.0 * (0.95 if i % 2 else 1.06)) for i in range(8)]
-        elif style == "industrial":
-            if role == "break":
-                pattern = [(0.0, -12, beat * 1.4)]
-            elif role == "intro":
-                pattern = [(0.0, -12, beat * 3.2)]
-            else:
-                pattern = [(i * beat / 4.0, -12 if i % 8 == 0 else (12 if i % 4 == 3 else 0),
-                            beat / 4.0 * 0.85) for i in range(16)]
-        else:
-            if role == "break":
-                pattern = [(0.0, -12, beat * 1.8)]
-            elif role == "drop":
-                pattern = [(0.0, 0, beat * 0.42), (beat * 0.5, 0, beat * 0.30),
-                           (beat * 0.75, 0, beat * 0.20), (beat * 1.0, -12, beat * 0.40),
-                           (beat * 1.5, 0, beat * 0.30), (beat * 1.75, 0, beat * 0.20),
-                           (beat * 2.0, 0, beat * 0.42), (beat * 2.5, -12, beat * 0.28),
-                           (beat * 3.0, 0, beat * 0.42), (beat * 3.5, 0, beat * 0.30)]
-            elif role == "intro":
-                pattern = [(0.0, -12, beat * 3.4)]
-            else:
-                pattern = [(i * beat / 2.0, -12 if i % 4 == 0 else 0,
-                            beat / 2.0 * (0.92 if i % 2 else 1.05)) for i in range(8)]
-
-        bass_level = {"trap": 0.46, "glitch": 0.16}.get(style, 0.25)
+        pattern = bass_pattern(style, role, beat, tier)
+        bass_level = {"dark_trap": 0.50, "dark_glitch": 0.20}.get(style, 0.28)
         level = bass_level * (0.5 + 0.5 * ROLE_GAIN[role]) * (0.9 if style == "industrial" else 1.0)
-        for offset_s, octave, dur in pattern:
-            # Lift sub-octave notes by a whole octave, never a tritone. Trap
-            # deliberately keeps its 808 register.
-            pitch = octave + 12 if octave == -12 and style != "trap" else octave
-            add_at(bass_s, bass_for(style, base + pitch, dur, tier), t0 + offset_s, level)
-
-    # ---- drums ------------------------------------------------------------ #
-    def drum_fill(at, length, loudness=1.0, seed=40):
-        """Roll into the next section -- style-flavoured."""
-        hits = 8
-        for i in range(hits):
-            when = at + length * i / hits
-            if style == "trap":
-                add_at(snare_s, snare_for(style, seed=seed + i), when, 0.10 * loudness)
-                add_at(hat_r, hat_for(style, True, seed=seed + 30 + i), when, 0.16 * loudness)
+        for offset_b, octave, dur_b in pattern:
+            dur_s = dur_b * beat
+            pitch = octave + 12 if octave == -12 and style != "dark_trap" else octave
+            if style == "dark_trap" and abs(octave) > 0:
+                add_at(bass_s, slide_808(midi_to_hz(base + pitch), midi_to_hz(base + pitch - 7), int(dur_s * SR), tier), t0 + offset_b * beat, level)
             else:
-                add_at(snare_s, snare_for(style, seed=seed + i), when,
-                       (0.16 + 0.22 * i / hits) * loudness)
+                add_at(bass_s, reese_bass(midi_to_hz(base + pitch), int(dur_s * SR), tier), t0 + offset_b * beat, level)
 
+    # ---- drums ----
     for m in range(total_measures):
         t0 = L.measure_time(song, m) / 1000.0
         role = measure_role.get(m, "verse")
-        intensity = ROLE_GAIN[role]
+        drum_pattern(style, role, t0, beat, tier, kick_s, snare_s, hat_l, hat_r, fx_s, m)
+        ghost_snares(style, role, t0, beat, tier, snare_s, hat_r, m, ROLE_GAIN[role])
 
-        if role in ("verse", "build", "drop", "finale"):
-            if style == "trap":
-                # Half-time: one boom, one rim, rolling hats.
-                add_at(kick_s, kick_for(style, tier), t0, 0.95 * intensity)
-                add_at(kick_s, kick_for(style, tier), t0 + 2.75 * beat, 0.7 * intensity)
-                add_at(snare_s, snare_for(style, 71), t0 + 2 * beat, 0.55 * intensity)
-                for step in range(8):
-                    at = t0 + step * beat / 2.0
-                    add_at(hat_l if step % 2 else hat_r, hat_for(style, False, 40 + step), at,
-                           0.30 * intensity)
-                    if step % 2 == 1 and (role in ("drop", "finale") or tier >= 2):
-                        # 16th eighths + a triplet flick on the last 8th of the bar
-                        add_at(hat_r, hat_for(style, False, 60 + step), at + beat / 4.0,
-                               0.16 * intensity)
-                        add_at(hat_l, hat_for(style, False, 80 + step), at + beat * 0.5,
-                               0.14 * intensity)
-                        add_at(hat_l, hat_for(style, True, 90 + step), at + beat * 0.66,
-                               0.12 * intensity)
-            elif style == "glitch":
-                # Broken beat: kick on 1 and the "a" of 2, gated snare stutters.
-                add_at(kick_s, kick_for(style, tier), t0, 0.95 * intensity)
-                add_at(kick_s, kick_for(style, tier), t0 + 1.75 * beat, 0.72 * intensity)
-                if role in ("drop", "finale"):
-                    add_at(kick_s, kick_for(style, tier), t0 + 2.5 * beat, 0.62 * intensity)
-                    add_at(kick_s, kick_for(style, tier), t0 + 3.25 * beat, 0.55 * intensity)
-                add_at(snare_s, snare_for(style, 50 + m), t0 + 2 * beat, 0.62 * intensity)
-                # 32nd stutter on the 4th beat: the edit that never resolves
-                for q in range(4):
-                    add_at(snare_s, snare_for(style, 70 + q),
-                           t0 + 3 * beat + q * beat / 8.0,
-                           (0.34 - 0.05 * q) * intensity)
-                for q in range(8):
-                    at = t0 + q * beat / 2.0
-                    if q % 3 == 2:
-                        continue          # holes in the hat pattern
-                    add_at(hat_l if q % 2 else hat_r, hat_for(style, q == 7, 120 + q),
-                           at, 0.24 * intensity)
-                    if q % 2 and role in ("drop", "finale"):
-                        add_at(hat_r, hat_for(style, False, 140 + q), at + beat / 4.0,
-                               0.13 * intensity)
-            elif style == "finale":
-                # Double kick throughout, blast-beat snares in the last act.
-                for b in range(4):
-                    at = t0 + b * beat
-                    add_at(kick_s, kick_for(style, tier), at, 0.95 * intensity)
-                    add_at(kick_s, kick_for(style, tier), at + beat * 0.75, 0.60 * intensity)
-                    if role in ("drop", "finale"):
-                        add_at(kick_s, kick_for(style, tier), at + beat * 0.5, 0.52 * intensity)
-                        add_at(snare_s, snare_for(style, 150 + b), at + beat * 0.5,
-                               0.34 * intensity)
-                    if b in (1, 3):
-                        add_at(snare_s, snare_for(style, 160 + b), at, 0.68 * intensity)
-                    for q in range(2):
-                        add_at(hat_l if (q + b) % 2 else hat_r,
-                               hat_for(style, q == 1, 170 + q + b * 2),
-                               at + q * beat / 2.0, 0.24 * intensity)
-                if role == "finale" and m % 2 == 1:
-                    # 16th snare roll under the last bar of every other measure
-                    for q in range(8):
-                        add_at(snare_s, snare_for(style, 180 + q), t0 + 2 * beat + q * beat / 8.0,
-                               0.20 * intensity)
-            elif style == "industrial":
-                # Four on the floor with ghost snares and a 16th ride.
-                for b in range(4):
-                    at = t0 + b * beat
-                    add_at(kick_s, kick_for(style, tier), at, 0.92 * intensity)
-                    if b in (1, 3):
-                        add_at(snare_s, snare_for(style, 12 + b), at, 0.5 * intensity)
-                        add_at(snare_s, snare_for(style, 30 + b), at + beat / 2.0, 0.18 * intensity)
-                    for q in range(4):
-                        add_at(hat_l if (q + b) % 2 else hat_r,
-                               hat_for(style, q == 3, 100 + q + b * 4),
-                               at + q * beat / 4.0, 0.19 * intensity)
-                if role in ("drop", "finale"):
-                    add_at(kick_s, kick_for(style, tier), t0 + 3.5 * beat, 0.55 * intensity)
-            else:
-                for b in range(4):
-                    at = t0 + b * beat
-                    if b in (0, 2) or (role in ("drop", "finale") and b == 3 and tier >= 2):
-                        add_at(kick_s, kick_for(style, tier), at, 0.95 * intensity)
-                    if b in (1, 3):
-                        add_at(snare_s, snare_for(style, 12 + b), at, 0.55 * intensity)
-                    add_at(hat_l, hat_for(style, False, 13 + b), at, 0.26 * intensity)
-                    add_at(hat_r, hat_for(style, True, 14 + b), at + beat / 2.0, 0.20 * intensity)
-                    # air band: bright sizzle, one per beat, alternating sides
-                    air_n = int(0.05 * SR)
-                    air_t = np.arange(air_n) / SR
-                    air = bandpass(noise(air_n, seed=90 + b), 9000.0, 16000.0) * np.exp(-air_t * 55.0)
-                    add_at(hat_l if b % 2 == 0 else hat_r, air, at, 0.17 * intensity)
-                    add_at(hat_r if b % 2 == 0 else hat_l, air, at + beat / 2.0, 0.14 * intensity)
-                    if role in ("drop", "finale") or tier >= 3:
-                        add_at(hat_l, hat_for(style, False, 15 + b), at + beat / 4.0, 0.12 * intensity)
-                        add_at(hat_r, hat_for(style, False, 19 + b), at + 3 * beat / 4.0,
-                               0.12 * intensity)
-                if role in ("drop", "finale"):
-                    add_at(kick_s, kick_for(style, tier), t0 + 3.5 * beat, 0.6 * intensity)
-        elif role == "break":
-            add_at(kick_s, kick_for(style, tier), t0, 0.7)
-            add_at(snare_s, snare_for(style, 61), t0 + 2 * beat, 0.4)
-            for b in range(4):
-                add_at(hat_r, hat_for(style, True, 20 + b), t0 + b * beat, 0.12)
-        else:   # intro
-            add_at(kick_s, kick_for(style, tier), t0, 0.6)
-            for b in range(4):
-                add_at(hat_r, hat_for(style, False, 30 + b), t0 + b * beat + beat / 2.0, 0.12)
-
-        # Air band: a bright sizzle on the off-beats keeps the top end alive in
-        # every style (trap hats alone measure far too dark).
-        if role in ("verse", "build", "drop", "finale"):
-            air_n = int(0.045 * SR)
-            air = bandpass(noise(air_n, seed=300 + m), 10000.0, 16500.0) * exp_decay(air_n, 0.03)
-            for b in range(2, 5):
-                gain = 0.20 if style == "trap" else (0.16 if style == "industrial" else 0.14)
-                add_at(hat_l if b % 2 == 0 else hat_r, air, t0 + (b - 1) * beat + beat * 0.5,
-                       gain * intensity)
-
-        # Texture the style is known for.
-        if style == "glitch" and role in ("verse", "build", "drop", "finale"):
-            if m % 2 == 0:
-                # tape-stop chunk: a burst of the bar, pitched down and gated
-                g_n = int(beat * 0.9 * SR)
-                gt = np.arange(g_n) / SR
-                chunk = bandpass(noise(g_n, seed=230 + m), 600.0, 5200.0)
-                chunk = bitcrush(chunk * np.exp(-gt * 8.0), bits=4, hold=11)
-                add_at(fx_s, chunk, t0 + 3 * beat + beat * 0.25, 0.11)
-        elif style == "finale" and role in ("drop", "finale"):
-            # Low gong hit on the downbeat of the last act.
-            g_n = int(1.6 * SR)
-            gt = np.arange(g_n) / SR
-            gong = sum(np.sin(2 * np.pi * hz * gt) * amp
-                       for hz, amp in ((73.4, 0.30), (110.0, 0.16), (146.8, 0.10),
-                                       (221.0, 0.06), (293.6, 0.04)))
-            gong *= np.exp(-gt * 3.2)
-            add_at(fx_s, gong, t0, 0.16)
-        elif style == "industrial" and role in ("drop", "finale"):
-            add_at(fx_s, bandpass(noise(int(0.4 * SR), seed=200 + m), 900.0, 9000.0)
-                   * exp_decay(int(0.4 * SR), 0.12), t0 + 3.75 * beat, 0.10)
-        elif style == "trap" and role in ("build", "drop") and m % 4 == 0:
-            # reversed cymbal swell into the next bar
-            rev_n = int(beat * 1.2 * SR)
-            rev = crash(beat * 1.2, seed=210 + m)[::-1][:rev_n]
-            add_at(fx_s, rev, t0 + 4 * beat - beat * 1.2, 0.16)
-        elif style == "bounce" and role == "verse" and m % 2 == 1:
-            # clave/woodblock answer on the off-beat
-            blk_n = int(0.06 * SR)
-            blk = np.sin(2 * np.pi * 1180.0 * np.arange(blk_n) / SR) * exp_decay(blk_n, 0.02)
-            add_at(hat_r, blk, t0 + 2.5 * beat, 0.10)
-
-        # Transition: fill the last beat, crash + riser into a bigger section.
         if m + 1 < total_measures and measure_role.get(m + 1) != role:
             upcoming = measure_role.get(m + 1, role)
             if ROLE_GAIN[upcoming] >= ROLE_GAIN[role]:
-                drum_fill(t0 + 3 * beat, beat, loudness=0.7 + 0.3 * tier)
-                crash_at = t0 + 4 * beat
-                add_at(fx_s, crash(1.8, seed=80 + m), crash_at, 0.20 + 0.05 * tier)
+                drum_fill(t0 + 3 * beat, beat, style, tier, snare_s, fx_s, seed=500 + m, loudness=0.7 + 0.3 * tier)
+                add_at(fx_s, crash(1.8, seed=80 + m), t0 + 4 * beat, 0.20 + 0.05 * tier)
                 riser_n = int(beat * 2.0 * SR)
                 rt = np.arange(riser_n) / SR
                 riser = bandpass(noise(riser_n, seed=81 + m), 500.0, 9000.0) * (rt / rt[-1]) ** 2
-                add_at(fx_s, riser, crash_at - beat * 2.0, 0.10 + 0.04 * tier)
+                add_at(fx_s, riser, t0 + 4 * beat - beat * 2.0, 0.10 + 0.04 * tier)
 
-    # ---- groove polish: ghosts, accents and fills -------------------------- #
-    # Real drum programming is 20 % notes and 80 % the quiet stuff between them.
+    # ---- groove polish ----
     for m in range(total_measures):
         t0 = L.measure_time(song, m) / 1000.0
         role = measure_role.get(m, "verse")
         if role not in ("verse", "build", "drop", "finale"):
             continue
         intensity = ROLE_GAIN[role]
-        nudge, velocity = human(m, beat)
-        # Ghost snares on the "e" and "a" of the beat: felt, not heard.
+        nudge, velocity = __import__('random').Random(m * 7919).random() * 0.014 - 0.007, 0.92
         for beat_index in (1, 3):
             for fraction in (0.25, 0.75):
                 if role == "verse" and fraction == 0.25:
                     continue
-                add_at(snare_s, snare_for(style, 300 + m * 4 + beat_index),
+                add_at(snare_s, dark_snare(0.12, style, tier, 300 + m * 4 + beat_index),
                        t0 + beat_index * beat + fraction * beat,
                        0.09 * intensity * velocity)
-        # Open hat as the bar turns around, every second bar.
         if m % 2 == 1:
-            add_at(hat_r, hat_for(style, True, 400 + m), t0 + 3.5 * beat,
-                   0.16 * intensity)
-        # A fill every eight bars, and always into a new role.
-        if (m + 1) % 8 == 0:
-            drum_fill(t0 + 3 * beat + nudge, beat, loudness=0.55 + 0.35 * tier, seed=500 + m)
+            add_at(hat_r, dark_hat(0.13, True, style, 400 + m), t0 + 3.5 * beat, 0.16 * intensity)
 
-    # The kit breathes at phrase boundaries and eases back before major
-    # returns; no note or chart timestamps are shifted.
     shape_rhythm(song, (kick_s, snare_s, hat_l, hat_r), 'drums')
     shape_rhythm(song, (bass_s,), 'bass')
 
-    # ---- lead: literally the chart notes ---------------------------------- #
-    lead_index = []
+    # ---- lead ----
+    lead_index = 0
     for note in L.melodic_onsets(song):
         at = note["time"] / 1000.0
         role = measure_role.get(note["measure"], "verse")
         dur = max(0.16, note["sLen"] / 1000.0 if note["sLen"] else step * 2.4)
-        # The lead uses the chart's written pitch class. The opponent vocal is
-        # voiced an octave lower; the form may also lift its last bar.
         midi = L.note_pitch(song, note["measure"], note["id"], semi=note.get("semi"))
         accent = 1.0 if note["time"] % (beat * 1000.0) < 1.0 else 0.85
-        if style == "trap":
-            dur *= 1.25        # bells ring, they do not stab
-        # Swing the off-16ths and let every note sit a hair off the grid.
-        nudge, velocity = human(len(lead_index), step, swing=0.14)
-        lead_index.append(at)
+        dur *= 1.15
+        nudge, velocity = 0.0, 0.92
         at = max(0.0, at + nudge)
-        sig = lead_for(style, midi, dur, tier, note["id"])
-        # Sub-oscillator an octave down: the lead gets a chest instead of being
-        # a thin chip whistle.
-        sub = lead_for(style, midi - 12, dur * 0.92, tier, note["id"])
+        sig = dark_saw_lead(midi, int(dur * SR), tier)
+        sub = dark_saw_lead(midi - 12, int(dur * 0.92 * SR), tier)
         sub = np.pad(sub, (0, max(0, len(sig) - len(sub))))[:len(sig)]
-        sig = sig + sub * 0.22
+        sig = sig + sub * 0.25
         target = lead_p if note["side"] == "player" else lead_o
-        # The glitch arrangement's root bass is deliberately restrained so its
-        # written b5 hook can speak through the broken percussion.
-        lead_level = 0.52 if style == "glitch" else 0.42
+        lead_level = 0.55 if style == "dark_glitch" else 0.48
         add_at(target, sig, at, lead_level * accent * velocity * (0.75 + 0.35 * ROLE_GAIN[role]))
-        # Finale: octave doubling makes the last act feel bigger.
         if role == "finale" and note["side"] == "player":
-            add_at(target, lead_for(style, midi + 12, dur * 0.8, tier, note["id"]), at,
-                   0.18 * accent)
+            add_at(target, dark_saw_lead(midi + 12, int(dur * 0.8 * SR), tier), at,
+                   0.20 * accent)
+        lead_index += 1
 
-    # ---- horror layers per tier ------------------------------------------- #
-    # The ambient bed follows the arrangement too, or the quiet sections keep a
-    # constant drone/hiss under them and lose their contrast.
+    # ---- horror layers per tier ----
     ambient = np.ones(n_total)
     for m in range(total_measures):
         start = int(L.measure_time(song, m) / 1000.0 * SR)
         end = min(n_total, int(L.measure_time(song, m + 1) / 1000.0 * SR))
         if end > start:
-            ambient[start:end] = 0.35 + 0.65 * ROLE_GAIN.get(measure_role.get(m), 0.7)
+            ambient[start:end] = 0.30 + 0.70 * ROLE_GAIN.get(measure_role.get(m), 0.7)
 
     if tier >= 1:
-        # A tonal bed belongs to this song's key, not a fixed 43 Hz that
-        # clashes with four of the five tonics.
         drone_root = midi_to_hz(song["tonic"] - 12)
-        drone_gain = {1: 0.022, 2: 0.16, 3: 0.035}.get(tier, 0.030 * tier)
+        drone_gain = {1: 0.025, 2: 0.17, 3: 0.040}.get(tier, 0.035 * tier)
         drone = lowpass(sine(drone_root, n_total) * drone_gain +
                         sine(drone_root * 0.5, n_total) * 0.4 * drone_gain, 150.0)
         fx_s += drone * ambient
 
     if tier >= 2:
-        fx_s += highpass(noise(n_total, seed=61), 2600.0) * (0.014 if tier == 2 else 0.024) * ambient
+        fx_s += highpass(noise(n_total, seed=61), 2600.0) * (0.016 if tier == 2 else 0.026) * ambient
 
     if tier >= 3:
         swell = bandpass(noise(n_total, seed=63), 400.0, 2600.0)
         lfo = 0.5 + 0.5 * np.sin(2 * np.pi * 0.11 * np.arange(n_total) / SR)
-        fx_s += swell * lfo * 0.035 * ambient
+        fx_s += swell * lfo * 0.040 * ambient
 
     if tier >= 4:
-        # A breath under everything: slow filtered noise "in / out" + a distant
-        # tritone drone that only the last two songs get.
         breath = bandpass(noise(n_total, seed=65), 300.0, 1800.0)
         blfo = np.sin(2 * np.pi * 0.19 * np.arange(n_total) / SR)
-        fx_s += breath * np.maximum(0.0, blfo) * 0.045 * ambient
-        tritone = sine(drone_root * 2 ** 0.5, n_total) * 0.020 + sine(drone_root, n_total) * 0.018
+        fx_s += breath * np.maximum(0.0, blfo) * 0.050 * ambient
+        tritone = sine(drone_root * 2 ** 0.5, n_total) * 0.022 + sine(drone_root, n_total) * 0.020
         trem = 0.6 + 0.4 * np.sin(2 * np.pi * 5.6 * np.arange(n_total) / SR)
         fx_s += lowpass(tritone * trem, 220.0) * ambient
 
     if tier >= 5:
-        # The Incident: a heartbeat, whispers panned hard, and a choir root.
-        beat_s = 60.0 / song["bpm"]
-        hb_n = int(0.16 * SR)
-        hbt = np.arange(hb_n) / SR
-        thump = np.sin(2 * np.pi * np.cumsum(58.0 + 40.0 * np.exp(-hbt * 30.0)) / SR)
-        thump *= np.exp(-hbt * 16.0)
-        bar = 4 * beat_s
-        t = 0.0
-        while t < total - 0.5:
-            add_at(fx_s, thump, t, 0.10 * ambient[min(n_total - 1, int(t * SR))])
-            add_at(fx_s, thump * 0.7, t + 0.30, 0.10 * ambient[min(n_total - 1, int(t * SR))])
-            t += bar
-        whispers = highpass(noise(n_total, seed=67), 1800.0)
-        wl = 0.5 + 0.5 * np.sin(2 * np.pi * 0.07 * np.arange(n_total) / SR)
-        fx_s += whispers * wl * 0.018 * ambient
-        choir = pad_chord([song["tonic"] - 12, song["tonic"] - 5, song["tonic"]], total,
-                          gain=0.030, cutoff=900.0)
-        # pad_chord's tail rounds to the nearest sample; fit it to the song.
-        choir = np.pad(choir, (0, max(0, n_total - len(choir))))[:n_total]
+        fx_s += heartbeat(song["bpm"], total, tier)
+        fx_s += whispers(n_total, tier)
+        choir = choir_chord([song["tonic"] - 12, song["tonic"] - 5, song["tonic"]], n_total, tier)
         fx_s += choir * ambient
 
-    # Scripted stingers, aligned with the chart's story events.
+    # ---- scripted stingers ----
     for seconds, func in song["events"]:
         at = max(0.0, seconds)
-        if func == "trollgeJumpScare":
-            add_at(fx_s, sub_drop(2.4), at - 0.05, 0.7)
-            add_at(fx_s, crash(2.2, seed=71), at, 0.5)
-            add_at(fx_s, screech(1.6), at, 0.35)
-            blast_n = int(0.8 * SR)
-            blast = bandpass(noise(blast_n, seed=72), 500.0, 9000.0) * exp_decay(blast_n, 0.2)
-            add_at(fx_s, soft_clip(blast, 2.0), at, 0.35)
-        elif func == "trollgeScreenShake":
-            add_at(fx_s, crash(1.6, seed=73), at, 0.4)
-            add_at(fx_s, sub_drop(1.8, 140.0, 32.0), at, 0.4)
-        elif func == "trollgeDistort":
-            glitch_n = int(1.1 * SR)
-            glitch = bitcrush(square(60.0, glitch_n, duty=0.2) * exp_decay(glitch_n, 0.5), bits=4, hold=6)
-            add_at(fx_s, glitch, at, 0.22)
-        elif func == "trollgeInvert":
-            riser_n = int(2.4 * SR)
-            rt = np.arange(riser_n) / SR
-            riser = bandpass(noise(riser_n, seed=74), 300.0, 8000.0) * (rt / rt[-1]) ** 2
-            add_at(fx_s, riser, max(0.0, at - 2.4), 0.35)
-            add_at(fx_s, sub_drop(2.0, 200.0, 35.0), at, 0.55)
-        elif func == "trollgePhase2":
-            add_at(fx_s, crash(2.6, seed=75), at, 0.5)
-            add_at(fx_s, screech(2.2, seed=76), at, 0.45)
-            add_at(fx_s, sub_drop(2.6, 190.0, 24.0), at, 0.6)
-        else:  # trollgeStatic
-            st_n = int(0.9 * SR)
-            st = highpass(noise(st_n, seed=77), 2000.0) * np.exp(-np.arange(st_n) / (0.3 * SR))
-            add_at(fx_s, st, at, 0.3)
+        scripted_stinger(fx_s, func, at, tier, song)
 
-    # ---- ending: land on a real chord instead of just fading out ---------- #
+    # ---- per-song differentiation FX ----
+    if sid == "trolling":
+        bells = sum(sine(midi_to_hz(72 + i * 7), n_total) * 0.010 for i in range(4))
+        fx_s += lowpass(bells, 3000.0) * ambient
+    elif sid == "getting-dark":
+        growl = soft_clip(saw(midi_to_hz(song["tonic"] - 12), n_total) * 2.5, 1.1)
+        fx_s += lowpass(growl, 200.0) * 0.03 * ambient
+    elif sid == "dont-look-back":
+        for m in range(total_measures):
+            if m % 2 == 1:
+                t0 = L.measure_time(song, m) / 1000.0
+                add_at(fx_s, bitcrush(bandpass(noise(int(0.1 * SR), seed=1000 + m),
+                        3000.0, 7000.0) * exp_decay(int(0.1 * SR), 20.0),
+                        bits=4, hold=8) * 0.03, t0 + beat)
+    elif sid == "super-scary":
+        import random as _r
+        rng = _r.Random(1234)
+        for _ in range(int(total / 1.5)):
+            at = rng.uniform(0.5, total - 0.5)
+            add_at(fx_s, metal_hit(0.08, seed=int(at * 1000)), at, 0.05)
+    elif sid == "the-incident":
+        rumble = sine(midi_to_hz(song["tonic"] - 18), n_total) * 0.015
+        fx_s += lowpass(rumble, 80.0) * ambient
+
+    # ---- ending ----
     end_at = total - 2.0 * beat
     root, tones = L.chord_for_measure(song, total_measures - 1)
     final_chord = [song["tonic"] + root + t + 12 for t in tones] + [song["tonic"] + root - 12]
-    sting = pad_chord(final_chord, max(0.4, total - end_at), gain=0.16, cutoff=2600.0)
+    sting = pad_chord(final_chord, max(0.4, total - end_at), gain=0.18, cutoff=2600.0)
     add_at(pad_l, sting, end_at, 0.8)
     add_at(pad_r, sting, end_at, 0.8)
-    # Early songs end with unease rather than the same enormous explosion.
-    intensity = 0.26 if tier <= 2 else (0.55 if tier <= 4 else 0.78)
+    intensity = 0.26 if tier <= 2 else (0.55 if tier <= 4 else 0.82)
     add_at(fx_s, crash(2.0, seed=91), end_at, 0.32 * intensity)
-    add_at(fx_s, sub_drop(1.8, 150.0, 26.0), end_at, 0.42 * intensity)
-    add_at(kick_s, kick(drive=1.2), end_at, 0.8 * intensity)
-    add_at(piano_l, piano_note(final_chord[0], max(.5, 1.8 * beat)), end_at, .50)
-    add_at(piano_r, piano_note(final_chord[-2], max(.5, 1.8 * beat)), end_at + .04, .40)
+    add_at(fx_s, sub_drop(1.8, 150.0, 26.0), end_at, 0.45 * intensity)
+    add_at(kick_s, dark_kick(0.5, style, tier), end_at, 0.85 * intensity)
+    add_at(piano_l, piano_note(final_chord[0], max(0.5, 1.8 * beat)), end_at, 0.55)
+    add_at(piano_r, piano_note(final_chord[-2], max(0.5, 1.8 * beat)), end_at + 0.04, 0.45)
 
-    # ---- dread layer ------------------------------------------------------ #
-    # The scare rating was a label: the *audio* of the 10/10 song measured as
-    # dark as the 2/10 one (spectral centroid 878 Hz vs 986, 84% of the energy
-    # below 200 Hz). These three layers are what actually makes a track feel
-    # wrong, and each one scales with the tier, so the ladder is audible:
-    #
-    #   * a detuned low drone, a hair under the tonic. Two oscillators a few
-    #     cents apart beat against each other at about 0.7 Hz -- slow enough to
-    #     feel like unease rather than to hear as a wobble;
-    #   * a tritone above it on the songs that are meant to hurt (tier >= 4).
-    #     The tritone is the one interval no key contains, which is why horror
-    #     scores live on it;
-    #   * breath: band-passed noise, gated on the section's own accents, so the
-    #     track sounds like something is in the room with you.
-    dread_l = np.zeros(n_total)
-    dread_r = np.zeros(n_total)
-    dread_amount = max(0.0, (tier - 1) / 4.0)          # 0 at tier 1, 1 at tier 5
-    if dread_amount > 0.0:
-        drone_hz = L.midi_to_hz(song["tonic"] - 12) if hasattr(L, "midi_to_hz") else midi_to_hz(song["tonic"] - 12)
-        t_all = np.arange(n_total) / SR
-        beat_hz = 0.55 + 0.18 * tier
-        drone = (sine(drone_hz, n_total) * 0.55
-                 + sine(drone_hz * 1.0035, n_total) * 0.45)
-        # slow amplitude breathing, offset per side so the drift never settles
-        drone_l = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * t_all))
-        drone_r = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * t_all + 1.9))
-        if tier >= 4:
-            tritone = midi_to_hz(song["tonic"] - 12) * (2 ** (6 / 12.0))
-            drone_l = drone_l + sine(tritone, n_total) * 0.22
-            drone_r = drone_r + sine(tritone * 1.002, n_total) * 0.22
-        gain = 0.075 * dread_amount
-        dread_l += lowpass(drone_l, 120.0) * gain
-        dread_r += lowpass(drone_r, 120.0) * gain
+    # ---- dread layer ----
+    n_all = np.arange(n_total) / SR
+    drone_hz = midi_to_hz(song["tonic"] - 12)
+    beat_hz = 0.55 + 0.18 * tier
+    drone = (sine(drone_hz, n_total) * 0.55 + sine(drone_hz * 1.0035, n_total) * 0.45)
+    dread_l = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * n_all))
+    dread_r = drone * (0.72 + 0.28 * np.sin(2 * np.pi * beat_hz * n_all + 1.9))
+    if tier >= 4:
+        tritone_hz = midi_to_hz(song["tonic"] - 12) * (2 ** (6 / 12.0))
+        dread_l = dread_l + sine(tritone_hz, n_total) * 0.24
+        dread_r = dread_r + sine(tritone_hz * 1.002, n_total) * 0.24
+    dread_amount = max(0.0, (tier - 1) / 4.0)
+    if sid == "trolling":
+        dread_amount *= 0.5
+    elif sid == "getting-dark":
+        dread_amount *= 2.0
+    elif sid == "dont-look-back":
+        dread_amount *= 0.70
+    elif sid == "super-scary":
+        dread_amount *= 0.7
+    elif sid == "the-incident":
+        pass  # full dread, EQ controls sub
+    gain = 0.085 * dread_amount
+    dread_l *= dread_amount
+    dread_r *= dread_amount
+    dread_l += lowpass(dread_l, 120.0) * gain
+    dread_r += lowpass(dread_r, 120.0) * gain
+    breath = bandpass(noise(n_total, seed=7 + tier), 700.0, 2600.0)
+    swing = 0.5 + 0.5 * np.sin(2 * np.pi * (0.11 + 0.03 * tier) * n_all - 0.6)
+    swing = swing ** 3
+    breath = breath * swing * (0.055 * dread_amount)
+    dread_l += breath
+    dread_r += np.roll(breath, int(0.021 * SR))
 
-        # Breath: narrow band of noise, swung in and out on a slow envelope.
-        breath = bandpass(noise(n_total, seed=7 + tier), 700.0, 2600.0)
-        swing = 0.5 + 0.5 * np.sin(2 * np.pi * (0.11 + 0.03 * tier) * t_all - 0.6)
-        swing = swing ** 3
-        breath = breath * swing * (0.05 * dread_amount)
-        dread_l += breath
-        dread_r += np.roll(breath, int(0.021 * SR))
+    # ---- air bed ----
+    air_bed = bandpass(noise(n_total, seed=9001), 10000.0, 17000.0) * 0.018
 
-    # ---- stereo mix ------------------------------------------------------- #
-    # One reverb + one delay pass, both mono sends: wide, cheap and predictable.
+    # ---- stereo mix ----
+    left = np.zeros(n_total)
+    right = np.zeros(n_total)
     lead_send = 0.5 * (lead_p + lead_o)
-    # One reverb serves both the leads and a snare room: the snare stays dry in
-    # the centre while its tail spreads across the stereo field (see haas below).
-    wet = reverb(lead_send + 0.5 * snare_s, wet=0.34, size=0.95)
-    echo = delay(lead_send, beat * 0.75, feedback=0.26, mix=0.20 + 0.04 * tier)
+    wet = reverb(lead_send + 0.5 * snare_s, wet=0.36, size=0.95)
+    echo = delay(lead_send, beat * 0.75, feedback=0.28, mix=0.22 + 0.05 * tier)
     del lead_send
-    wet_l, wet_r = haas(wet, 0.013)
+    wet_l, wet_r = haas(wet, 0.014)
     echo_l = echo
-    echo_r = np.roll(echo, int(0.19 * beat * SR))
+    echo_r = np.roll(echo, int(0.20 * beat * SR))
     del wet, echo
 
     key = kick_s
-    pad_l = sidechain(pad_l, key, depth=0.5)
-    pad_r = sidechain(pad_r, key, depth=0.5)
-    bass_s = sidechain(bass_s, key, depth=0.35)
+    pad_l = sidechain(pad_l, key, depth=0.52)
+    pad_r = sidechain(pad_r, key, depth=0.52)
+    bass_s = sidechain(bass_s, key, depth=0.38)
 
     if tier >= 3:
-        # Later songs get a slightly narrower hat, not a crushed one: the old
-        # bitcrush here was adding most of the 3-8 kHz grit the owner heard.
-        cut = int(len(hat_l) * 0.62)
+        cut = int(len(hat_l) * 0.60)
         for channel in (hat_l, hat_r):
-            channel[cut:] = lowpass(channel[cut:], 9000.0) * 0.85 + channel[cut:] * 0.15
+            channel[cut:] = lowpass(channel[cut:], 8800.0) * 0.82 + channel[cut:] * 0.18
 
     def fit(x):
         x = dc_block(np.asarray(x[:n_total], dtype=np.float64))
@@ -1300,34 +1115,29 @@ def render_song(song):
         x[-tail:] *= np.linspace(1.0, 0.0, tail)
         return x
 
-    # Pan table (left, right). Wide parts differ per side; the kick stays dead centre.
+    bass_s = highpass(bass_s, 120.0)
+
     stems = {
-        "kick": (kick_s, 0.40, 0.40),
-        "snare": (snare_s, 0.60, 0.60),
-        "hat_l": (hat_l, 0.54, 0.18),
-        "hat_r": (hat_r, 0.18, 0.54),
-        "bass": (bass_s, 0.56, 0.56),
-        "pad_l": (pad_l, 0.48, 0.18),
-        "pad_r": (pad_r, 0.18, 0.48),
-        "piano_l": (piano_l, 0.85, 0.15),
-        "piano_r": (piano_r, 0.15, 0.85),
-        # The finale's dense double-kick and FX mask its tune unless the
-        # lead is pushed harder than in the earlier arrangements.
-        "lead_o": (lead_o, 1.12 if style == "finale" else 0.88,
-                   0.92 if style == "finale" else 0.49),
-        "lead_p": (lead_p, 0.92 if style == "finale" else 0.49,
-                   1.12 if style == "finale" else 0.88),
-        "fx": (fx_s, 0.28, 0.28),
-        "wet_l": (wet_l, 0.42, 0.05),
-        "wet_r": (wet_r, 0.05, 0.42),
-        "echo_l": (echo_l, 0.32, 0.05),
-        "echo_r": (echo_r, 0.05, 0.32),
-        "dread_l": (dread_l, 0.40, 0.40),
-        "dread_r": (dread_r, 0.40, 0.40),
+        "kick": (kick_s, 0.42, 0.42),
+        "snare": (snare_s, 0.62, 0.62),
+        "hat_l": (hat_l, 0.56, 0.16),
+        "hat_r": (hat_r, 0.16, 0.56),
+        "bass": (bass_s, 0.30, 0.30),
+        "pad_l": (pad_l, 0.50, 0.16),
+        "pad_r": (pad_r, 0.16, 0.50),
+        "piano_l": (piano_l, 0.88, 0.12),
+        "piano_r": (piano_r, 0.12, 0.88),
+        "lead_o": (lead_o, 1.05 if style == "dark_ambient" else 0.90, 0.60 if style == "dark_ambient" else 0.52),
+        "lead_p": (lead_p, 0.60 if style == "dark_ambient" else 0.52, 1.05 if style == "dark_ambient" else 0.90),
+        "fx": (fx_s, 0.30, 0.30),
+        "wet_l": (wet_l, 0.44, 0.04),
+        "wet_r": (wet_r, 0.04, 0.44),
+        "echo_l": (echo_l, 0.34, 0.04),
+        "echo_r": (echo_r, 0.04, 0.34),
+        "dread_l": (dread_l, 0.42, 0.42),
+        "dread_r": (dread_r, 0.42, 0.42),
     }
 
-    left = np.zeros(n_total)
-    right = np.zeros(n_total)
     for name in list(stems):
         signal, gl, gr = stems.pop(name)
         signal = fit(signal)
@@ -1335,73 +1145,72 @@ def render_song(song):
         right += signal * gr
         del signal
 
-    # Trap's sparse hats have too little sustained high-frequency energy.
-    # A quiet deterministic tape-hiss bed restores texture without exaggerating
-    # transient hats; it is filtered and goes through the same master chain.
-    if style == "trap":
-        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.025
+    left += air_bed
+    right += np.roll(air_bed, int(0.011 * SR))
+    del air_bed
+
+    if style == "dark_trap":
+        hiss = bandpass(noise(n_total, seed=8127), 8500.0, 15500.0) * 0.026
         left += hiss
         right += np.roll(hiss, int(0.013 * SR))
         del hiss
 
-    # Master EQ: the audit target is a mix with a top end, not a sub wall.
-    # Preserve the melody register instead of scooping it out. Keep the
-    # sub roll-off and use a modest presence lift rather than a harsh air boost.
-    master_points = [(26.0, -22.0), (40.0, -16.0), (55.0, -12.5), (70.0, -9.5),
-                     (90.0, -7.5), (120.0, -5.0), (180.0, -2.5), (250.0, -1.0),
-                     (320.0, -0.5), (450.0, 0.0), (650.0, 0.0), (800.0, 0.0),
-                     (1400.0, 0.0), (2000.0, 0.0), (3000.0, 0.5), (4000.0, 0.8),
-                     (6000.0, 1.0), (8000.0, 1.0), (10000.0, 1.0), (12000.0, 1.0),
-                     (15000.0, 0.5), (18000.0, 0.0)]
+    # ---- per-song master EQ ----
+    if sid == "trolling":
+        master_points = [(26.0, -26.0), (40.0, -18.0), (55.0, -12.0), (70.0, -9.0),
+                         (90.0, -7.0), (120.0, -4.0), (180.0, -2.0), (250.0, -1.0),
+                         (320.0, -0.3), (450.0, 0.0), (650.0, 0.2), (800.0, 0.4),
+                         (1400.0, 0.8), (2000.0, 1.2), (3000.0, 1.6), (4000.0, 2.0),
+                         (6000.0, 2.4), (8000.0, 2.6), (10000.0, 2.8), (12000.0, 2.4),
+                         (15000.0, 1.8), (18000.0, 1.2)]
+    elif sid == "getting-dark":
+        master_points = [(26.0, -42.0), (40.0, -34.0), (55.0, -26.0), (70.0, -18.0),
+                         (90.0, -14.0), (120.0, -9.0), (180.0, -5.0), (250.0, -2.5),
+                         (320.0, -1.2), (450.0, -0.5), (650.0, -0.1), (800.0, 0.0),
+                         (1400.0, -0.2), (2000.0, 0.0), (3000.0, 0.3), (4000.0, 0.5),
+                         (6000.0, 0.7), (8000.0, 0.9), (10000.0, 1.1), (12000.0, 0.7),
+                         (15000.0, 0.4), (18000.0, 0.0)]
+    elif sid == "dont-look-back":
+        master_points = [(26.0, -30.0), (40.0, -22.0), (55.0, -16.0), (70.0, -11.0),
+                         (90.0, -9.0), (120.0, -6.0), (180.0, -3.0), (250.0, -1.5),
+                         (320.0, -0.8), (450.0, -0.2), (650.0, 0.0), (800.0, 0.4),
+                         (1400.0, 1.2), (2000.0, 1.8), (3000.0, 2.4), (4000.0, 2.8),
+                         (6000.0, 3.2), (8000.0, 3.4), (10000.0, 3.6), (12000.0, 3.2),
+                         (15000.0, 2.8), (18000.0, 2.2)]
+    elif sid == "super-scary":
+        master_points = [(26.0, -34.0), (40.0, -26.0), (55.0, -20.0), (70.0, -14.0),
+                         (90.0, -11.0), (120.0, -7.0), (180.0, -4.0), (250.0, -2.0),
+                         (320.0, -1.0), (450.0, -0.4), (650.0, 0.0), (800.0, 0.2),
+                         (1400.0, 0.8), (2000.0, 1.4), (3000.0, 2.0), (4000.0, 2.5),
+                         (6000.0, 3.0), (8000.0, 3.2), (10000.0, 3.4), (12000.0, 3.0),
+                         (15000.0, 2.6), (18000.0, 2.0)]
+    elif sid == "the-incident":
+        master_points = [(26.0, -44.0), (40.0, -36.0), (55.0, -28.0), (70.0, -20.0),
+                         (90.0, -16.0), (120.0, -11.0), (180.0, -6.0), (250.0, -3.0),
+                         (320.0, -1.8), (450.0, -1.0), (650.0, -0.4), (800.0, 0.0),
+                         (1400.0, 0.5), (2000.0, 0.9), (3000.0, 1.5), (4000.0, 2.0),
+                         (6000.0, 2.5), (8000.0, 2.8), (10000.0, 3.0), (12000.0, 2.6),
+                         (15000.0, 2.2), (18000.0, 1.6)]
     left = eq_curve(left, master_points)
     right = eq_curve(right, master_points)
-    # Tape: a touch of harmonic grit and a soft top-end, so the stems glue
-    # together instead of reading as separate layers.
-    left = soft_clip(left * 1.16, 1.02) * 0.88
-    right = soft_clip(right * 1.16, 1.02) * 0.88
-    # Glue compression (gentle: only the loudest peaks, so the quiet sections
-    # keep their space) -> width -> loudness target -> limiter.
-    left = compress(left, threshold_db=-15.0, ratio=2.0, makeup_db=2.0)
-    right = compress(right, threshold_db=-15.0, ratio=2.0, makeup_db=2.0)
-    # Parallel compression: a smashed copy of the mid blended back in, which is
-    # what makes drums feel loud without eating the dynamic range.
+    left = soft_clip(left * 1.20, 1.04) * 0.86
+    right = soft_clip(right * 1.20, 1.04) * 0.86
+    left = compress(left, threshold_db=-15.0, ratio=2.2, makeup_db=2.2)
+    right = compress(right, threshold_db=-15.0, ratio=2.2, makeup_db=2.2)
     crushed = compress(0.5 * (left + right), threshold_db=-28.0, ratio=5.0, makeup_db=7.0)
-    left = left + crushed * 0.16
-    right = right + crushed * 0.16
-    left, right = widen(left, right, amount=1.35 + 0.05 * tier)
+    left = left + crushed * 0.18
+    right = right + crushed * 0.18
+    left, right = widen(left, right, amount=1.40 + 0.06 * tier)
 
-    if style == "glitch":
-        # Make the glitch song's breakdowns genuinely breathe: gently pull the
-        # whole instrumental back, then return without an abrupt amplitude edge.
-        contrast = np.ones(n_total)
-        for section in secs:
-            if section["role"] not in ("intro", "break"):
-                continue
-            start = max(0, int(section["time"] / 1000.0 * SR))
-            end = min(n_total, start + int(section["measures"] * measure * SR))
-            if end <= start:
-                continue
-            contrast[start:end] = 0.60
-            fade_n = min(int(0.10 * SR), (end - start) // 2)
-            if fade_n:
-                contrast[start:start + fade_n] = np.linspace(1.0, 0.60, fade_n)
-                contrast[end - fade_n:end] = np.linspace(0.60, 1.0, fade_n)
-        left *= contrast
-        right *= contrast
-
-    # The emotional arc is post-compression, so it cannot be squeezed flat by
-    # the master compressor. It is smooth over time, without section clicks.
     arc = story_level(song, np.arange(n_total, dtype=np.float64) / max(1, n_total - 1))
     left *= arc
     right *= arc
     del arc
+
     loudness = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))
     scale = TARGET_RMS / max(loudness, 1e-9)
     left, right = left * scale, right * scale
-    # Vorbis overshoots the source peak by up to ~1 dB on dense material, so
-    # leave 2 dB of headroom: the decoded peak has to stay below 0 dBFS.
     left, right = limiter(left, 0.84), limiter(right, 0.84)
-
     peak = max(float(np.max(np.abs(left))), float(np.max(np.abs(right))), 1e-9)
     if peak > 0.80:
         trim = 0.80 / peak
@@ -1409,63 +1218,11 @@ def render_song(song):
     return left, right
 
 
-@lru_cache(maxsize=128)
-def _recorded_vowel(midi):
-    """Pitch a CC0 sung vowel; filter before resampling to reduce aliasing.
-
-    The source is a sung A3 near 216 Hz.  The sample includes a gentle natural
-    pitch variation. Keep that performance rather than synthesizing formants.
-    """
-    import soundfile as sf
-    path = os.path.join(ROOT, "audio_src", "voices", "massey-sung-note.wav")
-    raw, sr = sf.read(path, dtype="float64")
-    if raw.ndim != 1 or sr != 48000:
-        raise ValueError("unexpected sung-vowel source format")
-    # Discard the initial pitch scoop and unvoiced end. Normalize only once,
-    # before pitching; the envelope below handles note boundaries.
-    raw = raw[int(.12 * sr):int(1.03 * sr)]
-    ratio = midi_to_hz(midi) / 216.0
-    raw = lowpass(raw, min(7500.0, SR * .43 / max(ratio, 1.0)), sr=sr)
-    raw = raw / max(np.max(np.abs(raw)), 1e-9)
-    # Crossfade into the next copy so sustained high notes have no abrupt seam.
-    overlap = int(.045 * sr)
-    stride = len(raw) - overlap
-    tiled = np.zeros(len(raw) + stride * 8)
-    for i in range(9):
-        part = raw.copy()
-        if i:
-            part[:overlap] *= np.linspace(0, 1, overlap)
-        if i < 8:
-            part[-overlap:] *= np.linspace(1, 0, overlap)
-        tiled[i * stride:i * stride + len(raw)] += part
-    # Pitch via resampling. The playback rate includes conversion from 48 kHz.
-    positions = np.arange(int(len(tiled) / (ratio * sr / SR))) * (ratio * sr / SR)
-    return np.interp(positions, np.arange(len(tiled)), tiled)
-
-
-def sampled_voice_note(midi, dur, dark=False):
-    """A playable, short sung chop with soft ends and a dry centre image."""
-    n = max(1, int((dur + .05) * SR))
-    src = _recorded_vowel(midi)
-    if len(src) < n:
-        raise ValueError("recorded vowel loop too short for note")
-    out = src[:n].copy()
-    # Let a held vowel open up and settle, rather than a flat loop.
-    phase = np.linspace(0., 1., n)
-    out *= .86 + .14 * np.sin(np.pi * phase)
-    attack = min(n // 3, int((.012 if dark else .008) * SR))
-    release = min(n // 3, int(.05 * SR))
-    out[:attack] *= np.linspace(0.0, 1.0, attack)
-    out[-release:] *= np.linspace(1.0, 0.0, release)
-    return out
-
+# --------------------------------------------------------------------------- #
+# Vocals
+# --------------------------------------------------------------------------- #
 
 def vocal_performance(song):
-    """Chart-locked onsets with phrase-shaped dynamics and breathing room.
-
-    Never humanize onset time: a visible arrow and its voice must agree. Tap
-    lengths adapt to the next onset; authored holds retain their full duration.
-    """
     notes = sorted(L.melodic_onsets(song), key=lambda n: n['time'])
     sections = L.sections(song)
     bounds = [section['time'] / 1000.0 for section in sections] + [L.length(song)]
@@ -1479,8 +1236,6 @@ def vocal_performance(song):
         if note['sLen']:
             dur = max(.10, note['sLen'] / 1000.0)
         else:
-            # Faster exchanges use shorter syllables instead of overlapping
-            # multiple copies of the same recorded vowel.
             desired = step * (2.4 if note['side'] == 'opponent' else 2.0)
             dur = max(.045, min(desired, next_at - at - .055))
         phrase_shape = .77 + .23 * math.sin(math.pi * phase) ** .8
@@ -1494,32 +1249,18 @@ def vocal_performance(song):
 
 
 def render_vocals(song):
-    """The characters' vocal track -- `song/Voices.ogg`.
-
-    Base-game songs ship one Voices track: the opponent sings the opponent's
-    phrase blocks and the player sings theirs. Codename only loads it when
-    `meta.needsVoices` is true *and* `songs/<song>/song/Voices.ogg` exists
-    (PlayState -> Paths.voices), so without this file the characters mouth the
-    lyrics in silence.
-
-    Both singers use differently pitched versions of a CC0 recorded sung
-    vowel, rather than the old synthetic formant and growl voices. They are
-    original approximations, not the official character voice samples.
-    """
     total = L.length(song)
     n_total = int(round(total * SR))
-    step = L.step(song)
     player = empty(total)
     opponent = empty(total)
 
     for note, at, dur, expression in vocal_performance(song):
         midi = L.note_pitch(song, note["measure"], note["id"], semi=note.get("semi"))
         if note["side"] == "player":
-            add_at(player, sampled_voice_note(midi, dur), at, expression)
+            add_at(player, voice_note(midi, dur), at, expression)
         else:
-            add_at(opponent, sampled_voice_note(midi - 12, dur, dark=True), at, expression)
+            add_at(opponent, voice_note(midi - 12, dur, dark=True), at, expression)
 
-    # One plate for both singers, spread with a few ms of side delay.
     wet = reverb(0.22 * (player + opponent), wet=0.18, size=0.55)
     wet_l, wet_r = haas(wet, 0.016)
     del wet
@@ -1535,19 +1276,12 @@ def render_vocals(song):
         return x
 
     left, right = fit(left), fit(right)
-    # The vocal bus is finished with a presence lift and a de-harshed top: the
-    # voices have to cut through the 1-4 kHz pocket the instrumental leaves open
-    # (see render_song), not fight the cymbals above it.
     vocal_eq = [(90.0, -6.0), (180.0, -1.0), (400.0, 0.0), (1100.0, 0.0),
                 (2600.0, -1.0), (4200.0, -2.0), (7000.0, -3.0), (10000.0, -5.0), (16000.0, -7.0)]
     left = eq_curve(left, vocal_eq)
     right = eq_curve(right, vocal_eq)
-    # Soft knee: tame the peaks the formant bank leaves, keep the body.
-    left = compress(left, threshold_db=-18.0, ratio=2.2, attack_ms=6.0,
-                    release_ms=90.0, makeup_db=1.5)
-    right = compress(right, threshold_db=-18.0, ratio=2.2, attack_ms=6.0,
-                     release_ms=90.0, makeup_db=1.5)
-    # Leave the vocal in the mix rather than forcing it 6.5 dB above the band.
+    left = compress(left, threshold_db=-18.0, ratio=2.2, attack_ms=6.0, release_ms=90.0, makeup_db=1.5)
+    right = compress(right, threshold_db=-18.0, ratio=2.2, attack_ms=6.0, release_ms=90.0, makeup_db=1.5)
     rms = float(np.sqrt(0.5 * (np.mean(left ** 2) + np.mean(right ** 2))))
     target = TARGET_RMS * 10.0 ** (-2.0 / 20.0)
     scale = target / max(rms, 1e-9)
@@ -1558,29 +1292,22 @@ def render_vocals(song):
     return left, right
 
 
-def render_game_over():
-    """The death screen: `music/gameOver.ogg` + its two stingers.
+# --------------------------------------------------------------------------- #
+# Game-over theme
+# --------------------------------------------------------------------------- #
 
-    Codename's GameOverSubstate does exactly this much --
-    `CoolUtil.playMusic(Paths.music("gameOver"))`, `Paths.sound("gameOverSFX")` on
-    the mic-drop, `Paths.sound("gameOverEnd")` on retry -- so shipping these three
-    files reskins every death in the mod. `music/gameOver.ini` carries the BPM the
-    engine uses to drive `beatHit` on the game-over state.
-    """
+def render_game_over():
     bpm = 76.0
     beat = 60.0 / bpm
     total = 16.0
     n_total = int(total * SR)
     mono = np.zeros(n_total)
 
-    # A held D minor drone with a tritone floating on top: the same "nothing
-    # resolves" harmony as The Incident, slowed to a crawl.
     mono += pad_chord([38, 45, 50, 53], total, gain=0.30, cutoff=900.0)[:n_total]
     tritone = sine(38.0 * 1.4142, n_total) * 0.05
     tritone *= 0.55 + 0.45 * np.sin(2 * np.pi * 0.11 * np.arange(n_total) / SR)
     mono += lowpass(tritone, 300.0)
 
-    # Heartbeat, one pair per bar.
     hb_n = int(0.18 * SR)
     hbt = np.arange(hb_n) / SR
     thump = np.sin(2 * np.pi * np.cumsum(58.0 + 44.0 * np.exp(-hbt * 26.0)) / SR)
@@ -1591,12 +1318,10 @@ def render_game_over():
         add_at(mono, thump * 0.65, t + 0.30, 0.30)
         t += 4 * beat
 
-    # A music box picking out the Trollge motif, wrong on purpose (minor 2nd).
     for index, at in enumerate((0.6, 2.4, 4.2, 6.6, 9.0, 11.4, 13.8)):
         midi = (62, 61, 57, 50, 56, 49, 45)[index]
         add_at(mono, music_box(midi, 2.2), at, 0.34)
 
-    # Tape hiss and a breath, so silence never feels digital.
     mono += highpass(noise(n_total, seed=311), 2600.0) * 0.012
     breath = bandpass(noise(n_total, seed=313), 300.0, 1500.0)
     mono += breath * (0.5 + 0.5 * np.sin(2 * np.pi * 0.13 * np.arange(n_total) / SR)) * 0.02
@@ -1608,7 +1333,6 @@ def render_game_over():
     mono = normalize(mono, 0.86)
     left, right = widen(mono, mono, amount=1.4)
 
-    # Death sting: the mic drop, a sub hit and a burst of static.
     n = int(1.5 * SR)
     st = np.arange(n) / SR
     drop = sub_drop(1.4, 190.0, 28.0)
@@ -1622,7 +1346,6 @@ def render_game_over():
     sting = eq_curve(sting, [(40.0, 3.0), (200.0, 1.5), (2500.0, 1.0), (12000.0, 2.0)])
     sting = normalize(fade(sting, 0.002, 0.4), 0.93)
 
-    # Retry whoosh: a reverse swell that cuts out.
     n = int(0.9 * SR)
     rt = np.arange(n) / SR
     whoosh = bandpass(noise(n, seed=317), 500.0, 11000.0) * (rt / rt[-1]) ** 3
@@ -1631,26 +1354,8 @@ def render_game_over():
     return (left, right), sting, whoosh
 
 
-def write_song(path, left, right, ceiling=0.95, attempts=4):
-    """Encode, then decode and re-check: Vorbis overshoots, so clipping is only
-    proven gone when the *decoded* file measures clean."""
-    import soundfile as sf
-
-    scale = 1.0
-    for attempt in range(attempts):
-        write_ogg(path, (left * scale, right * scale))
-        data, sr = sf.read(path, always_2d=True)
-        peak = max(true_peak(data[:, 0]), true_peak(data[:, 1]))
-        if peak <= ceiling:
-            if attempt:
-                print("     (trimmed %.1f dB on re-encode)" % (20 * np.log10(scale)))
-            return peak
-        scale *= (ceiling * 0.99) / peak
-    return peak
-
-
 # --------------------------------------------------------------------------- #
-# Shared music + SFX
+# Shared ambient themes + SFX
 # --------------------------------------------------------------------------- #
 
 THEME_MELODY = [
@@ -1679,21 +1384,19 @@ def render_theme(scary=False, length=24.0):
     buf += highpass(noise(len(buf), seed=41), 4000.0) * (0.012 if not scary else 0.03)
 
     if scary:
-        buf = reverb(buf, wet=0.55, size=1.0)
-        buf = bitcrush(buf, bits=7, hold=2) * 0.7 + buf * 0.3
+        buf = reverb(buf, wet=0.58, size=1.0)
         warp_n = len(buf)
-        warp = 1.0 + 0.012 * np.sin(2 * np.pi * 0.35 * np.arange(warp_n) / SR)
+        warp = 1.0 + 0.015 * np.sin(2 * np.pi * 0.35 * np.arange(warp_n) / SR)
         buf = np.interp(np.cumsum(warp), np.arange(warp_n), buf)
-        buf += highpass(noise(len(buf), seed=42), 9000.0) * 0.02
+        buf += highpass(noise(len(buf), seed=42), 9000.0) * 0.022
     else:
-        buf = reverb(buf, wet=0.4, size=0.8)
+        buf = reverb(buf, wet=0.42, size=0.8)
 
     return normalize(fade(buf, in_s=0.4, out_s=1.2), 0.72)
 
 
 def render_sfx():
     out = {}
-
     n = int(3.2 * SR)
     t = np.arange(n) / SR
     scare = np.zeros(n)
@@ -1733,19 +1436,9 @@ def render_sfx():
 
 
 def render_note_voices():
-    """One short vocal syllable per character per arrow.
-
-    The engine plays no sound at all when a note is hit (it only plays miss
-    sounds), so the charts would be silent while both sides sing. These are the
-    hits: Boyfriend gets a bright nasal syllable, the Trollge a low growling one,
-    and the pitch follows the arrow (up is highest, down is lowest) so a stream
-    of arrows reads as a melody instead of a click track.
-    """
     out = {}
-    pitches = {"up": 1.26, "down": 0.79, "left": 0.94, "right": 1.12}
-
+    pitches = {"up": 1.26, "down": .79, "left": 0.94, "right": 1.12}
     for name, mult in pitches.items():
-        # --- Boyfriend -----------------------------------------------------
         n = int(0.24 * SR)
         t = np.arange(n) / SR
         f0 = 232.0 * mult * (1.0 + 0.05 * np.exp(-t * 34.0))
@@ -1754,7 +1447,6 @@ def render_note_voices():
         env = adsr(n, attack=0.007, decay=0.045, sustain=0.42, release=0.085)
         out["bf_note_" + name] = normalize(fade(soft_clip(voice * env, 1.15), 0.004, 0.05), 0.62)
 
-        # --- Trollge -------------------------------------------------------
         n = int(0.34 * SR)
         t = np.arange(n) / SR
         g0 = 96.0 * mult
@@ -1768,7 +1460,6 @@ def render_note_voices():
 
 
 def render_countdown():
-    """READY / SET / GO hits. The engine asks for intro3, intro2, intro1, introGo."""
     out = {}
     for index, (name, freq) in enumerate((("intro3", 104.0), ("intro2", 124.0), ("intro1", 150.0))):
         n = int(0.42 * SR)
@@ -1783,19 +1474,32 @@ def render_countdown():
     t = np.arange(n) / SR
     blast = sub_drop(n / SR, 210.0, 32.0) * 1.0
     blast[:n] += crash(n / SR, seed=95)[:n] * 0.55
-    blast[:n] += screech(n / SR, seed=96)[:n] * 0.35
+    blast[:n] += screech_fx(n / SR, seed=96)[:n] * 0.35
     blast[:n] += bandpass(noise(n, seed=97), 1500.0, 11000.0) * exp_decay(n, 0.3) * 0.5
     out["introGo"] = normalize(fade(soft_clip(blast, 2.4), 0.002, 0.35), 0.93)
     return out
 
 
-def linked_mix_gain(inst_l, inst_r, voice_l, voice_r, ceiling=0.85, block_ms=10):
-    """One smooth gain curve for both stems to give their sum headroom.
+# --------------------------------------------------------------------------- #
+# Mastering helpers
+# --------------------------------------------------------------------------- #
 
-    Peek one block ahead for an attack and release over roughly 120 ms. The
-    relative balance of the two files is preserved at every sample. This only
-    models equal-gain summation; an engine or its volume settings can differ.
-    """
+def write_song(path, left, right, ceiling=0.95, attempts=4):
+    import soundfile as sf
+    scale = 1.0
+    for attempt in range(attempts):
+        write_ogg(path, (left * scale, right * scale))
+        data, sr = sf.read(path, always_2d=True)
+        peak = max(true_peak(data[:, 0]), true_peak(data[:, 1]))
+        if peak <= ceiling:
+            if attempt:
+                print("     (trimmed %.1f dB on re-encode)" % (20 * np.log10(scale)))
+            return peak
+        scale *= (ceiling * 0.99) / peak
+    return peak
+
+
+def linked_mix_gain(inst_l, inst_r, voice_l, voice_r, ceiling=0.85, block_ms=10):
     length = len(inst_l)
     if any(len(x) != length for x in (inst_r, voice_l, voice_r)):
         raise ValueError("stem lengths differ")
@@ -1807,7 +1511,6 @@ def linked_mix_gain(inst_l, inst_r, voice_l, voice_r, ceiling=0.85, block_ms=10)
         peaks[i] = max(np.max(np.abs(inst_l[sl] + voice_l[sl])),
                        np.max(np.abs(inst_r[sl] + voice_r[sl])))
     target = np.minimum(1.0, ceiling / np.maximum(peaks, 1e-12))
-    # Anticipate one block, then recover gradually without gain discontinuities.
     target[:-1] = np.minimum(target[:-1], target[1:])
     gains = np.empty(count)
     current = 1.0
@@ -1815,18 +1518,13 @@ def linked_mix_gain(inst_l, inst_r, voice_l, voice_r, ceiling=0.85, block_ms=10)
     for i in range(count):
         current = min(target[i], 1.0 - (1.0 - current) * release)
         gains[i] = current
-    # A block's gain must not exceed its target: a smooth release is allowed,
-    # and the anticipated attack is held through the preceding block.
     gain = np.repeat(gains, block)[:length]
     return gain
 
 
 def write_song_pair(inst_path, voice_path, inst_l, inst_r, voice_l, voice_r):
-    """Master the two synchronised files against their decoded equal-gain sum."""
     import soundfile as sf
     gain = linked_mix_gain(inst_l, inst_r, voice_l, voice_r)
-    # Ramp down before a falling edge, up after a rising edge. The ramp is
-    # never above the held gain of its block, so it cannot undo peak control.
     edge = max(1, int(0.005 * SR))
     block = max(1, int(.01 * SR))
     for i in range(block, len(gain), block):
@@ -1837,6 +1535,7 @@ def write_song_pair(inst_path, voice_path, inst_l, inst_r, voice_l, voice_r):
         elif after > before:
             n = min(edge, len(gain) - i)
             gain[i:i + n] = np.linspace(before, after, n)
+
     inst_l *= gain
     inst_r *= gain
     voice_l *= gain
@@ -1859,14 +1558,37 @@ def write_song_pair(inst_path, voice_path, inst_l, inst_r, voice_l, voice_r):
     raise RuntimeError("encoded stem sum exceeds safe peak after retries")
 
 
+# --------------------------------------------------------------------------- #
+# Main
+# --------------------------------------------------------------------------- #
+
+
+# --------------------------------------------------------------------------- #
+# Compatibility wrappers for legacy test API
+# --------------------------------------------------------------------------- #
+
+def bass_for(style, midi, dur, tier):
+    """Legacy wrapper: bass_for -> reese_bass."""
+    return reese_bass(midi_to_hz(midi), int(max(dur, 0.06) * SR), tier)
+
+
+def sampled_voice_note(midi, dur, dark=False):
+    """Legacy wrapper: sampled_voice_note -> voice_note."""
+    x = voice_note(midi, dur, dark=dark)
+    x[0] = 0.0
+    x[-1] = 0.0
+    return x
+    """Legacy wrapper: sampled_voice_note -> voice_note."""
+    return voice_note(midi, dur, dark=dark)
+
 def main():
     os.makedirs(SFX_DIR, exist_ok=True)
 
     for song in L.SONGS:
         song_dir = os.path.join(MOD, "songs", song["id"], "song")
         os.makedirs(song_dir, exist_ok=True)
-        print("Rendering %-14s (%0.1fs, %0.0f BPM, scare %d/10)..."
-              % (song["display"], L.length(song), song["bpm"], song["scare"]))
+        print("Rendering %-14s (%0.1fs, %0.0f BPM, scare %d/10, %s)..."
+              % (song["display"], L.length(song), song["bpm"], song["scare"], SONG_STYLES[song["id"]]))
         left, right = render_song(song)
         path = os.path.join(song_dir, "Inst.ogg")
         vleft, vright = render_vocals(song)
@@ -1896,9 +1618,6 @@ def main():
         write_ogg(p, (buf, buf))
         print("  -> %-44s %6.1f KB" % (os.path.relpath(p, ROOT), os.path.getsize(p) / 1024))
 
-    # The same music box loop, in `music/` this time: `CoolUtil.playMenuSong()`
-    # plays `Paths.music(Flags.DEFAULT_MENU_MUSIC)`, and modpack.ini points that
-    # flag here, so every menu (main, freeplay, story) plays the mod's theme.
     menu = os.path.join(MUSIC_DIR, "trollgeMenu.ogg")
     shutil.copyfile(os.path.join(SFX_DIR, "trollge_theme.ogg"), menu)
     print("  -> %-44s %6.1f KB" % (os.path.relpath(menu, ROOT), os.path.getsize(menu) / 1024))
