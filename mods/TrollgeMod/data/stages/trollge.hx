@@ -9,8 +9,12 @@
 //  It also owns both full-screen shaders: the VHS grade (shaders/trollge_vhs.frag)
 //  on camGame, and the CRT pass (shaders/crt.frag) on camGame *and* camHUD at a
 //  subtle, stable strength. The game-camera effects rise per scare tier and
-//  are punched by story events. Alongside them: the camera work (zoom, shake) and the per-character
-//  note-hit voices.
+//  are punched by story events. Alongside them: the camera work (zoom, shake) and
+//  the per-character note-hit voices.
+//
+//  Visual horror is Trollge Files-inspired: heavy chromatic aberration, barrel
+//  curvature, horizontal tear bands, VHS tracking wobble, halation bloom,
+//  animated static grain, screen inversion on jumpscare events, and white flash.
 // ===========================================================================
 
 var scareTier:Int = 1;
@@ -34,6 +38,10 @@ var glitch:Float = 0.0;
 var glitchTimes:Array<Float> = [];
 var songClock:Float = 0.0;
 
+// Inversion overlay (full-screen negative during trollgeInvert / jumpscare).
+var invertSpr:FlxSprite = null;
+var invertTimer:Float = 0.0;
+
 function create() {
 	var meta = PlayState.SONG != null ? PlayState.SONG.meta : null;
 	var cv = meta != null ? meta.customValues : null;
@@ -48,10 +56,6 @@ function create() {
 	// Screen grade: 2/10 is a light tape look, 10/10 is a deck that has given up.
 	vhsIntensity = Math.min(1.0, 0.35 + (scareTier - 2) * 0.08);
 	setupShaders();
-
-	// Camera zoom is applied on the first update, not here: the stage script is
-	// created before the stage xml attributes are parsed, so defaultCamZoom still
-	// holds the previous song's value at this point.
 
 	// Story events that should punch the shader, read straight from the chart.
 	glitchTimes = [];
@@ -97,6 +101,18 @@ function create() {
 	staticSpr.antialiasing = false;
 	PlayState.instance.add(staticSpr);
 
+	// Full-screen inversion overlay for Trollge Files-style color flips.
+	invertSpr = new FlxSprite(0, 0).loadGraphic(Paths.image('trollge_invert'));
+	invertSpr.cameras = [PlayState.instance.camGame];
+	invertSpr.scrollFactor.set();
+	invertSpr.setGraphicSize(FlxG.width, FlxG.height);
+	invertSpr.updateHitbox();
+	invertSpr.screenCenter();
+	invertSpr.alpha = 0.0;
+	invertSpr.visible = false;
+	invertSpr.blend = BlendMode.ADD;
+	invertSpr.antialiasing = false;
+	PlayState.instance.add(invertSpr);
 }
 
 function setupShaders() {
@@ -107,52 +123,26 @@ function setupShaders() {
 	if (shaderClass == null || filterClass == null) return;
 
 	// 1. VHS grade (shaders/trollge_vhs.frag).
-	try {
-		vhs = shaderClass.fromFile('trollge_vhs');
-	} catch (e) {
-		vhs = null;
-	}
+	try { vhs = shaderClass.fromFile('trollge_vhs'); } catch (e) { vhs = null; }
 	if (vhs != null) {
-		try {
-			vhsFilter = Type.createInstance(filterClass, [vhs]);
-		} catch (e) {
-			vhsFilter = null;
-		}
+		try { vhsFilter = Type.createInstance(filterClass, [vhs]); } catch (e) { vhsFilter = null; }
 	}
 
 	// 2. CRT pass (shaders/crt.frag), game camera.
-	try {
-		crt = shaderClass.fromFile('crt');
-	} catch (e) {
-		crt = null;
-	}
+	try { crt = shaderClass.fromFile('crt'); } catch (e) { crt = null; }
 	if (crt != null) {
-		try {
-			crtFilter = Type.createInstance(filterClass, [crt]);
-		} catch (e) {
-			crtFilter = null;
-		}
+		try { crtFilter = Type.createInstance(filterClass, [crt]); } catch (e) { crtFilter = null; }
 	}
 
 	// 3. CRT pass, HUD camera (its own instance so the two can differ).
-	try {
-		crtHud = shaderClass.fromFile('crt');
-	} catch (e) {
-		crtHud = null;
-	}
+	try { crtHud = shaderClass.fromFile('crt'); } catch (e) { crtHud = null; }
 	if (crtHud != null) {
-		try {
-			crtHudFilter = Type.createInstance(filterClass, [crtHud]);
-		} catch (e) {
-			crtHudFilter = null;
-		}
+		try { crtHudFilter = Type.createInstance(filterClass, [crtHud]); } catch (e) { crtHudFilter = null; }
 	}
 
 	var ps = PlayState.instance;
 	if (ps == null) return;
 
-	// Filters are attached last, and only if at least one survived: a chip that
-	// cannot compile the shader should cost the effect, never the song.
 	if (ps.camGame != null && (vhsFilter != null || crtFilter != null)) {
 		try {
 			var gameFilters = ps.camGame.filters != null ? ps.camGame.filters.copy() : [];
@@ -222,8 +212,8 @@ function update(elapsed:Float) {
 	var songSeconds:Float = Conductor != null ? Conductor.songPosition / 1000.0 : -1.0;
 	for (t in glitchTimes) {
 		var since:Float = songSeconds - t;
-		if (since >= 0.0 && since < 1.2) {
-			var amount:Float = 1.0 - since / 1.2;
+		if (since >= 0.0 && since < 1.4) {
+			var amount:Float = 1.0 - since / 1.4;
 			if (amount > target) target = amount;
 		}
 	}
@@ -231,7 +221,7 @@ function update(elapsed:Float) {
 	if (scareTier >= 8 && Conductor != null && Conductor.crochet > 0 && songSeconds >= 0) {
 		var phase:Float = (Conductor.songPosition % Conductor.crochet) / Conductor.crochet;
 		var pulse:Float = 1.0 - phase;
-		if (pulse * 0.22 > target) target = pulse * 0.22;
+		if (pulse * 0.30 > target) target = pulse * 0.30;
 	}
 	glitch = target;
 
@@ -240,10 +230,10 @@ function update(elapsed:Float) {
 	if (vhs != null) {
 		shaderFloat('uTime', songClock);
 		shaderFloat('uIntensity', vhsIntensity);
-		shaderFloat('uAberration', 0.7 + 1.3 * vhsIntensity + 3.0 * glitch);
-		shaderFloat('uScanline', 0.25 + 0.45 * vhsIntensity);
-		shaderFloat('uGrain', 0.2 + 0.5 * vhsIntensity + 0.3 * glitch);
-		shaderFloat('uVignette', 0.25 + 0.22 * vhsIntensity);
+		shaderFloat('uAberration', 0.9 + 1.6 * vhsIntensity + 4.0 * glitch);
+		shaderFloat('uScanline', 0.30 + 0.50 * vhsIntensity + 0.20 * glitch);
+		shaderFloat('uGrain', 0.25 + 0.55 * vhsIntensity + 0.35 * glitch);
+		shaderFloat('uVignette', 0.30 + 0.25 * vhsIntensity);
 		shaderFloat('uGlitch', glitch);
 	}
 
@@ -251,11 +241,11 @@ function update(elapsed:Float) {
 	// 4/10 (0.25) shows the scanlines, 6/10 (0.5) starts splitting channels,
 	// 10/10 (1.0) is a broken set -- plus the event spikes on top.
 	var base:Float = Math.min(1.0, (scareTier - 2) / 8.0);
-	var aber:Float = 0.35 + 1.15 * base + 2.6 * glitch;
-	var scan:Float = 0.12 + 0.12 * base;
-	var grain:Float = 0.02 + 0.06 * base + 0.20 * glitch;
-	var curve:Float = 0.018 + 0.022 * base;
-	var vig:Float = 0.22 + 0.14 * base;
+	var aber:Float = 0.45 + 1.35 * base + 3.2 * glitch;
+	var scan:Float = 0.15 + 0.15 * base;
+	var grain:Float = 0.03 + 0.08 * base + 0.25 * glitch;
+	var curve:Float = 0.022 + 0.028 * base;
+	var vig:Float = 0.25 + 0.16 * base;
 
 	setFloatOn(crt, 'uTime', songClock);
 	setFloatOn(crt, 'iTime', songClock);
@@ -276,6 +266,18 @@ function update(elapsed:Float) {
 	setFloatOn(crtHud, 'uCurvature', 0.0);
 	setFloatOn(crtHud, 'uVignette', 0.0);
 	setFloatOn(crtHud, 'uGlitch', 0.0);
+
+	// Inversion overlay fades out after an invert event.
+	if (invertTimer > 0.0) {
+		invertTimer -= elapsed;
+		if (invertSpr != null) {
+			invertSpr.visible = true;
+			invertSpr.alpha = Math.max(0.0, invertTimer / 0.7) * 0.6;
+		}
+	} else if (invertSpr != null) {
+		invertSpr.visible = false;
+		invertSpr.alpha = 0.0;
+	}
 }
 
 function onStrumCreation(event) {
@@ -296,9 +298,7 @@ function camShake(pixels:Float, seconds:Float) {
 function zoomPunch(amount:Float) {
 	var cam = PlayState.instance != null ? PlayState.instance.camGame : null;
 	if (cam == null) return;
-	// Dense chords and engine beat bops can overlap. Never let our impulses
-	// stack without bound or pull down a larger zoom set by another script.
-	var ceiling:Float = PlayState.instance.defaultCamZoom + 0.018;
+	var ceiling:Float = PlayState.instance.defaultCamZoom + 0.025;
 	if (cam.zoom < ceiling) cam.zoom = Math.min(ceiling, cam.zoom + amount);
 }
 
@@ -324,32 +324,52 @@ function onNoteHit(event) {
 		if (event.player) FlxG.sound.play(Paths.sound('bf_note_' + dir), 0.32);
 		else FlxG.sound.play(Paths.sound('trollge_note_' + dir), 0.28);
 	}
-	zoomPunch(event.player ? 0.0022 : 0.0008);
+	zoomPunch(event.player ? 0.0030 : 0.0012);
 }
 
 /** A small camera breath every fourth measure, bounded by zoomPunch. */
 function measureHit(curMeasure) {
-	if (curMeasure % 4 == 0) zoomPunch(0.003 + 0.0005 * scareTier);
+	if (curMeasure % 4 == 0) zoomPunch(0.004 + 0.0008 * scareTier);
 }
 
 function beatHit(curBeat) {
 	// Camera: a small push on every beat once the song is properly scary, and a
-	// restrained downbeat shake from 6/10 up. Everything scales with the tier, so the
-	// last two songs physically feel different from the first one.
-	if (scareTier >= 4) zoomPunch(0.0022 + 0.0004 * scareTier);
+	// restrained downbeat shake from 6/10 up. Everything scales with the tier,
+	// so the last two songs physically feel different from the first one.
+	if (scareTier >= 4) zoomPunch(0.0030 + 0.0006 * scareTier);
 	// Reserve shake for downbeats: the contrast makes the impact more legible
 	// than a constantly vibrating camera, especially in dense note sections.
 	if (scareTier >= 6 && curBeat % 4 == 0)
-		camShake(1.0 + 0.22 * scareTier, 0.10);
+		camShake(1.2 + 0.30 * scareTier, 0.12);
 
-	// FlxRandom.bool takes a percentage in the range 0..100.
+	// Random static flicker — scarier songs never fully settle.
 	if (staticSpr == null) return;
-	var chance:Float = scareTier >= 8 ? 30.0 : (scareTier >= 6 ? 16.0 : 6.0);
+	var chance:Float = scareTier >= 8 ? 35.0 : (scareTier >= 6 ? 20.0 : 8.0);
 	if (FlxG.random.bool(chance)) {
-		var peak:Float = scareTier >= 8 ? 0.35 : (scareTier >= 6 ? 0.22 : 0.12);
+		var peak:Float = scareTier >= 8 ? 0.40 : (scareTier >= 6 ? 0.26 : 0.14);
 		FlxTween.cancelTweensOf(staticSpr);
-		FlxTween.tween(staticSpr, {alpha: peak}, 0.06, {
-			onComplete: function(_) FlxTween.tween(staticSpr, {alpha: 0.0}, 0.22)
+		FlxTween.tween(staticSpr, {alpha: peak}, 0.05, {
+			onComplete: function(_) FlxTween.tween(staticSpr, {alpha: 0.0}, 0.20)
 		});
 	}
+}
+
+/** Full-screen color inversion (Trollge Files-style negative flash). */
+function invertScreen(a = null):Void {
+	var ps = PlayState.instance;
+	if (ps == null || invertSpr == null) return;
+	invertTimer = 0.7;
+	if (invertSpr != null) {
+		invertSpr.visible = true;
+		invertSpr.alpha = 0.6;
+	}
+	ps.camGame.flash(FlxColor.WHITE, 0.08);
+	FlxG.sound.play(Paths.sound('trollge_invert'), 0.8);
+	shake(12.0 + scareTier * 2.0, 0.6);
+}
+
+function shake(power:Float, duration:Float) {
+	var ps = PlayState.instance;
+	if (ps == null) return;
+	ps.camGame.shake(power / 1000.0, duration);
 }

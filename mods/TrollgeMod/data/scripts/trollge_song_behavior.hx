@@ -1,5 +1,5 @@
 // ===========================================================================
-//  trollge_song_behavior.hx -- the story engine behind the three songs.
+//  trollge_song_behavior.hx -- the story engine behind the songs.
 //
 //  Every song folder does:
 //      songs/<id>/scripts/song_behavior.hx -> importScript('data/scripts/trollge_song_behavior')
@@ -28,8 +28,8 @@ var captionBandOut:FlxTween = null;
 /** Camera shake helper (FlxCamera.shake is the only reliable way to do this). */
 function shake(power:Float, duration:Float):Void {
 	var ps = PlayState.instance;
+	if (ps == null) return;
 	ps.camGame.shake(power / 1000.0, duration);
-	// Keep notes, score and captions steady while the room reacts.
 }
 
 var phase2Done:Bool = false;
@@ -45,8 +45,6 @@ function swapTrollge(name:String, icon:String):Character {
 	newChar.x = old.x;
 	newChar.y = old.y;
 	newChar.scrollFactor.set(old.scrollFactor.x, old.scrollFactor.y);
-	// Stage placement applied its camera offset to the original character.
-	// Preserve it on a phase swap so the camera does not jump vertically.
 	newChar.cameraOffset.set(old.cameraOffset.x, old.cameraOffset.y);
 
 	ps.insert(ps.members.indexOf(old), newChar);
@@ -56,8 +54,6 @@ function swapTrollge(name:String, icon:String):Character {
 
 	if (ps.iconP2 != null) ps.iconP2.setIcon(icon);
 
-	// The health bar takes its colours from the characters, so a swap has to
-	// repaint it or the bar keeps the previous form's colour (PlayState.hx:920).
 	if (ps.healthBar != null) {
 		if (Options.colorHealthBar) {
 			var left:Int = newChar.iconColor != null ? newChar.iconColor : 0xFFFF0000;
@@ -77,10 +73,10 @@ function trollgeToGlitch(a = null):Void {
 	glitchDone = true;
 	if (swapTrollge('trollge_glitch', 'trollge_glitch') == null) return;
 
-	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.85);
-	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.55);
-	PlayState.instance.camGame.flash(FlxColor.fromRGB(90, 0, 0), 0.35);
-	shake(16.0, 0.8);
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.9);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.6);
+	PlayState.instance.camGame.flash(FlxColor.fromRGB(120, 0, 0), 0.4);
+	shake(18.0, 0.9);
 }
 
 /** Song 3, 75 s: phase 2 collapses into phase 3. */
@@ -90,9 +86,9 @@ function trollgeToStatic(a = null):Void {
 	staticDone = true;
 	if (swapTrollge('trollge_static', 'trollge_static') == null) return;
 
-	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.9);
-	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.5);
-	shake(20.0, 0.9);
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.95);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.55);
+	shake(22.0, 1.0);
 }
 
 /** Song 5, 84 s: the same ending as song 4, reached from the other side. */
@@ -100,45 +96,28 @@ function trollgeToSad(a = null):Void {
 	trollgeSad(a);
 }
 
-/** 60 s of song 3: the static mess resolves into the red-eyed final form. */
+/** 60 s of song 4: the static mess resolves into the red-eyed final form. */
 function trollgeFinalForm(a = null):Void {
 	if (phase2Done) return;
 	phase2Done = true;
 	if (swapTrollge('trollge_final', 'trollge_final') == null) return;
 
-	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.85);
-	FlxG.sound.play(Paths.sound('trollge_invert'), 0.6);
-	shake(22.0, 0.9);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.9);
+	FlxG.sound.play(Paths.sound('trollge_invert'), 0.7);
+	shake(24.0, 1.0);
 }
 
-/** 96 s of song 3: he stops fighting and just stands there. One pose. */
+/** 96 s of song 4 / 84 s of song 5: he stops fighting and just stands there. */
 function trollgeSad(a = null):Void {
 	if (sadDone) return;
 	sadDone = true;
 	if (swapTrollge('trollge_sad', 'trollge_sad') == null) return;
 
-	FlxG.sound.play(Paths.sound('trollge_invert'), 0.45);
-	shake(6.0, 0.6);
+	FlxG.sound.play(Paths.sound('trollge_invert'), 0.5);
+	shake(8.0, 0.7);
 }
 
-/** One line of story, typed over the bottom of the screen while you play.
- *
- *  The chart passes it as an "HScript Call" event; the engine splits params[1] on
- *  commas, so anything after the first comma arrives as a second argument and is
- *  joined back here.
- *
- *  Two things here are the result of crashes, not taste:
- *
- *  1. No borderStyle. `FlxTextBorderStyle` is a real enum in flixel (it has a
- *     parameterised SHADOW_XY case), and `FlxText.regenGraphic()` switches on it.
- *     Assigning a raw int from HScript leaves the field holding something that
- *     is not an enum value, and the switch throws a Null Object Reference the
- *     first time the text is drawn. v3.3.0 shipped that bug in this function.
- *     The text gets a dark band behind it instead.
- *  2. `resetText(line)` before `start(delay)`. `FlxTypeText.start()` only takes a
- *     delay: it types whatever `_finalText` already holds, and `_finalText` only
- *     comes from the constructor or `resetText()`.
- */
+/** One line of story, typed over the bottom of the screen while you play. */
 function trollgeCaption(a = null, b = null, c = null):Void {
 	var line:String = (a == null ? "" : Std.string(a));
 	if (b != null) line += ", " + Std.string(b);
@@ -190,8 +169,11 @@ function trollgeCaption(a = null, b = null, c = null):Void {
 	}
 }
 
+/** Full-screen scream built from the trollge's own face — Trollge Files-level. */
 function trollgeJumpScare(a = null):Void {
 	var ps = PlayState.instance;
+	if (ps == null) return;
+
 	var spr = new FlxSprite(0, 0).loadGraphic(Paths.image('trollge_jump_scare'));
 	spr.cameras = [ps.camGame];
 	spr.scrollFactor.set();
@@ -201,12 +183,12 @@ function trollgeJumpScare(a = null):Void {
 	spr.screenCenter();
 	ps.add(spr);
 
-	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.9);
-	ps.camGame.flash(FlxColor.WHITE, 0.12);
-	shake(10.0 + 2.5 * scareTier, 0.55);
+	FlxG.sound.play(Paths.sound('trollge_jump_scare'), 0.95);
+	ps.camGame.flash(FlxColor.WHITE, 0.15);
+	shake(12.0 + 3.0 * scareTier, 0.65);
 
-	FlxTween.tween(spr, {alpha: 0.0}, 0.30, {
-		startDelay: 0.22,
+	FlxTween.tween(spr, {alpha: 0.0}, 0.35, {
+		startDelay: 0.25,
 		onComplete: function(_) {
 			spr.kill();
 			ps.remove(spr, true);
@@ -215,10 +197,10 @@ function trollgeJumpScare(a = null):Void {
 }
 
 function trollgeScreenShake(a = null):Void {
-	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.75);
-	shake(8.0 + 2.0 * scareTier, 0.8);
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.8);
+	shake(10.0 + 2.5 * scareTier, 0.9);
 	if (PlayState.instance.camGame != null)
-		PlayState.instance.camGame.flash(FlxColor.fromRGB(120, 0, 0), 0.25);
+		PlayState.instance.camGame.flash(FlxColor.fromRGB(140, 0, 0), 0.3);
 }
 
 function trollgeDistort(a = null):Void {
@@ -226,19 +208,20 @@ function trollgeDistort(a = null):Void {
 	if (staticSpr == null) return;
 	FlxTween.cancelTweensOf(staticSpr);
 	staticSpr.alpha = 0.0;
-	FlxTween.tween(staticSpr, {alpha: 0.45}, 0.10, {
-		onComplete: function(_) FlxTween.tween(staticSpr, {alpha: 0.06}, 0.55)
+	FlxTween.tween(staticSpr, {alpha: 0.55}, 0.08, {
+		onComplete: function(_) FlxTween.tween(staticSpr, {alpha: 0.08}, 0.5)
 	});
-	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.7);
-	shake(5.0 + scareTier, 0.35);
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.75);
+	shake(6.0 + scareTier * 1.5, 0.4);
+	ps.camGame.flash(FlxColor.fromRGB(80, 0, 80), 0.18);
 }
 
 function trollgeStatic(a = null):Void {
 	if (staticSpr == null) return;
 	FlxTween.cancelTweensOf(staticSpr);
-	staticSpr.alpha = 0.55;
-	FlxTween.tween(staticSpr, {alpha: 0.05}, 0.9);
-	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.5);
+	staticSpr.alpha = 0.65;
+	FlxTween.tween(staticSpr, {alpha: 0.06}, 1.0);
+	FlxG.sound.play(Paths.sound('trollge_distortion'), 0.55);
 }
 
 function trollgeInvert(a = null):Void {
@@ -252,17 +235,19 @@ function trollgeInvert(a = null):Void {
 		invertSpr.screenCenter();
 		invertSpr.alpha = 0.0;
 		invertSpr.visible = false;
+		invertSpr.blend = BlendMode.ADD;
+		invertSpr.antialiasing = false;
 		ps.add(invertSpr);
 	}
-	// An older fade must not hide a new inversion when events overlap.
 	FlxTween.cancelTweensOf(invertSpr);
 	invertSpr.visible = true;
-	invertSpr.alpha = 0.58;
-	FlxTween.tween(invertSpr, {alpha: 0.0}, 0.7, {
+	invertSpr.alpha = 0.7;
+	FlxTween.tween(invertSpr, {alpha: 0.0}, 0.8, {
 		onComplete: function(_) invertSpr.visible = false
 	});
-	FlxG.sound.play(Paths.sound('trollge_invert'), 0.8);
-	shake(14.0 + scareTier, 0.7);
+	FlxG.sound.play(Paths.sound('trollge_invert'), 0.85);
+	shake(16.0 + scareTier * 2.0, 0.8);
+	ps.camGame.flash(FlxColor.WHITE, 0.1);
 }
 
 // --------------------------------------------------------------------------- hooks
@@ -287,7 +272,6 @@ function create() {
 }
 
 function onPlayerMiss(event) {
-	// Custom miss feedback (the engine still handles score/health).
 	if (event != null) event.missSound = Paths.sound('trollge_miss');
 }
 
@@ -297,9 +281,9 @@ function update(elapsed) {
 
 	// Idle breathing static: scarier songs never fully settle.
 	var base:Float = 0.0;
-	if (scareTier >= 8) base = 0.055;
-	else if (scareTier >= 6) base = 0.035;
-	else if (scareTier >= 4) base = 0.02;
+	if (scareTier >= 8) base = 0.065;
+	else if (scareTier >= 6) base = 0.04;
+	else if (scareTier >= 4) base = 0.025;
 	if (staticSpr != null)
 		staticSpr.alpha = Math.max(staticSpr.alpha, base);
 }
