@@ -55,7 +55,7 @@ void main() {
     col.r = sampleClamped(uv + dir).r;
     col.g = sampleClamped(uv).g;
     col.b = sampleClamped(uv - dir).b;
-    col.a = sampleClamped(uv).a;
+    float alpha = sampleClamped(uv).a;
 
     // ---------------------------------------------------------------- Halation bloom
     // 5-tap highlight glow — bright parts bleed like an over-driven CRT.
@@ -103,5 +103,5 @@ void main() {
         col.rgb = mix(col.rgb, shifted.rgb, uGlitch * 0.5);
     }
 
-    gl_FragColor = vec4(clamp(col.rgb, vec3(0.0), vec3(col.a)), col.a);
+    gl_FragColor = vec4(clamp(col.rgb, vec3(0.0), vec3(alpha)), alpha);
 }

@@ -298,7 +298,7 @@ function camShake(pixels:Float, seconds:Float) {
 function zoomPunch(amount:Float) {
 	var cam = PlayState.instance != null ? PlayState.instance.camGame : null;
 	if (cam == null) return;
-	var ceiling:Float = PlayState.instance.defaultCamZoom + 0.025;
+	var ceiling:Float = PlayState.instance.defaultCamZoom + 0.018;
 	if (cam.zoom < ceiling) cam.zoom = Math.min(ceiling, cam.zoom + amount);
 }
 
@@ -340,7 +340,8 @@ function beatHit(curBeat) {
 	// Reserve shake for downbeats: the contrast makes the impact more legible
 	// than a constantly vibrating camera, especially in dense note sections.
 	if (scareTier >= 6 && curBeat % 4 == 0)
-		camShake(1.2 + 0.30 * scareTier, 0.12);
+		var shakePower:Float = scareTier >= 8 ? 30.0 : (scareTier >= 6 ? 16.0 : 6.0);
+		camShake(shakePower, 0.12);
 
 	// Random static flicker — scarier songs never fully settle.
 	if (staticSpr == null) return;
