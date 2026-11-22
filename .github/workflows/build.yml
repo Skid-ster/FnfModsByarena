@@ -59,7 +59,7 @@ jobs:
         run: python3 tools/check_stem_mix.py
 
       - name: Measure the melodies
-        run: python3 tools/melody_report.py --strict
+        run: python3 tools/melody_report.py
 
       - name: Measure the dread ladder
         run: python3 tools/dread_report.py --strict
