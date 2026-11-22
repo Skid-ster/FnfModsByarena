@@ -18,9 +18,9 @@
 		"songKey": "A minor",
 		"lengthSeconds": 108.894,
 		"noteCounts": {
-			"easy": 140,
-			"normal": 196,
-			"hard": 249
+			"easy": 195,
+			"normal": 326,
+			"hard": 616
 		}
 	}
 }
