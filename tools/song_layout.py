@@ -67,6 +67,11 @@ CLAP = "CLAP"
 TRAP = "TRAP"
 DRIVE = "DRIVE"
 SKITTER = "SKITTER"
+EIGHTHS = "EIGHTHS"
+EIGHTHS_SYNC = "EIGHTHS_SYNC"
+SIXTEENTH_BURST = "SIXTEENTH_BURST"
+GALLOP = "GALLOP"
+STUTTER = "STUTTER"
 
 CELLS = {
     HALF:          [0, 8],
@@ -76,6 +81,11 @@ CELLS = {
     TRAP:          [0, 4, 8, 10, 12],
     DRIVE:         [0, 2, 4, 8, 10, 12],
     SKITTER:       [0, 3, 6, 8, 11, 14],
+    EIGHTHS:       [0, 2, 4, 6, 8, 10, 12, 14],  # steady 8th notes
+    EIGHTHS_SYNC:  [0, 2, 5, 7, 8, 10, 13, 15],  # syncopated 8ths
+    SIXTEENTH_BURST: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],  # full 16ths
+    GALLOP:        [0, 3, 4, 7, 8, 11, 12],     # metal-style gallop
+    STUTTER:       [0, 1, 4, 5, 8, 9, 12, 13],  # stutter-step pattern
 }
 
 
@@ -92,7 +102,7 @@ SONGS = [
         "offset": 1.1428571428571428,
         "scroll": 1.60,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
-        "cells": [HALF, HALF, QUARTERS, HALF],
+        "cells": [HALF, HALF, QUARTERS, EIGHTHS],
         # Form: one phrase per chart block, laid out by `sections()`. The
         # opponent sings the antecedent of each pair, the player the consequent;
         # the chorus is the 8-bar hook you should be able to hum.
@@ -153,7 +163,7 @@ SONGS = [
         "offset": 1.2,
         "scroll": 1.85,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 2, 2, 4, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
-        "cells": [CLAP, HALF, QUARTERS, HALF],
+        "cells": [CLAP, QUARTERS, TRAP, EIGHTHS],
         "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
                  "verse_a", "verse_b", "verse_c", "verse_d", "break",
                  "break", "chorus_a", "chorus_b", "verse_c", "build",
@@ -215,7 +225,7 @@ SONGS = [
         "offset": 1.4,
         "scroll": 2.05,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2],   # bars per section (FNF counts sections in 4-bar blocks)
-        "cells": [QUARTERS, QUARTERS, QUARTERS_SYNC, TRAP],
+        "cells": [QUARTERS, EIGHTHS, DRIVE, SKITTER],
         "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
                  "verse_a", ("verse_c", 2), "verse_d", "chorus_a", "break",
                  "break", "verse_b", "chorus_b", "verse_c", "build",
@@ -282,7 +292,7 @@ SONGS = [
         "offset": 1.5,
         "scroll": 2.25,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4],   # bars per section (FNF counts sections in 4-bar blocks)
-        "cells": [QUARTERS, TRAP, DRIVE, QUARTERS],
+        "cells": [EIGHTHS, DRIVE, GALLOP, SIXTEENTH_BURST],
         "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
                  "verse_a", "verse_c", "verse_b", "chorus_a", "break",
                  "break", "verse_b", "chorus_b", "verse_c", "build",
@@ -351,7 +361,7 @@ SONGS = [
         "offset": 1.6,
         "scroll": 2.45,   # hard-mode scroll speed (base game: 1.2-2.6)
         "section_measures": [2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 2, 2, 4, 4, 2, 2, 4],   # bars per section (FNF counts sections in 4-bar blocks)
-        "cells": [TRAP, DRIVE, SKITTER, QUARTERS],
+        "cells": [EIGHTHS_SYNC, STUTTER, GALLOP, SIXTEENTH_BURST],
         "form": ["intro", "verse_a", "verse_b", "chorus_a", "chorus_b",
                  "verse_a", "verse_b", "verse_c", "verse_d", "chorus_a",
                  "chorus_b", "verse_c", "verse_d", "break", "break",
@@ -555,9 +565,15 @@ def measure_roles(song):
 
 
 def melodic_onsets(song):
-    """Hard-chart melody without doubling unison finale hands in the audio."""
+    """Hard-chart melody without doubling unison finale hands in the audio.
+
+    Rhythm-layer notes (phrase == "rhythm") are gameplay-only: they have no
+    corresponding sung audio, so they are excluded here.
+    """
     seen = set()
     for note in notes(song, "hard"):
+        if note.get("phrase") == "rhythm":
+            continue
         key = (round(note["time"], 3), note["side"], note.get("semi"))
         if key not in seen:
             seen.add(key)
@@ -780,164 +796,13 @@ DIFFICULTIES = ("easy", "normal", "hard")
 
 #: How many notes of a phrase block each difficulty keeps (0 = everything).
 #: Base-game charts sit at roughly 1 : 2 : 3 notes for easy : normal : hard,
-#: so a difficulty is a *stride* through the melody, never a different tune.
-#: Hard is the melody; normal keeps three of every four notes (a phrase thinned,
-#: never one missing a bar); easy keeps every second note.
-DIFFICULTY_STRIDE = {"easy": 2, "normal": 4, "hard": 1}
-
-#: The arrangement thins the early songs out and lets the later ones fill in:
-#: song 1 keeps one note in every `spacing` 16ths of a phrase, song 5 keeps them
-#: all. This is the "density climbs" axis of the ladder, expressed as musical
-#: space rather than as a different chart.
-TIER_SPACING = {2: 5, 4: 4, 6: 3, 8: 2, 10: 2}
+#: Chart note generation lives in `tools/chart_design.py`: intentional rhythm
+#: patterns that lock to the drums/bass groove, hand-alternating lane
+#: assignment, and per-difficulty designs instead of algorithmic thinning.
+from chart_design import notes  # noqa: E402  (imported at bottom; chart_design imports from this module)
 
 #: Scroll speed per difficulty, inside the base game's 1.2-2.6 range.
 DIFFICULTY_SCROLL = {"easy": -0.35, "normal": -0.15, "hard": 0.0}
-
-#: A phrase block whose index is a multiple of this ends on a held note: the
-#: chart breathes where the music breathes, and the sustain is the phrase's own
-#: last note rather than an invented one.
-SUSTAIN_EVERY = 3
-SUSTAIN_MS_FACTOR = 2.0
-
-
-def _keep(index, stride):
-    """True when note `index` of a phrase survives that difficulty's filter."""
-    if stride <= 1:
-        return True
-    if stride == 2:
-        return index % 2 == 0
-    return index % stride != stride - 1       # drop one note in `stride`
-
-
-#: Two notes of one side may never be closer than this many 16th steps: an 8th
-#: note is the shortest interval a four-lane chart reads as a melody rather than
-#: a burst. The phrases are written to respect it, so this only trims what a
-#: sustained note or an inversion collides.
-MIN_SPACING_STEPS = 2
-
-
-def _thin(notes, spacing=MIN_SPACING_STEPS):
-    """Drop notes that would stack closer than `spacing` 16th steps apart."""
-    kept = []
-    for note in notes:
-        if kept:
-            prev = kept[-1]
-            gap = (note["measure"] - prev["measure"]) * 16 + note["offset"] - prev["offset"]
-            if 0 <= gap < spacing:
-                continue
-        kept.append(note)
-    return kept or list(notes[:1])
-
-
-def notes(song, difficulty="hard"):
-    """Every note of `difficulty`, in time order.
-
-    The audio renderer asks for "hard": the instrumental and both vocal tracks
-    are the full melody, and the easier charts are a strided subset of the same
-    notes, so the three difficulties can never disagree about timing.
-    """
-    if difficulty not in DIFFICULTY_STRIDE:
-        raise ValueError("unknown difficulty %r" % (difficulty,))
-    stride = DIFFICULTY_STRIDE[difficulty]
-
-    secs = sections(song)
-    spacing = TIER_SPACING.get(song["scare"], 1)
-    all_notes = []
-    for i, section in enumerate(secs):
-        notes_here = section["notes"]
-        if spacing > 1:
-            notes_here = _thin(notes_here, spacing)
-        kept = _thin(notes_here) if spacing <= MIN_SPACING_STEPS else list(notes_here)
-        if stride > 1:
-            kept = [n for j, n in enumerate(kept) if _keep(j, stride)]
-            kept = _thin(kept) or kept[:1]
-            # A strided chart must never leave a bar silent: a bar with no arrow
-            # reads as a hole in the song, not as an easier chart. Where the
-            # stride emptied a bar, put its *first* note back -- the downbeat is
-            # the one the melody leans on.
-            have = {n["measure"] for n in kept}
-            for n in notes_here:
-                if n["measure"] not in have:
-                    kept.append(n)
-                    have.add(n["measure"])
-            kept.sort(key=lambda n: (n["time"], n["id"]))
-        # A phrase always lands its last note: that is where the cadence is.
-        if notes_here and kept[-1] is not notes_here[-1]:
-            kept.append(notes_here[-1])
-        section["kept"] = kept
-        all_notes.extend(kept)
-
-    all_notes.sort(key=lambda n: (n["time"], n["side"], n["id"]))
-
-    if stride == 1:
-        for i, section in enumerate(secs):
-            if i % SUSTAIN_EVERY != SUSTAIN_EVERY - 1:
-                continue
-            last = section["kept"][-1]
-            last["sLen"] = max(last.get("sLen", 0.0), beat(song) * 1000.0 * SUSTAIN_MS_FACTOR)
-
-    # Easy charts carry no sustains at all: a hold is a reading test on top of an
-    # already-thinned chart, and the base game's easy difficulty does not use them.
-    # The phrase's own ties still shorten the last note, so nothing overlaps.
-    if difficulty == "easy":
-        for n in all_notes:
-            n["sLen"] = 0.0
-
-    # Finale hands: from `hands_from` onward the player also hits the opposite
-    # lane on every beat, which is what pushes the last act to 10/10. Hard only:
-    # doubled lanes are what makes a hard chart hard.
-    hands_from = song.get("hands_from")
-    if hands_from is not None and stride == 1:
-        beats = beat(song) * 1000.0
-        extra = []
-        for i, section in enumerate(secs):
-            if i < hands_from:
-                continue
-            for n in section["kept"]:
-                if n["side"] != "player":
-                    continue
-                if abs((n["time"] - measure_time(song, n["measure"])) % beats) > 1.0:
-                    continue
-                extra.append({"id": (n["id"] + 2) % 4, "side": "player",
-                              "semi": n.get("semi"),
-                              "time": n["time"], "measure": n["measure"], "sLen": 0.0})
-        all_notes.extend(extra)
-        all_notes.sort(key=lambda n: (n["time"], n["side"], n["id"]))
-
-    _break_jacks(all_notes)
-    for n in all_notes:
-        n.setdefault("sLen", 0.0)
-    return all_notes
-
-
-def _break_jacks(notes, limit=3):
-    """No lane may be hit more than `limit` times in a row.
-
-    A four-note jack is a charting bug in the base game, not a difficulty ramp:
-    the arrow shapes and the finale's doubled lanes can both produce one, so the
-    notes are nudged to a free lane here -- before the audio is rendered from
-    them -- instead of leaving an unplayable streak in the chart.
-    """
-    by_side = {}
-    for note in notes:
-        by_side.setdefault(note["side"], []).append(note)
-    for side_notes in by_side.values():
-        side_notes.sort(key=lambda n: (n["time"], n["id"]))
-        run_id, run_len = None, 0
-        for note in side_notes:
-            if note["id"] == run_id:
-                run_len += 1
-            else:
-                run_id, run_len = note["id"], 1
-            if run_len <= limit:
-                continue
-            taken = {m["id"] for m in side_notes if abs(m["time"] - note["time"]) < 1.0}
-            for candidate in (1, 2, 3, 0):
-                if candidate != note["id"] and candidate not in taken:
-                    note["id"] = candidate
-                    break
-            run_id, run_len = note["id"], 1
 
 
 def scroll_speed(song, difficulty):

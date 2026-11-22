@@ -18,9 +18,9 @@
 		"songKey": "B minor",
 		"lengthSeconds": 103.5,
 		"noteCounts": {
-			"easy": 124,
-			"normal": 170,
-			"hard": 222
+			"easy": 157,
+			"normal": 304,
+			"hard": 576
 		}
 	}
 }

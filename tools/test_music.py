@@ -27,6 +27,8 @@ class MusicTests(unittest.TestCase):
                             (L.measure(song) * 1000)) for sec in layout]
             seen = set()
             for note in L.notes(song):
+                if note.get("semi") is None:
+                    continue  # rhythm-layer notes are gameplay-only, not melody
                 key = (round(note["time"], 3), note["side"], note["semi"])
                 if key in seen:
                     continue

@@ -18,9 +18,9 @@
 		"songKey": "D minor",
 		"lengthSeconds": 104.0,
 		"noteCounts": {
-			"easy": 80,
-			"normal": 108,
-			"hard": 130
+			"easy": 164,
+			"normal": 241,
+			"hard": 425
 		}
 	}
 }

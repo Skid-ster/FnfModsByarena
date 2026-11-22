@@ -18,9 +18,9 @@
 		"songKey": "C# minor",
 		"lengthSeconds": 111.926,
 		"noteCounts": {
-			"easy": 119,
-			"normal": 161,
-			"hard": 191
+			"easy": 161,
+			"normal": 313,
+			"hard": 571
 		}
 	}
 }
